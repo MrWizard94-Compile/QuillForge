@@ -49,10 +49,7 @@ mod tests {
             qf_api_version: "1.0".into(),
             entry_wasm: Some("plugin.wasm".into()),
             author: Some("Example".into()),
-            required_capabilities: required
-                .iter()
-                .map(|s| Capability((*s).into()))
-                .collect(),
+            required_capabilities: required.iter().map(|s| Capability((*s).into())).collect(),
             optional_capabilities: vec![],
             declared_block_types: vec!["com.example.math/eq".into()],
         }
@@ -86,12 +83,7 @@ mod tests {
     #[test]
     fn propose_ops_requires_capability() {
         let mut host = PluginHost::new();
-        let id = host
-            .load(
-                sample_manifest(&[]),
-                [],
-            )
-            .unwrap();
+        let id = host.load(sample_manifest(&[]), []).unwrap();
         let err = host
             .propose_operations(
                 &id,
@@ -159,9 +151,7 @@ mod tests {
         let mut host = PluginHost::new();
         let id = host.load(sample_manifest(&[]), []).unwrap();
         host.set_fuel_budget(0);
-        let err = host
-            .dispatch_hook(&id, Hook::OnActivate)
-            .unwrap_err();
+        let err = host.dispatch_hook(&id, Hook::OnActivate).unwrap_err();
         assert!(matches!(err, PluginError::Trap(_)));
     }
 

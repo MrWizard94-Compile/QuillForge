@@ -139,9 +139,7 @@ impl TextCrdtMerge {
         remote: &TextCrdt,
     ) -> Result<Vec<Operation>, SyncError> {
         self.local.merge(remote);
-        let ops = self
-            .local
-            .to_replace_ops(self.block_id, &self.current_text);
+        let ops = self.local.to_replace_ops(self.block_id, &self.current_text);
         self.current_text = self.local.materialize();
         Ok(ops)
     }

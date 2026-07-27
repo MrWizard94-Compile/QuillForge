@@ -35,8 +35,24 @@ pub struct Theme {
 impl Theme {
     pub fn light_default() -> Self {
         let mut colors = BTreeMap::new();
-        colors.insert(0, Rgba { r: 0, g: 0, b: 0, a: 255 });
-        colors.insert(1, Rgba { r: 255, g: 255, b: 255, a: 255 });
+        colors.insert(
+            0,
+            Rgba {
+                r: 0,
+                g: 0,
+                b: 0,
+                a: 255,
+            },
+        );
+        colors.insert(
+            1,
+            Rgba {
+                r: 255,
+                g: 255,
+                b: 255,
+                a: 255,
+            },
+        );
         Self {
             name: "light".into(),
             colors: ColorPalette { colors },

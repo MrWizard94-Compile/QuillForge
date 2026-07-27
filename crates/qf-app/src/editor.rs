@@ -2,9 +2,7 @@
 //!
 //! Layout is always derived after successful commits (never authoritative).
 
-use qf_core::{
-    BlockId, Command, CommandError, OpSeq, ParentRef, TextOffset,
-};
+use qf_core::{BlockId, Command, CommandError, OpSeq, ParentRef, TextOffset};
 use qf_input::{InputState, KeyEvent, PointerEvent, Selection};
 use qf_layout::{LayoutConfig, LayoutEngine, LayoutTree};
 use qf_storage::{CommitOutcome, DocumentSession};

@@ -5,7 +5,9 @@ use uuid::Uuid;
 
 macro_rules! id_newtype {
     ($name:ident) => {
-        #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+        #[derive(
+            Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize,
+        )]
         pub struct $name(pub Uuid);
 
         impl $name {
@@ -40,7 +42,9 @@ id_newtype!(CommandId);
 id_newtype!(PrincipalId);
 
 /// Monotonic per-document journal sequence number. Starts at 1 for the first op.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize,
+)]
 pub struct OpSeq(pub u64);
 
 impl OpSeq {
@@ -60,7 +64,9 @@ pub struct PluginId(pub String);
 pub struct Capability(pub String);
 
 /// Unicode scalar offset within a block's projected editable text.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize,
+)]
 pub struct TextOffset(pub u32);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]

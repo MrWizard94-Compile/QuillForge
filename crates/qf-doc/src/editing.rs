@@ -20,9 +20,7 @@ pub fn expand_command(
                 return Err(CommandError::InvalidTarget);
             }
             if document.project_text(target.block_id).is_none() {
-                return Err(CommandError::Invalid(
-                    "block does not accept text".into(),
-                ));
+                return Err(CommandError::Invalid("block does not accept text".into()));
             }
             let len = document
                 .project_text(target.block_id)

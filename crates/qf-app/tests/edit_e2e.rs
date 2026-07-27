@@ -1,8 +1,8 @@
 //! M4: end-to-end primary user workflow (input → session → layout).
 
 use qf_app::EditorController;
-use qf_input::KeyEvent;
 use qf_core::TextOffset;
+use qf_input::KeyEvent;
 
 #[test]
 fn type_enter_undo_redo_and_layout() {

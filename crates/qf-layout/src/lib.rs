@@ -9,7 +9,9 @@ use qf_kernel::CanonicalState;
 use serde::{Deserialize, Serialize};
 
 /// Fixed-point: 1 unit = 1/64 point.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize,
+)]
 pub struct Fixed32(pub i32);
 
 impl Fixed32 {
@@ -162,8 +164,11 @@ impl LayoutEngine {
                 y = cfg.margin;
                 continue;
             }
-            pages.last_mut().expect("pages non-empty").frames.push(
-                FragmentFrame {
+            pages
+                .last_mut()
+                .expect("pages non-empty")
+                .frames
+                .push(FragmentFrame {
                     block_id,
                     bounds: RectFixed {
                         x: cfg.margin,
@@ -172,9 +177,10 @@ impl LayoutEngine {
                         h,
                     },
                     kind,
-                },
-            );
-            y = y.saturating_add(h).saturating_add(Fixed32(cfg.line_height.0 / 2));
+                });
+            y = y
+                .saturating_add(h)
+                .saturating_add(Fixed32(cfg.line_height.0 / 2));
         }
 
         LayoutTree {
@@ -214,12 +220,21 @@ fn block_metrics(
             let chars: u32 = p.spans.iter().map(|s| s.text.chars().count() as u32).sum();
             let lines = estimate_lines(chars, 80);
             (
-                Fixed32(cfg.line_height.0.saturating_mul(lines as i32).max(cfg.line_height.0)),
+                Fixed32(
+                    cfg.line_height
+                        .0
+                        .saturating_mul(lines as i32)
+                        .max(cfg.line_height.0),
+                ),
                 FragmentKind::Text,
             )
         }
         BlockBody::Heading(h) => (
-            Fixed32(cfg.line_height.0.saturating_mul(2 + i32::from(h.level.min(3)))),
+            Fixed32(
+                cfg.line_height
+                    .0
+                    .saturating_mul(2 + i32::from(h.level.min(3))),
+            ),
             FragmentKind::Heading { level: h.level },
         ),
         BlockBody::Quote(_) => (Fixed32(cfg.line_height.0 * 2), FragmentKind::Text),
@@ -238,7 +253,11 @@ fn block_metrics(
             )
         }
         BlockBody::Checklist(c) => (
-            Fixed32(cfg.line_height.0.saturating_mul(c.items.len().max(1) as i32)),
+            Fixed32(
+                cfg.line_height
+                    .0
+                    .saturating_mul(c.items.len().max(1) as i32),
+            ),
             FragmentKind::List,
         ),
         BlockBody::Table(t) => (
@@ -339,7 +358,14 @@ mod tests {
         let a = eng.full_layout(&state, &cfg);
         let b = eng.full_layout(&state, &cfg);
         assert_eq!(a.content_hash(), b.content_hash());
-        let dirty = eng.reflow_dirty(&state, &cfg, DirtySet { full: true, block_ids: vec![bid] });
+        let dirty = eng.reflow_dirty(
+            &state,
+            &cfg,
+            DirtySet {
+                full: true,
+                block_ids: vec![bid],
+            },
+        );
         assert_eq!(a.content_hash(), dirty.content_hash());
     }
 

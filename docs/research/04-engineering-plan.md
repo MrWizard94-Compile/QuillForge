@@ -46,9 +46,9 @@
 | **M7** | GPU render of layout frames | Smoke + no kernel write | M6 — **Done** |
 | **M8** | Collab CRDT text mode | Convergence tests | M7 — **Done** |
 | **M9** | Plugin WASM host | Capability tests | M8 — **Done** |
-| **M10** | AI suggestions + harden + ship checklist | DoD v1 | M9 |
+| **M10** | AI suggestions + harden + ship checklist | DoD v1 | M9 — **Done** |
 
-**Status:** M0–M9 complete. Next: M10 AI suggestions + ship checklist.
+**Status:** M0–M10 complete (foundation ship). Residuals listed in `docs/ship/v1-checklist.md`.
 
 ---
 

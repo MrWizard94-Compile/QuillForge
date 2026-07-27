@@ -224,8 +224,7 @@ impl DocumentSession {
             Command::Undo { steps } => self.undo_steps(steps),
             Command::Redo { steps } => self.redo_steps(steps),
             other => {
-                let ops =
-                    expand_command(&self.kernel.state().document, self.ids.as_mut(), &other)?;
+                let ops = expand_command(&self.kernel.state().document, self.ids.as_mut(), &other)?;
                 self.commit_ops(ops)
             }
         }
@@ -263,9 +262,7 @@ impl DocumentSession {
                 .append_batch(std::slice::from_ref(&rec))
                 .map_err(|e| CommandError::Journal(e.to_string()))?;
             let ev = self.kernel.apply(op).map_err(|e| {
-                CommandError::Internal(format!(
-                    "CRITICAL: apply failed after journal write: {e}"
-                ))
+                CommandError::Internal(format!("CRITICAL: apply failed after journal write: {e}"))
             })?;
             if self.kernel.state().op_seq != seq {
                 return Err(CommandError::Internal(format!(

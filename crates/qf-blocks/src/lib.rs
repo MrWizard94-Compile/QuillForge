@@ -39,23 +39,11 @@ pub enum Mark {
     Underline,
     Strike,
     Code,
-    Link {
-        href: String,
-        title: Option<String>,
-    },
-    Highlight {
-        color: ColorId,
-    },
-    CommentRef {
-        comment_id: CommentId,
-    },
-    CitationRef {
-        source_id: SourceId,
-    },
-    Unknown {
-        type_name: String,
-        payload: Vec<u8>,
-    },
+    Link { href: String, title: Option<String> },
+    Highlight { color: ColorId },
+    CommentRef { comment_id: CommentId },
+    CitationRef { source_id: SourceId },
+    Unknown { type_name: String, payload: Vec<u8> },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

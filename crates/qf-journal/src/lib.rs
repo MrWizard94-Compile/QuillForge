@@ -96,8 +96,7 @@ impl Journal {
             let mut f = File::create(path).map_err(|e| JournalError::Io(e.to_string()))?;
             f.write_all(bytes)
                 .map_err(|e| JournalError::Io(e.to_string()))?;
-            f.sync_all()
-                .map_err(|e| JournalError::Io(e.to_string()))?;
+            f.sync_all().map_err(|e| JournalError::Io(e.to_string()))?;
         }
         Self::open_or_create(path)
     }

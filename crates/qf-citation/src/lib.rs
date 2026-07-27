@@ -56,7 +56,10 @@ pub fn validate_source(source: &SourceRef) -> Result<(), CitationError> {
             }
         }
         SourceKind::Isbn => {
-            let digits: String = loc.chars().filter(|c| c.is_ascii_digit() || *c == 'X').collect();
+            let digits: String = loc
+                .chars()
+                .filter(|c| c.is_ascii_digit() || *c == 'X')
+                .collect();
             if digits.len() != 10 && digits.len() != 13 {
                 return Err(CitationError::InvalidIsbn);
             }

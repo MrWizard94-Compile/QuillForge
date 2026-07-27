@@ -133,8 +133,7 @@ pub fn write_qfdoc(package: &Package) -> Result<Vec<u8>, StorageError> {
         zip.write_all(&man_bytes)
             .map_err(|e| StorageError::Io(e.to_string()))?;
 
-        zip.finish()
-            .map_err(|e| StorageError::Io(e.to_string()))?;
+        zip.finish().map_err(|e| StorageError::Io(e.to_string()))?;
     }
     Ok(cursor.into_inner())
 }

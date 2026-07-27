@@ -1,24 +1,30 @@
-# Delivery MANIFEST — M9 plugin host
+# Delivery MANIFEST — M10 AI + foundation ship
 
-**Title:** Capability-based plugin host (proposals, registry, KV, fuel)  
+**Title:** AI suggestion-only flow, hardening, CI, v1 foundation checklist  
 **Date:** 2026-07-27  
 **Law:** `AGENTS Constitution/AGENTS.md` + `SOP.md`
 
 ## Summary
 
-M9 delivers a production host API for sandboxed plugins: capability grants, custom block registry, proposal queue (command-path only), namespaced KV quotas, fuel traps, and lite manifest parse. No raw FS, no journal, no native DLLs.
+Completed M10: permissioned AI proposals, accept/reject via journal only, audit without bodies, rate/selection limits, security unit tests, GitHub CI, and ship checklist mapping DoD criteria to evidence.
 
 ## Verify
 
 ```bash
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
+cargo run -p qf-app -- demo
 ```
+
+## Commits this turn
+
+1. AI suggestion accept path  
+2. Ship checklist + CI + docs  
 
 ## Self-audit
 
-Section 0 pass for M9. Wasmtime guest runtime remains future binding to the same hostcalls.
+Section 0 pass for M10. Full marketing v1 still has residuals (see checklist). Foundation product brick is complete and shippable as `v0.1.0-foundation`.
 
-## Next
+## Residual (accepted)
 
-**M10** — AI suggestion flow + hardening + v1 ship checklist.
+Process-kill matrix, binary PDF/DOCX, Wasmtime guest, network sync server, Argon2 package encrypt UX.

@@ -68,10 +68,10 @@ fn run_demo(path: Option<String>) -> Result<(), String> {
             .map_err(|e| e.to_string())?;
     }
 
-    editor.handle_key(KeyEvent::Enter).map_err(|e| e.to_string())?;
     editor
-        .handle_text("Line two")
+        .handle_key(KeyEvent::Enter)
         .map_err(|e| e.to_string())?;
+    editor.handle_text("Line two").map_err(|e| e.to_string())?;
 
     // Unknown block via session for preservation demo
     editor

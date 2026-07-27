@@ -36,7 +36,10 @@ pub enum KeyEvent {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum PointerEvent {
-    Click { block_id: BlockId, offset: TextOffset },
+    Click {
+        block_id: BlockId,
+        offset: TextOffset,
+    },
 }
 
 #[derive(Debug, Default)]
@@ -76,8 +79,7 @@ impl InputState {
                     },
                     text: c.to_string(),
                 };
-                self.selection.offset =
-                    TextOffset(self.selection.offset.0.saturating_add(1));
+                self.selection.offset = TextOffset(self.selection.offset.0.saturating_add(1));
                 vec![cmd]
             }
             KeyEvent::Backspace => {

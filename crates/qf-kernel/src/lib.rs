@@ -193,11 +193,7 @@ pub fn invert_ops(
 
 fn invert_one(state: &CanonicalState, op: &Operation) -> Result<Operation, ApplyError> {
     match op {
-        Operation::InsertText {
-            block_id,
-            at,
-            text,
-        } => {
+        Operation::InsertText { block_id, at, text } => {
             let end = TextOffset(at.0.saturating_add(text.chars().count() as u32));
             Ok(Operation::DeleteText {
                 block_id: *block_id,
@@ -413,11 +409,7 @@ fn apply_to(state: &mut CanonicalState, op: &Operation) -> Result<Vec<KernelEven
             insert_block_ref(state, new_parent, *index as usize, *block_id)?;
             Ok(vec![KernelEvent::BlockMoved { id: *block_id }])
         }
-        Operation::InsertText {
-            block_id,
-            at,
-            text,
-        } => {
+        Operation::InsertText { block_id, at, text } => {
             let block = state
                 .document
                 .blocks
@@ -469,7 +461,10 @@ fn apply_to(state: &mut CanonicalState, op: &Operation) -> Result<Vec<KernelEven
             }
             Ok(vec![KernelEvent::MetaChanged])
         }
-        Operation::UpsertComment { comment_id, payload } => {
+        Operation::UpsertComment {
+            comment_id,
+            payload,
+        } => {
             state.entities.comments.insert(*comment_id, payload.clone());
             Ok(vec![KernelEvent::Noop])
         }
@@ -601,8 +596,8 @@ pub fn decode_body(body: &BlockBodyBytes) -> Result<BlockBody, ApplyError> {
                 attrs: PreservedMap::new(),
             },
         })),
-        other if other.contains('.') || other.contains('/') => Ok(BlockBody::Unknown(
-            UnknownBlock {
+        other if other.contains('.') || other.contains('/') => {
+            Ok(BlockBody::Unknown(UnknownBlock {
                 original_type: body.type_name.clone(),
                 original_payload: body.payload.clone(),
                 metadata: BlockMetadata {
@@ -610,8 +605,8 @@ pub fn decode_body(body: &BlockBodyBytes) -> Result<BlockBody, ApplyError> {
                     created_at_seq: OpSeq::ZERO,
                     attrs: PreservedMap::new(),
                 },
-            },
-        )),
+            }))
+        }
         other => Err(ApplyError::Schema(format!("unknown body type: {other}"))),
     }
 }
@@ -694,11 +689,7 @@ fn primary_text_mut(block: &mut Block) -> Result<&mut String, ApplyError> {
     }
 }
 
-fn insert_text_into_block(
-    block: &mut Block,
-    at: TextOffset,
-    text: &str,
-) -> Result<(), ApplyError> {
+fn insert_text_into_block(block: &mut Block, at: TextOffset, text: &str) -> Result<(), ApplyError> {
     let s = primary_text_mut(block)?;
     let idx = char_index(s, at.0)?;
     s.insert_str(idx, text);

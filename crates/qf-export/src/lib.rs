@@ -310,11 +310,7 @@ fn export_html(state: &CanonicalState, sources: &SourceTable, cfg: &ExportConfig
     out
 }
 
-fn spans_markdown(
-    spans: &[Span],
-    sources: &SourceTable,
-    cited: &mut BTreeSet<SourceId>,
-) -> String {
+fn spans_markdown(spans: &[Span], sources: &SourceTable, cited: &mut BTreeSet<SourceId>) -> String {
     let mut out = String::new();
     for sp in spans {
         let mut t = sp.text.clone();
@@ -441,12 +437,8 @@ fn collect_mark_cites(spans: &[Span], cited: &mut BTreeSet<SourceId>) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use qf_blocks::{
-        BlockBody, BlockMetadata, CitationBlock, ParagraphBlock, Span,
-    };
-    use qf_core::{
-        ActorId, BlockId, DocumentId, OpSeq, SectionId, SeqIdGen, Timestamp, Version,
-    };
+    use qf_blocks::{BlockBody, BlockMetadata, CitationBlock, ParagraphBlock, Span};
+    use qf_core::{ActorId, BlockId, DocumentId, OpSeq, SectionId, SeqIdGen, Timestamp, Version};
     use qf_doc::{Block, Document};
     use qf_kernel::{CanonicalState, EntityTables};
 
@@ -571,9 +563,7 @@ mod tests {
                     spans: vec![Span {
                         id: qf_core::SpanId(uuid::Uuid::nil()),
                         text: "claim".into(),
-                        marks: vec![Mark::CitationRef {
-                            source_id: src_id,
-                        }],
+                        marks: vec![Mark::CitationRef { source_id: src_id }],
                     }],
                 }),
             },

@@ -171,8 +171,8 @@ For AI contributors under AGENTS.md: AI owns implementation detail; human is sov
 
 | Complete | Next |
 |----------|------|
-| Research + design + plan (`docs/research/`) | M10 AI + ship |
-| M0–M9 (through plugin host) | M10 ship checklist |
+| Research + design + plan (`docs/research/`) | Post-foundation residuals |
+| M0–M10 foundation ship | Binary PDF/DOCX, Wasmtime, network sync, Argon2 packages |
 
 ---
 

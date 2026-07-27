@@ -97,7 +97,8 @@ cargo xtask check
 | M7 | GPU/headless render of layout frames | **Done** |
 | M8 | Text CRDT + presence/content streams | **Done** |
 | M9 | Plugin host (capabilities, proposals, KV) | **Done** |
-| M10 | AI suggestions + ship checklist | Next |
+| M10 | AI suggestions + ship checklist | **Done** |
+| Ship | Foundation v1 checklist | [docs/ship/v1-checklist.md](docs/ship/v1-checklist.md) |
 
 Binding law: **[AGENTS Constitution/AGENTS.md](AGENTS%20Constitution/AGENTS.md)** (entry: [AGENTS.md](AGENTS.md)).  
 SOP (delivery process): **[AGENTS Constitution/SOP.md](AGENTS%20Constitution/SOP.md)**.  

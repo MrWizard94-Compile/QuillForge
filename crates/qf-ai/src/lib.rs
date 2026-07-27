@@ -130,13 +130,10 @@ impl<P: AiProvider> AiService<P> {
             return Err(AiError::RateLimited);
         }
 
-        let proposal = self
-            .provider
-            .propose(&req)
-            .map_err(|e| match e {
-                AiError::Provider(s) => AiError::Provider(s),
-                other => other,
-            })?;
+        let proposal = self.provider.propose(&req).map_err(|e| match e {
+            AiError::Provider(s) => AiError::Provider(s),
+            other => other,
+        })?;
 
         self.proposals_made.fetch_add(1, Ordering::Relaxed);
         self.audit.append(AuditEvent {
@@ -255,7 +252,10 @@ impl AiProvider for LocalNoteProvider {
             proposed_ops.push(Operation::InsertText {
                 block_id,
                 at,
-                text: format!(" [{}]", req.instruction.chars().take(40).collect::<String>()),
+                text: format!(
+                    " [{}]",
+                    req.instruction.chars().take(40).collect::<String>()
+                ),
             });
         }
         Ok(AiProposal {
@@ -280,9 +280,8 @@ pub fn issue_content_permission(
         scope_hash: Hash256::sha256(selection_text.as_bytes()),
         expires_unix_ms: now_unix_ms.saturating_add(ttl_ms),
         grant_id: {
-            let h = Hash256::sha256(
-                format!("{document_id:?}:{actor_id:?}:{now_unix_ms}").as_bytes(),
-            );
+            let h =
+                Hash256::sha256(format!("{document_id:?}:{actor_id:?}:{now_unix_ms}").as_bytes());
             let mut g = [0u8; 16];
             g.copy_from_slice(&h.0[..16]);
             g
@@ -355,12 +354,11 @@ mod tests {
     #[test]
     fn rejects_oversized_selection() {
         let mut gen = SeqIdGen::default();
-        let mut svc = AiService::new(LocalNoteProvider::default(), 100).with_config(
-            AiServiceConfig {
+        let mut svc =
+            AiService::new(LocalNoteProvider::default(), 100).with_config(AiServiceConfig {
                 max_selection_chars: 5,
                 max_proposals: 10,
-            },
-        );
+            });
         let doc = DocumentId::new(&mut gen);
         let actor = ActorId::new(&mut gen);
         let tok = issue_content_permission(doc, actor, "123456", 100, 1000);
@@ -379,12 +377,11 @@ mod tests {
     #[test]
     fn rate_limit_proposals() {
         let mut gen = SeqIdGen::default();
-        let mut svc = AiService::new(LocalNoteProvider::default(), 100).with_config(
-            AiServiceConfig {
+        let mut svc =
+            AiService::new(LocalNoteProvider::default(), 100).with_config(AiServiceConfig {
                 max_selection_chars: 100,
                 max_proposals: 1,
-            },
-        );
+            });
         let doc = DocumentId::new(&mut gen);
         let actor = ActorId::new(&mut gen);
         let tok = issue_content_permission(doc, actor, "hi", 100, 1000);
@@ -448,6 +445,9 @@ mod tests {
         let ops = AiService::<LocalNoteProvider>::ops_accept_suggestion(&s).unwrap();
         assert!(ops.len() >= 2);
         assert!(matches!(ops[0], Operation::InsertText { .. }));
-        assert!(matches!(ops.last().unwrap(), Operation::UpsertSuggestion { .. }));
+        assert!(matches!(
+            ops.last().unwrap(),
+            Operation::UpsertSuggestion { .. }
+        ));
     }
 }

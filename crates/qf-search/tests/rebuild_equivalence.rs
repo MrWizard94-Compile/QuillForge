@@ -1,8 +1,6 @@
 //! Search index rebuild equivalence (Logseq-query mental model: derived only).
 
-use qf_core::{
-    BlockBodyBytes, BlockId, OpSeq, Operation, ParentRef, SeqIdGen, TextOffset,
-};
+use qf_core::{BlockBodyBytes, BlockId, OpSeq, Operation, ParentRef, SeqIdGen, TextOffset};
 use qf_kernel::Kernel;
 use qf_search::{SearchEngine, SearchIngestor, TokenQuery};
 

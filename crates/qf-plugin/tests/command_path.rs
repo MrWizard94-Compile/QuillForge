@@ -1,9 +1,7 @@
 //! Plugin proposals only enter canonical state via DocumentSession (command path).
 
 use qf_core::{Capability, PluginId};
-use qf_plugin::{
-    parse_manifest_toml_lite, PluginHost, ProposedOp, CAP_DOCUMENT_PROPOSE_OPS,
-};
+use qf_plugin::{parse_manifest_toml_lite, PluginHost, ProposedOp, CAP_DOCUMENT_PROPOSE_OPS};
 use qf_storage::DocumentSession;
 
 #[test]
@@ -19,10 +17,7 @@ required = ["document.propose_ops"]
     )
     .unwrap();
     let pid = host
-        .load(
-            manifest,
-            [Capability(CAP_DOCUMENT_PROPOSE_OPS.into())],
-        )
+        .load(manifest, [Capability(CAP_DOCUMENT_PROPOSE_OPS.into())])
         .unwrap();
 
     let proposal_id = host

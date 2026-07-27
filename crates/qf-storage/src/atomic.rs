@@ -29,8 +29,7 @@ pub fn write_bytes_atomic(path: &Path, bytes: &[u8]) -> Result<(), StorageError>
         let mut f = File::create(&staging).map_err(|e| StorageError::Io(e.to_string()))?;
         f.write_all(bytes)
             .map_err(|e| StorageError::Io(e.to_string()))?;
-        f.sync_all()
-            .map_err(|e| StorageError::Io(e.to_string()))?;
+        f.sync_all().map_err(|e| StorageError::Io(e.to_string()))?;
     }
 
     if path.exists() {

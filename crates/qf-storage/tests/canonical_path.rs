@@ -113,7 +113,14 @@ fn unknown_block_round_trip_byte_identity() {
     )
     .unwrap();
 
-    match &session2.state().document.blocks.get(&unknown_id).unwrap().body {
+    match &session2
+        .state()
+        .document
+        .blocks
+        .get(&unknown_id)
+        .unwrap()
+        .body
+    {
         BlockBody::Unknown(u) => {
             assert_eq!(u.original_type, "com.example.custom/v1");
             assert_eq!(u.original_payload, payload);
@@ -146,17 +153,19 @@ fn undo_redo_restores_text() {
             text: "abc".into(),
         })
         .unwrap();
-    assert_eq!(session.state().document.project_text(block_id).unwrap(), "abc");
+    assert_eq!(
+        session.state().document.project_text(block_id).unwrap(),
+        "abc"
+    );
 
-    session
-        .commit_command(Command::Undo { steps: 1 })
-        .unwrap();
+    session.commit_command(Command::Undo { steps: 1 }).unwrap();
     assert_eq!(session.state().document.project_text(block_id).unwrap(), "");
 
-    session
-        .commit_command(Command::Redo { steps: 1 })
-        .unwrap();
-    assert_eq!(session.state().document.project_text(block_id).unwrap(), "abc");
+    session.commit_command(Command::Redo { steps: 1 }).unwrap();
+    assert_eq!(
+        session.state().document.project_text(block_id).unwrap(),
+        "abc"
+    );
 }
 
 #[test]

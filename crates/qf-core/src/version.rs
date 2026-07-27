@@ -4,7 +4,9 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 
 /// Semantic version for package format (independent of app semver).
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize,
+)]
 pub struct Version {
     pub major: u16,
     pub minor: u16,

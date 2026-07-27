@@ -3,8 +3,8 @@
 use crate::atomic::lkg_path;
 use crate::migration::{MigrationRegistry, Migrator};
 use crate::zip_io::{read_qfdoc, write_qfdoc};
-use qf_core::{DocumentId, Hash256, StorageError, Version};
 use qf_core::OpSeq;
+use qf_core::{DocumentId, Hash256, StorageError, Version};
 use qf_journal::Journal;
 use qf_kernel::{CanonicalState, DocumentSnapshot, Kernel};
 use serde::{Deserialize, Serialize};

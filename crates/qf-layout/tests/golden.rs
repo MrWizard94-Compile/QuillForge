@@ -232,7 +232,10 @@ fn golden_mixed_blocks() {
     // Fixed seed path: SeqIdGen from 1 — golden depends on block id order only via structure
     let state = mixed_document(&mut gen);
     let tree = LayoutEngine::new().full_layout(&state, &LayoutConfig::default());
-    assert_eq!(hash_hex(tree.content_hash()), read_hash("mixed_blocks.hash"));
+    assert_eq!(
+        hash_hex(tree.content_hash()),
+        read_hash("mixed_blocks.hash")
+    );
     assert!(tree.pages.len() >= 2, "page break should create pages");
 }
 
@@ -278,7 +281,11 @@ fn maybe_write_goldens() {
     let cfg = LayoutConfig::default();
 
     let empty = eng.full_layout(&empty_state(&mut gen), &cfg);
-    fs::write(dir.join("empty.hash"), format!("{}\n", hash_hex(empty.content_hash()))).unwrap();
+    fs::write(
+        dir.join("empty.hash"),
+        format!("{}\n", hash_hex(empty.content_hash())),
+    )
+    .unwrap();
 
     let mut gen = SeqIdGen::default();
     let mixed = eng.full_layout(&mixed_document(&mut gen), &cfg);

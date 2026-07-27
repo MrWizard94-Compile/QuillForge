@@ -88,7 +88,10 @@ impl GpuContext {
             height,
             device_lost: false,
             glyph_atlas: GlyphAtlas::new(1024, 1024),
-            image_atlas: ImageAtlas { width: 2048, height: 2048 },
+            image_atlas: ImageAtlas {
+                width: 2048,
+                height: 2048,
+            },
         })
     }
 

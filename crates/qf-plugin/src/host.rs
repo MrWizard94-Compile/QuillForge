@@ -221,9 +221,7 @@ impl PluginHost {
         if !self.plugins.contains_key(&id.0) {
             return Err(PluginError::NotFound);
         }
-        self.kv
-            .set(&id.0, key, val)
-            .map_err(PluginError::Quota)
+        self.kv.set(&id.0, key, val).map_err(PluginError::Quota)
     }
 
     pub fn dispatch_hook(&mut self, id: &PluginId, hook: Hook) -> Result<HookResult, PluginError> {
@@ -234,12 +232,13 @@ impl PluginHost {
         }
         match hook {
             Hook::OnActivate | Hook::OnDeactivate => Ok(HookResult::Ok),
-            Hook::DecodeBlock {
-                type_name,
-                payload,
-            } => {
+            Hook::DecodeBlock { type_name, payload } => {
                 if !self.registry.is_registered(&type_name)
-                    && !p.manifest.declared_block_types.iter().any(|t| t == &type_name)
+                    && !p
+                        .manifest
+                        .declared_block_types
+                        .iter()
+                        .any(|t| t == &type_name)
                 {
                     // Still return payload identity for unknown handling
                 }

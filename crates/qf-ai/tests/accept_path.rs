@@ -1,8 +1,6 @@
 //! AI suggestions apply only via explicit accept → DocumentSession commit.
 
-use qf_ai::{
-    issue_content_permission, AiRequest, AiService, LocalNoteProvider,
-};
+use qf_ai::{issue_content_permission, AiRequest, AiService, LocalNoteProvider};
 use qf_core::{Command, ParentRef, SeqIdGen, SuggestionId, TextOffset};
 use qf_storage::DocumentSession;
 
@@ -48,7 +46,11 @@ fn propose_record_accept_mutates_only_on_accept() {
         session.state().document.project_text(block_id).unwrap(),
         text_before
     );
-    assert!(session.state().entities.suggestions.contains_key(&suggestion.id));
+    assert!(session
+        .state()
+        .entities
+        .suggestions
+        .contains_key(&suggestion.id));
 
     // Accept applies proposed ops.
     let accept_ops = AiService::<LocalNoteProvider>::ops_accept_suggestion(&suggestion).unwrap();
@@ -97,6 +99,9 @@ fn reject_does_not_change_text() {
     session
         .commit_ops(AiService::<LocalNoteProvider>::ops_reject_suggestion(&suggestion).unwrap())
         .unwrap();
-    assert_eq!(session.state().document.project_text(block_id).unwrap(), before);
+    assert_eq!(
+        session.state().document.project_text(block_id).unwrap(),
+        before
+    );
     let _ = TextOffset(0);
 }

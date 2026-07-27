@@ -271,9 +271,7 @@ fn color_for_kind(kind: &FragmentKind, _theme: &Theme) -> Color {
 mod tests {
     use super::*;
     use qf_blocks::{BlockBody, BlockMetadata, ParagraphBlock, Span};
-    use qf_core::{
-        ActorId, BlockId, DocumentId, OpSeq, SectionId, SeqIdGen, Timestamp, Version,
-    };
+    use qf_core::{ActorId, BlockId, DocumentId, OpSeq, SectionId, SeqIdGen, Timestamp, Version};
     use qf_doc::{Block, Document};
     use qf_kernel::{CanonicalState, EntityTables};
     use qf_layout::{LayoutConfig, LayoutEngine};
@@ -337,10 +335,7 @@ mod tests {
         assert!(stats.fragments_drawn >= 1);
         assert!(stats.draw_calls >= 1);
         // Layout generation unchanged by render (derived only).
-        assert_eq!(
-            sched.layout.as_ref().unwrap().state_gen,
-            gen_before
-        );
+        assert_eq!(sched.layout.as_ref().unwrap().state_gen, gen_before);
     }
 
     #[test]

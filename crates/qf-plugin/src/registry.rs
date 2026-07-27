@@ -24,7 +24,8 @@ impl TypeRegistry {
                 return Err(format!("type {type_name} owned by {owner}"));
             }
         }
-        self.types.insert(type_name, (plugin_id.to_string(), schema));
+        self.types
+            .insert(type_name, (plugin_id.to_string(), schema));
         Ok(())
     }
 

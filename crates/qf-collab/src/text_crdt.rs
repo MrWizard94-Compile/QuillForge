@@ -82,14 +82,7 @@ impl TextCrdt {
         };
         for ch in text.chars() {
             let id = self.alloc_id();
-            self.inserts.insert(
-                id,
-                Insert {
-                    id,
-                    after,
-                    ch,
-                },
-            );
+            self.inserts.insert(id, Insert { id, after, ch });
             after = Some(id);
         }
     }

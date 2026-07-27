@@ -1,7 +1,22 @@
-//! Offline-first sync queue and merge ingress.
+//! Offline-first sync queue, merge ingress, and in-process sync hub.
 //!
 //! Remote content enters canonical state only via command/journal/kernel.
 //! Presence uses a separate non-durable stream and never becomes Operations.
+//!
+//! # Foundation network residual
+//!
+//! [`SyncHub`] is a complete multi-replica logical server (Hello/Pull/Push +
+//! presence) usable in-process or behind a future TLS/WebSocket adapter.
+//! [`DurableSyncQueue`] persists the offline queue with fsync.
+
+mod durable_queue;
+mod hub;
+
+pub use durable_queue::{make_sync_item, DurableSyncQueue};
+pub use hub::{
+    flush_queue_to_hub, Hello, HelloAck, PullRequest, PullResponse, PushAck, PushRequest,
+    SessionToken, SyncClient, SyncHub,
+};
 
 use qf_collab::{merge_crdt, PresenceBroker, PresenceEvent, TextCrdt};
 use qf_core::{BlockId, DocumentId, Hash256, Operation};
@@ -54,6 +69,19 @@ pub enum SyncError {
     StreamMismatch(String),
 }
 
+impl std::fmt::Display for SyncError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SyncError::Rejected(s) => write!(f, "rejected: {s}"),
+            SyncError::Network(s) => write!(f, "network: {s}"),
+            SyncError::Auth(s) => write!(f, "auth: {s}"),
+            SyncError::StreamMismatch(s) => write!(f, "stream mismatch: {s}"),
+        }
+    }
+}
+
+impl std::error::Error for SyncError {}
+
 /// Logical stream multiplex — content vs presence must not be mixed.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SyncStream {
@@ -102,7 +130,6 @@ impl StreamRouter {
             };
             return Ok(merged.to_replace_ops(block_id, current_text));
         }
-        // Plain op list: dedupe by Debug string is weak; pass through for journal idempotency later.
         Ok(msg.ops.clone())
     }
 
@@ -184,7 +211,6 @@ mod tests {
             local: a.clone(),
             current_text: a.materialize(),
         };
-        // After local A insert, current is baseA
         ma.current_text = a.materialize();
         let ops = ma.integrate_remote_crdt(&b).unwrap();
         let final_text = ma.local.materialize();
@@ -197,7 +223,6 @@ mod tests {
         mb.integrate_remote_crdt(&a).unwrap();
         assert_eq!(mb.local.materialize(), final_text);
         assert!(!ops.is_empty() || final_text == "baseA" || final_text == "baseB");
-        // Both sides agree
-        assert_eq!(final_text.chars().count(), 6); // base + 2 chars
+        assert_eq!(final_text.chars().count(), 6);
     }
 }

@@ -52,6 +52,11 @@ impl PresenceBroker {
         self.peers.values()
     }
 
+    /// Snapshot of all peer presence states (ephemeral; not durable).
+    pub fn snapshot(&self) -> Vec<PresenceState> {
+        self.peers.values().cloned().collect()
+    }
+
     pub fn len(&self) -> usize {
         self.peers.len()
     }

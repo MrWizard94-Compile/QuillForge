@@ -132,3 +132,12 @@ Living record of decisions that bind implementers. Complements `docs/` specs.
 **Decision:** DOCX export is a minimal valid Office Open XML ZIP (`[Content_Types].xml`, `_rels/.rels`, `word/document.xml`) with fixed ZIP timestamps and deflate, one paragraph per plain-export line.  
 **Why:** Interop with Word/LibreOffice without full style/theme model.  
 **Consequence:** Rich formatting, images, and styles deferred.
+
+---
+
+## ADR-016 — Wasmtime guest plugins with multiplexed hostcalls
+
+**Status:** Accepted  
+**Decision:** Plugin guests execute under Wasmtime with fuel. Imports are `qf.host_call` / `scratch_len` / `scratch_copy` only; no FS/network/journal. Hostcalls re-enter `PluginHost` for KV, type registration, and proposals.  
+**Why:** Spec isolation without component-model complexity in foundation v1.  
+**Consequence:** Guests must be written/compiled to this ABI; WIT/component model deferred.

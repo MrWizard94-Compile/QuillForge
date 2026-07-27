@@ -46,7 +46,7 @@ Use this checklist before tagging a v1 release. Evidence points to automated tes
 | D19 | Search | rebuild_equivalence | Met (token; semantic optional) |
 | D20 | Collab | presence + CRDT + suggestions | Met (foundation) |
 | D21 | Sync | queue + stream split + CRDT merge | Met (offline queue; no network server) |
-| D22 | Plugins | capability host + command_path test | Met (host API; Wasmtime guest later) |
+| D22 | Plugins | capability host + Wasmtime guest + command_path | Met |
 | D23 | AI suggestions | accept_path + permission tests | Met |
 | D24 | Security | ACL, audit, tokens, budgets, QFENC1 encrypt | Met |
 
@@ -65,7 +65,7 @@ Use this checklist before tagging a v1 release. Evidence points to automated tes
 
 1. Full process-kill power-loss matrix not automated on all OS (synthetic recovery suite covers torn journal, staging, LKG, encrypted open).  
 2. ~~PDF/DOCX text stand-ins~~ **Closed** — minimal deterministic PDF 1.4 and OOXML DOCX.  
-3. Wasmtime not wired; hostcall surface is production-shaped.  
+3. ~~Wasmtime not wired~~ **Closed** — Wasmtime guest runtime with fuel + hostcalls (`qf-plugin::wasm_runtime`).  
 4. Network sync server not included (local-first core complete).  
 5. ~~Argon2id package encryption~~ **Closed** — QFENC1 (Argon2id + XChaCha20-Poly1305) save/open productized.
 

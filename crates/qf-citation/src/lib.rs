@@ -104,10 +104,27 @@ impl CitationFormatter {
         }
         let body = sources
             .iter()
-            .map(|s| s.locator.as_str())
+            .map(|s| format_source_marker(s))
             .collect::<Vec<_>>()
             .join("; ");
         format!("({body})")
+    }
+}
+
+/// Stable, human-readable marker for export and bibliography lines.
+pub fn format_source_marker(source: &SourceRef) -> String {
+    match source.kind {
+        SourceKind::Url => source.locator.clone(),
+        SourceKind::Doi => {
+            if source.locator.starts_with("http") {
+                source.locator.clone()
+            } else {
+                format!("doi:{}", source.locator)
+            }
+        }
+        SourceKind::Isbn => format!("isbn:{}", source.locator),
+        SourceKind::Local => format!("local:{}", source.locator),
+        SourceKind::Other => source.locator.clone(),
     }
 }
 

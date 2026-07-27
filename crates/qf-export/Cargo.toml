@@ -11,3 +11,8 @@ qf-core = { workspace = true }
 qf-doc = { workspace = true }
 qf-blocks = { workspace = true }
 qf-kernel = { workspace = true }
+qf-citation = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+uuid = { workspace = true }

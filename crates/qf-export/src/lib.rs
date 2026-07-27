@@ -3,6 +3,7 @@
 //! Derived only — never mutates journal/kernel. Citation markers follow Zotero-inspired
 //! locator fidelity (see `qf-citation`).
 
+mod docx;
 mod pdf;
 
 use qf_blocks::{BlockBody, Mark, Span};
@@ -112,10 +113,7 @@ impl Exporter for CoreExporter {
             ExportFormat::PlainText => export_plain(state, &sources, &req.config).into_bytes(),
             ExportFormat::Html => export_html(state, &sources, &req.config).into_bytes(),
             ExportFormat::Pdf => pdf::export_pdf(state, &sources, &req.config)?,
-            ExportFormat::Docx => {
-                // Structured text stand-in (OOXML binary writer is post-foundation).
-                export_plain(state, &sources, &req.config).into_bytes()
-            }
+            ExportFormat::Docx => docx::export_docx(state, &sources, &req.config)?,
         };
         let content_hash = Hash256::sha256(&bytes);
         Ok(ExportOutput {

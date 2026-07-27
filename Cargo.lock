@@ -544,6 +544,7 @@ dependencies = [
  "qf-kernel",
  "tempfile",
  "uuid",
+ "zip",
 ]
 
 [[package]]

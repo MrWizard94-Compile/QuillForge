@@ -12,12 +12,6 @@ path = "src/main.rs"
 
 [dependencies]
 qf-core = { workspace = true }
-qf-doc = { workspace = true }
 qf-blocks = { workspace = true }
-qf-journal = { workspace = true }
-qf-kernel = { workspace = true }
 qf-storage = { workspace = true }
-qf-layout = { workspace = true }
-qf-input = { workspace = true }
 qf-export = { workspace = true }
-qf-telemetry = { workspace = true }

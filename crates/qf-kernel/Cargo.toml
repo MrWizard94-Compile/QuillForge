@@ -12,4 +12,8 @@ qf-doc = { workspace = true }
 qf-blocks = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+ciborium = { workspace = true }
 uuid = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

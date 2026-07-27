@@ -1,7 +1,15 @@
 //! Quillforge core primitives.
 //!
-//! This crate is the foundation of the workspace: IDs, versioning, preserved maps,
-//! commands, operations, and shared error types. It MUST NOT depend on other `qf-*` crates.
+//! Foundation of the workspace: IDs, versioning, preserved maps, commands,
+//! operations, and shared error types. This crate MUST NOT depend on other `qf-*` crates.
+//!
+//! # Canonical mutation path
+//!
+//! ```text
+//! Command → Operations → Journal → Kernel → Derived State
+//! ```
+//!
+//! Only operations are durable and replayable. Commands are ephemeral intent.
 
 mod command;
 mod error;
@@ -21,8 +29,9 @@ pub use version::*;
 
 /// Trait implemented by command handlers that expand intent into operations.
 ///
-/// Handlers MUST NOT write the journal or mutate the kernel. They read state and
-/// return fully-specified operations (all new IDs pre-generated).
+/// Handlers MUST NOT write the journal or mutate the kernel. They read state
+/// (via closed-over handles or free functions) and return fully-specified
+/// operations with all new IDs pre-generated.
 pub trait CommandHandler: Send + Sync {
     fn execute(&self, command: Command) -> Result<Vec<Operation>, CommandError>;
 }
@@ -32,7 +41,7 @@ pub trait IdGen {
     fn new_uuid(&mut self) -> uuid::Uuid;
 }
 
-/// Production ID generator using UUID v7 when available, else v4.
+/// Production ID generator (UUID v4).
 #[derive(Debug, Default)]
 pub struct UuidGen;
 
@@ -57,7 +66,23 @@ impl Default for SeqIdGen {
 impl IdGen for SeqIdGen {
     fn new_uuid(&mut self) -> uuid::Uuid {
         let n = self.next;
-        self.next += 1;
+        self.next = self.next.saturating_add(1);
         uuid::Uuid::from_u128(n)
+    }
+}
+
+/// Result of a successful commit through the coordinator.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CommitResult {
+    pub first_seq: OpSeq,
+    pub last_seq: OpSeq,
+}
+
+/// Next sequence after `last` (first committed op is always 1).
+pub fn next_seq(last: OpSeq) -> OpSeq {
+    if last == OpSeq::ZERO {
+        OpSeq(1)
+    } else {
+        last.next()
     }
 }

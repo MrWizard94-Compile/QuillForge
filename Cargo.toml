@@ -64,6 +64,9 @@ bytes = "1"
 sha2 = "0.10"
 crc32c = "0.6"
 tracing = "0.1"
+ciborium = "0.2"
+zip = { version = "2", default-features = false, features = ["deflate"] }
+tempfile = "3"
 
 [profile.release]
 lto = "thin"

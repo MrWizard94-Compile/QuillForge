@@ -4,10 +4,13 @@ version.workspace = true
 edition.workspace = true
 publish.workspace = true
 license.workspace = true
-description = "Quillforge document AST and editing helpers"
+description = "Quillforge document AST and editing command expansion"
 
 [dependencies]
 qf-core = { workspace = true }
 qf-blocks = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

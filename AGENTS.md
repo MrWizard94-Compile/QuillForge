@@ -14,7 +14,13 @@ Every delivery must be a complete, drop-in, production-ready brick.Every brick m
 
 * * *
 
-## How the Human Director Works With AI (Immutable Context)
+##Write clean, single-responsibility functions. Group things logically by feature. Then, apply the **Rule of Three**: extract a piece of code into an independent, generalized module only when you find yourself needing to use it for the third time, or when a file has simply become too unwieldy to read 
+
+
+
+
+
+How the Human Director Works With AI (Immutable Context)
 
 * The human operates strictly in a **supervisory / director / sovereign role**. The AI owns detailed research, design of dependencies, full implementation, testing, documentation, packaging, and pre-delivery self-audit. The human provides high-level direction, reviews, architectural veto, and final vision.
 * Every delivery must be a complete, drop-in, production-ready artifact. Partial work, “next steps”, stubs, TODOs, or “we can polish later” are forbidden and treated as defects.

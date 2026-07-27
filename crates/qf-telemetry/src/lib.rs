@@ -10,15 +10,10 @@ pub enum MetricName {
     SyncPushFailure,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct TelemetryConfig {
+    /// Default: false. Telemetry must be explicitly enabled by the user.
     pub enabled: bool,
-}
-
-impl Default for TelemetryConfig {
-    fn default() -> Self {
-        Self { enabled: false }
-    }
 }
 
 #[derive(Default)]
@@ -46,6 +41,10 @@ impl Telemetry {
         self.emit_counter(name, ms);
     }
 
+    pub fn counter_count(&self) -> usize {
+        self.counters.len()
+    }
+
     /// Compile-time policy helper for reviews.
     pub const FORBIDS_DOCUMENT_CONTENT: bool = true;
 }
@@ -58,6 +57,15 @@ mod tests {
     fn default_disabled_emits_nothing() {
         let mut t = Telemetry::default();
         t.emit_counter(MetricName::ExportMs, 10);
-        assert!(t.counters.is_empty());
+        assert_eq!(t.counter_count(), 0);
+        // Policy constant is part of the public API contract.
+        const _: bool = Telemetry::FORBIDS_DOCUMENT_CONTENT;
+    }
+
+    #[test]
+    fn enabled_records_counters() {
+        let mut t = Telemetry::new(TelemetryConfig { enabled: true });
+        t.emit_histogram_ms(MetricName::CommitApplyMs, 3);
+        assert_eq!(t.counter_count(), 1);
     }
 }

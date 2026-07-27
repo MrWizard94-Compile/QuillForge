@@ -1,4 +1,4 @@
-//! Shared error types for the command path and apply path.
+//! Shared error types for the command path, apply path, journal, and storage.
 
 use thiserror::Error;
 
@@ -80,4 +80,8 @@ pub enum StorageError {
     Encryption(String),
     #[error("migration: {0}")]
     Migration(String),
+    #[error("journal: {0}")]
+    Journal(String),
+    #[error("apply: {0}")]
+    Apply(String),
 }

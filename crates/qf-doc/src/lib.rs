@@ -1,9 +1,13 @@
-//! Document AST structures.
+//! Document AST structures and pure command expansion helpers.
+//!
+//! Handlers expand commands into operations; they never touch journal or kernel.
+
+mod editing;
+
+pub use editing::*;
 
 use qf_blocks::{BlockBody, BlockMetadata};
-use qf_core::{
-    ActorId, BlockId, DocumentId, PreservedMap, SectionId, Timestamp,
-};
+use qf_core::{ActorId, BlockId, DocumentId, PreservedMap, SectionId, Timestamp};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -79,7 +83,7 @@ impl Document {
         }
     }
 
-    /// Project editable text for a text-bearing block (paragraph/heading).
+    /// Project editable text for a text-bearing block.
     pub fn project_text(&self, block_id: BlockId) -> Option<String> {
         let block = self.blocks.get(&block_id)?;
         match &block.body {
@@ -90,12 +94,16 @@ impl Document {
             _ => None,
         }
     }
+
+    pub fn contains_block(&self, block_id: BlockId) -> bool {
+        self.blocks.contains_key(&block_id)
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use qf_core::{SeqIdGen, Timestamp};
+    use qf_core::SeqIdGen;
 
     #[test]
     fn empty_document_has_root() {

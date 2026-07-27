@@ -72,13 +72,27 @@ QuillForge/
 └── docs/               # engineering specifications
 ```
 
-Build:
+Build & verify:
 
 ```bash
-cargo build --workspace
+cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
+cargo run -p qf-app -- demo
 cargo xtask check
 ```
+
+## Implementation status
+
+| Phase | Goal | Status |
+|-------|------|--------|
+| 0 | Workspace + specs | **Done** |
+| 1 | Command bus, journal, kernel, package | **Done** (`DocumentSession`) |
+| 2 | Recovery, migration, unknown content | **Done** (gates in `canonical_path` tests) |
+| 3+ | Layout → GPU → input → … | Next |
+
+Binding law for all AI/human contributors: **[AGENTS.md](AGENTS.md)**.  
+Latest delivery package: **[MANIFEST.md](MANIFEST.md)**.  
+Decision log: **[DECISIONS.md](DECISIONS.md)**.
 
 ## License
 

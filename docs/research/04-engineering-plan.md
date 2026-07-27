@@ -42,13 +42,13 @@
 | **M3** | Layout block coverage + golden fixtures | Determinism tests | M2 — **Done** |
 | **M4** | Input↔session wiring + edit integration | End-to-end edit tests | M3 — **Done** |
 | **M5** | Search rebuild equivalence | Property test | M4 — **Done** (rebuild_equivalence) |
-| **M6** | Citations validation + export cite markers | Unit/integration | M5 |
-| **M7** | GPU render of layout frames | Smoke + no kernel write | M6 |
+| **M6** | Citations validation + export cite markers | Unit/integration | M5 — **Done** |
+| **M7** | GPU render of layout frames | Smoke + no kernel write | M6 — **Done** |
 | **M8** | Collab CRDT text mode | Convergence tests | M7 |
 | **M9** | Plugin WASM host | Capability tests | M8 |
 | **M10** | AI suggestions + harden + ship checklist | DoD v1 | M9 |
 
-**Status:** M0–M4 complete. Next: M5 (already partially done via search rebuild) → M6/M7.
+**Status:** M0–M7 complete. Next: M8 collab CRDT text mode.
 
 ---
 

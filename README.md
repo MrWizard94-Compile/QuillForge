@@ -93,7 +93,9 @@ cargo xtask check
 | M3 | Layout golden fixtures | **Done** |
 | M4 | EditorController input↔session | **Done** |
 | M5 | Search rebuild equivalence | **Done** |
-| M6+ | Export cites → GPU → collab → plugins → AI | Next |
+| M6 | Citation export markers + bibliography | **Done** |
+| M7 | GPU/headless render of layout frames | **Done** |
+| M8+ | Collab CRDT → plugins → AI → ship | Next |
 
 Binding law: **[AGENTS Constitution/AGENTS.md](AGENTS%20Constitution/AGENTS.md)** (entry: [AGENTS.md](AGENTS.md)).  
 Workflow stages: **[AGENTS Constitution/WORKFLOW.md](AGENTS%20Constitution/WORKFLOW.md)**.  

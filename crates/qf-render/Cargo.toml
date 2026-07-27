@@ -11,3 +11,9 @@ qf-core = { workspace = true }
 qf-layout = { workspace = true }
 qf-gpu = { workspace = true }
 qf-theme = { workspace = true }
+
+[dev-dependencies]
+qf-blocks = { workspace = true }
+qf-doc = { workspace = true }
+qf-kernel = { workspace = true }
+uuid = { workspace = true }

@@ -233,6 +233,8 @@ fn export_plain(state: &CanonicalState, sources: &SourceTable, cfg: &ExportConfi
         .join("\n")
 }
 
+// note: plain span strip uses single replace below
+
 fn export_html(state: &CanonicalState, sources: &SourceTable, cfg: &ExportConfig) -> String {
     let mut out = String::from("<!DOCTYPE html><html><body>\n");
     let mut cited: BTreeSet<SourceId> = BTreeSet::new();
@@ -341,8 +343,7 @@ fn spans_markdown(
 fn spans_plain(spans: &[Span], sources: &SourceTable, cited: &mut BTreeSet<SourceId>) -> String {
     spans_markdown(spans, sources, cited)
         .replace("**", "")
-        .replace('*', "")
-        .replace('`', "")
+        .replace(['*', '`'], "")
 }
 
 fn spans_html(spans: &[Span], sources: &SourceTable, cited: &mut BTreeSet<SourceId>) -> String {

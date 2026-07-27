@@ -410,9 +410,12 @@ name = "qf-export"
 version = "0.0.0"
 dependencies = [
  "qf-blocks",
+ "qf-citation",
  "qf-core",
  "qf-doc",
  "qf-kernel",
+ "tempfile",
+ "uuid",
 ]
 
 [[package]]
@@ -484,10 +487,14 @@ dependencies = [
 name = "qf-render"
 version = "0.0.0"
 dependencies = [
+ "qf-blocks",
  "qf-core",
+ "qf-doc",
  "qf-gpu",
+ "qf-kernel",
  "qf-layout",
  "qf-theme",
+ "uuid",
 ]
 
 [[package]]

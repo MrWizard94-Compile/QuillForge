@@ -1,25 +1,24 @@
-# Delivery MANIFEST — SOP rename
+# Delivery MANIFEST — M9 plugin host
 
-**Title:** Adopt SOP.md as process law (replaces WORKFLOW.md)  
+**Title:** Capability-based plugin host (proposals, registry, KV, fuel)  
 **Date:** 2026-07-27  
-**Law:** `AGENTS Constitution/AGENTS.md` + `AGENTS Constitution/SOP.md`
+**Law:** `AGENTS Constitution/AGENTS.md` + `SOP.md`
 
 ## Summary
 
-Recognized rename of WORKFLOW.md → SOP.md. Updated all project pointers. Cleaned SOP structure (roles, procedure 1–10, quality controls) while preserving stages and adding Quillforge baseline + AGENTS gate linkage.
+M9 delivers a production host API for sandboxed plugins: capability grants, custom block registry, proposal queue (command-path only), namespaced KV quotas, fuel traps, and lite manifest parse. No raw FS, no journal, no native DLLs.
 
 ## Verify
 
 ```bash
-# Docs only — optional full suite:
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 ```
 
 ## Self-audit
 
-References updated; no broken WORKFLOW.md links in entrypoints.
+Section 0 pass for M9. Wasmtime guest runtime remains future binding to the same hostcalls.
 
 ## Next
 
-Continue green-light milestones (M9 plugin host) under SOP procedure step 7+.
+**M10** — AI suggestion flow + hardening + v1 ship checklist.

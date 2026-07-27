@@ -480,8 +480,11 @@ version = "0.0.0"
 dependencies = [
  "qf-core",
  "qf-security",
+ "qf-storage",
  "serde",
+ "tempfile",
  "thiserror",
+ "uuid",
 ]
 
 [[package]]

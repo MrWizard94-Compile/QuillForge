@@ -45,10 +45,10 @@
 | **M6** | Citations validation + export cite markers | Unit/integration | M5 — **Done** |
 | **M7** | GPU render of layout frames | Smoke + no kernel write | M6 — **Done** |
 | **M8** | Collab CRDT text mode | Convergence tests | M7 — **Done** |
-| **M9** | Plugin WASM host | Capability tests | M8 |
+| **M9** | Plugin WASM host | Capability tests | M8 — **Done** |
 | **M10** | AI suggestions + harden + ship checklist | DoD v1 | M9 |
 
-**Status:** M0–M8 complete. Next: M9 plugin WASM host.
+**Status:** M0–M9 complete. Next: M10 AI suggestions + ship checklist.
 
 ---
 

@@ -44,11 +44,11 @@
 | **M5** | Search rebuild equivalence | Property test | M4 — **Done** (rebuild_equivalence) |
 | **M6** | Citations validation + export cite markers | Unit/integration | M5 — **Done** |
 | **M7** | GPU render of layout frames | Smoke + no kernel write | M6 — **Done** |
-| **M8** | Collab CRDT text mode | Convergence tests | M7 |
+| **M8** | Collab CRDT text mode | Convergence tests | M7 — **Done** |
 | **M9** | Plugin WASM host | Capability tests | M8 |
 | **M10** | AI suggestions + harden + ship checklist | DoD v1 | M9 |
 
-**Status:** M0–M7 complete. Next: M8 collab CRDT text mode.
+**Status:** M0–M8 complete. Next: M9 plugin WASM host.
 
 ---
 

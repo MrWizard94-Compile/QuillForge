@@ -95,7 +95,8 @@ cargo xtask check
 | M5 | Search rebuild equivalence | **Done** |
 | M6 | Citation export markers + bibliography | **Done** |
 | M7 | GPU/headless render of layout frames | **Done** |
-| M8+ | Collab CRDT → plugins → AI → ship | Next |
+| M8 | Text CRDT + presence/content streams | **Done** |
+| M9+ | Plugins → AI → ship checklist | Next |
 
 Binding law: **[AGENTS Constitution/AGENTS.md](AGENTS%20Constitution/AGENTS.md)** (entry: [AGENTS.md](AGENTS.md)).  
 Workflow stages: **[AGENTS Constitution/WORKFLOW.md](AGENTS%20Constitution/WORKFLOW.md)**.  

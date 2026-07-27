@@ -19,3 +19,4 @@ thiserror = { workspace = true }
 zip = { workspace = true }
 sha2 = { workspace = true }
 tempfile = { workspace = true }
+qf-security = { workspace = true }

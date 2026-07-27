@@ -1,5 +1,9 @@
 //! Security: encryption helpers, ACL, audit, content permission tokens.
 
+mod crypto;
+
+pub use crypto::*;
+
 use qf_core::{ActorId, Capability, DocumentId, Hash256, Role};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
@@ -77,7 +81,7 @@ impl AuditLog {
     }
 }
 
-/// Passphrase key derivation placeholder — production uses Argon2id.
+/// Legacy helper retained for simple hashing; prefer [`derive_key`] for package crypto.
 pub fn derive_key_material(passphrase: &str, salt: &[u8]) -> Hash256 {
     let mut data = Vec::new();
     data.extend_from_slice(salt);
@@ -85,7 +89,6 @@ pub fn derive_key_material(passphrase: &str, salt: &[u8]) -> Hash256 {
     Hash256::sha256(&data)
 }
 
-/// Constant-time-ish empty check for passphrases (length only; not a KDF).
 pub fn passphrase_nonempty(passphrase: &str) -> bool {
     !passphrase.is_empty()
 }

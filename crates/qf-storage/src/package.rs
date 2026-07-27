@@ -56,6 +56,8 @@ pub struct CheckpointBlob {
 pub struct OpenOptions {
     pub target_version: Version,
     pub auto_migrate: bool,
+    /// Passphrase when the on-disk file is `QFENC1` encrypted.
+    pub passphrase: Option<String>,
 }
 
 impl OpenOptions {
@@ -63,7 +65,13 @@ impl OpenOptions {
         Self {
             target_version: FORMAT_VERSION,
             auto_migrate: true,
+            passphrase: None,
         }
+    }
+
+    pub fn with_passphrase(mut self, passphrase: impl Into<String>) -> Self {
+        self.passphrase = Some(passphrase.into());
+        self
     }
 }
 
@@ -150,6 +158,39 @@ impl PackageStore {
         crate::atomic::write_bytes_atomic(path, &bytes)
     }
 
+    /// Atomic save with Argon2id + XChaCha20-Poly1305 envelope (`.qfdoc` ciphertext).
+    pub fn save_package_encrypted(
+        &self,
+        path: &Path,
+        package: &Package,
+        passphrase: &str,
+    ) -> Result<(), StorageError> {
+        let plain = write_qfdoc(package)?;
+        let params = qf_security::KdfParams {
+            // Production defaults; tests may wrap with custom encrypt API.
+            m_kib: qf_security::DEFAULT_M_KIB,
+            t_cost: qf_security::DEFAULT_T_COST,
+            p_cost: qf_security::DEFAULT_P_COST,
+        };
+        let enc = qf_security::encrypt_package(passphrase, &plain, &params)
+            .map_err(|e| StorageError::Encryption(e.to_string()))?;
+        crate::atomic::write_bytes_atomic(path, &enc)
+    }
+
+    /// Save encrypted with explicit KDF params (tests use low memory).
+    pub fn save_package_encrypted_with_params(
+        &self,
+        path: &Path,
+        package: &Package,
+        passphrase: &str,
+        params: &qf_security::KdfParams,
+    ) -> Result<(), StorageError> {
+        let plain = write_qfdoc(package)?;
+        let enc = qf_security::encrypt_package(passphrase, &plain, params)
+            .map_err(|e| StorageError::Encryption(e.to_string()))?;
+        crate::atomic::write_bytes_atomic(path, &enc)
+    }
+
     pub fn open_path(&self, path: &Path, opts: OpenOptions) -> Result<OpenOutcome, StorageError> {
         match self.open_inner(path, &opts) {
             Ok(outcome) => Ok(outcome),
@@ -194,7 +235,15 @@ impl PackageStore {
     }
 
     fn open_inner(&self, path: &Path, opts: &OpenOptions) -> Result<OpenOutcome, StorageError> {
-        let bytes = std::fs::read(path).map_err(|e| StorageError::Io(e.to_string()))?;
+        let mut bytes = std::fs::read(path).map_err(|e| StorageError::Io(e.to_string()))?;
+        if qf_security::is_encrypted_package(&bytes) {
+            let pass = opts
+                .passphrase
+                .as_deref()
+                .ok_or_else(|| StorageError::Encryption("passphrase required".into()))?;
+            bytes = qf_security::decrypt_package(pass, &bytes)
+                .map_err(|e| StorageError::Encryption(e.to_string()))?;
+        }
         let mut package = read_qfdoc(&bytes)?;
 
         if package.format_version > opts.target_version {

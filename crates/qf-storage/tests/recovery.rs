@@ -147,3 +147,60 @@ fn rec_encrypted_roundtrip() {
         qf_storage::OpenOutcome::Corrupt { .. }
     ));
 }
+
+/// Simulate process kill after successful commit: `append_batch`/`commit` returned Ok
+/// (fsync done) but the Journal handle is never Dropped cleanly.
+#[test]
+fn rec_commit_survives_handle_forget() {
+    let dir = tempfile::tempdir().unwrap();
+    let jpath = dir.path().join("kill.log");
+    let mut session = DocumentSession::create_default(&jpath).unwrap();
+    session
+        .commit_command(Command::InsertBlock {
+            parent: ParentRef::DocumentRoot,
+            index: 0,
+            body_type: "paragraph".into(),
+            body_payload: b"durable".to_vec(),
+        })
+        .unwrap();
+    let seq = session.journal.last_seq();
+    // Process-kill simulation: leak the session without Drop cleanup.
+    // Durability contract: append_batch already fsync'd before Ok.
+    std::mem::forget(session);
+
+    let j2 = Journal::open_or_create(&jpath).unwrap();
+    assert_eq!(j2.last_seq(), seq);
+    assert!(j2.last_seq().0 >= 1);
+    j2.verify_chain().unwrap();
+}
+
+/// Mid-frame power loss: partial write of a new frame after a good commit.
+#[test]
+fn rec_partial_frame_after_good_commit_is_truncated() {
+    let dir = tempfile::tempdir().unwrap();
+    let jpath = dir.path().join("partial.log");
+    let mut session = DocumentSession::create_default(&jpath).unwrap();
+    session
+        .commit_command(Command::InsertBlock {
+            parent: ParentRef::DocumentRoot,
+            index: 0,
+            body_type: "paragraph".into(),
+            body_payload: b"good".to_vec(),
+        })
+        .unwrap();
+    let good_seq = session.journal.last_seq();
+    let good_len = session.journal.valid_len();
+    drop(session);
+
+    // Incomplete header only (power loss mid-write).
+    {
+        let mut f = FsOpen::new().append(true).open(&jpath).unwrap();
+        f.write_all(&[0x51, 0x46]).unwrap(); // partial magic
+        f.sync_all().unwrap();
+    }
+
+    let j2 = Journal::open_or_create(&jpath).unwrap();
+    assert_eq!(j2.last_seq(), good_seq);
+    assert_eq!(j2.valid_len(), good_len);
+    j2.verify_chain().unwrap();
+}

@@ -8,5 +8,6 @@ description = "Quillforge offline-first sync"
 
 [dependencies]
 qf-core = { workspace = true }
+qf-collab = { workspace = true }
 serde = { workspace = true }
 uuid = { workspace = true }

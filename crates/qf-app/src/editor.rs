@@ -239,4 +239,13 @@ impl EditorController {
         self.session.save(path)?;
         Ok(())
     }
+
+    pub fn save_encrypted(
+        &mut self,
+        path: &Path,
+        passphrase: &str,
+    ) -> Result<(), EditorError> {
+        self.session.save_encrypted(path, passphrase)?;
+        Ok(())
+    }
 }

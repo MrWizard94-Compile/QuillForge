@@ -147,9 +147,46 @@ impl DocumentSession {
         session: SessionId,
         ids: Box<dyn IdGen + Send>,
     ) -> Result<(Self, Vec<String>), CommandError> {
+        Self::open_package_with_options(
+            package_path,
+            journal_path,
+            actor,
+            session,
+            ids,
+            OpenOptions::v1(),
+        )
+    }
+
+    /// Open a package, optionally decrypting with a passphrase when encrypted.
+    pub fn open_package_with_passphrase(
+        package_path: &Path,
+        journal_path: &Path,
+        actor: ActorId,
+        session: SessionId,
+        ids: Box<dyn IdGen + Send>,
+        passphrase: impl Into<String>,
+    ) -> Result<(Self, Vec<String>), CommandError> {
+        Self::open_package_with_options(
+            package_path,
+            journal_path,
+            actor,
+            session,
+            ids,
+            OpenOptions::v1().with_passphrase(passphrase),
+        )
+    }
+
+    fn open_package_with_options(
+        package_path: &Path,
+        journal_path: &Path,
+        actor: ActorId,
+        session: SessionId,
+        ids: Box<dyn IdGen + Send>,
+        opts: OpenOptions,
+    ) -> Result<(Self, Vec<String>), CommandError> {
         let store = PackageStore::default();
         let outcome = store
-            .open_path(package_path, OpenOptions::v1())
+            .open_path(package_path, opts)
             .map_err(|e| CommandError::Internal(e.to_string()))?;
 
         let (kernel, journal_bytes, notes) = match outcome {
@@ -344,20 +381,38 @@ impl DocumentSession {
 
     /// Atomic save to `.qfdoc` with full journal + checkpoint.
     pub fn save(&mut self, path: &Path) -> Result<(), CommandError> {
-        let journal_bytes = self
-            .journal
-            .to_bytes()
-            .map_err(|e| CommandError::Journal(e.to_string()))?;
-        let package = self.store.package_from_state(
-            self.kernel.state(),
-            journal_bytes,
-            self.assets.clone(),
-            self.other_files.clone(),
-        );
+        let package = self.build_package()?;
         self.store
             .save_package(path, &package)
             .map_err(|e| CommandError::Internal(e.to_string()))?;
         self.package_path = Some(path.to_path_buf());
         Ok(())
+    }
+
+    /// Atomic encrypted save (`QFENC1` wrapper over ZIP package).
+    pub fn save_encrypted(
+        &mut self,
+        path: &Path,
+        passphrase: &str,
+    ) -> Result<(), CommandError> {
+        let package = self.build_package()?;
+        self.store
+            .save_package_encrypted(path, &package, passphrase)
+            .map_err(|e| CommandError::Internal(e.to_string()))?;
+        self.package_path = Some(path.to_path_buf());
+        Ok(())
+    }
+
+    fn build_package(&self) -> Result<crate::package::Package, CommandError> {
+        let journal_bytes = self
+            .journal
+            .to_bytes()
+            .map_err(|e| CommandError::Journal(e.to_string()))?;
+        Ok(self.store.package_from_state(
+            self.kernel.state(),
+            journal_bytes,
+            self.assets.clone(),
+            self.other_files.clone(),
+        ))
     }
 }

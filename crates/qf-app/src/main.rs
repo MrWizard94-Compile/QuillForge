@@ -118,7 +118,7 @@ fn run_demo(path: Option<String>) -> Result<(), String> {
     }
 
     let exporter = CoreExporter;
-    let out = exporter
+    let md = exporter
         .export(
             editor.session.state(),
             &ExportRequest {
@@ -127,13 +127,41 @@ fn run_demo(path: Option<String>) -> Result<(), String> {
             },
         )
         .map_err(|e| e.to_string())?;
-    println!("export markdown:\n{}", String::from_utf8_lossy(&out.bytes));
+    println!("export markdown:\n{}", String::from_utf8_lossy(&md.bytes));
+
+    let pdf = exporter
+        .export(
+            editor.session.state(),
+            &ExportRequest {
+                format: ExportFormat::Pdf,
+                config: Default::default(),
+            },
+        )
+        .map_err(|e| e.to_string())?;
+    println!("export pdf: {} bytes (PDF-1.4)", pdf.bytes.len());
+
+    let docx = exporter
+        .export(
+            editor.session.state(),
+            &ExportRequest {
+                format: ExportFormat::Docx,
+                config: Default::default(),
+            },
+        )
+        .map_err(|e| e.to_string())?;
+    println!("export docx: {} bytes (OOXML)", docx.bytes.len());
 
     let pkg_path = path
         .map(PathBuf::from)
         .unwrap_or_else(|| work.join("demo.qfdoc"));
     editor.save(&pkg_path).map_err(|e| e.to_string())?;
     println!("saved package: {}", pkg_path.display());
+
+    let enc_path = work.join("demo-encrypted.qfdoc");
+    editor
+        .save_encrypted(&enc_path, "demo-passphrase")
+        .map_err(|e| e.to_string())?;
+    println!("saved encrypted package: {}", enc_path.display());
 
     let journal2 = work.join("demo-reopen.log");
     let _ = std::fs::remove_file(&journal2);
@@ -150,6 +178,23 @@ fn run_demo(path: Option<String>) -> Result<(), String> {
         "reopened ok; blocks={} notes={notes:?}",
         session.state().document.blocks.len()
     );
-    println!("demo complete — editor + canonical path verified");
+
+    let journal3 = work.join("demo-reopen-enc.log");
+    let _ = std::fs::remove_file(&journal3);
+    let mut gen = qf_core::SeqIdGen::default();
+    let (enc_session, enc_notes) = DocumentSession::open_package_with_passphrase(
+        &enc_path,
+        &journal3,
+        qf_core::ActorId::new(&mut gen),
+        qf_core::SessionId::new(&mut gen),
+        Box::new(gen),
+        "demo-passphrase",
+    )
+    .map_err(|e| e.to_string())?;
+    println!(
+        "reopened encrypted ok; blocks={} notes={enc_notes:?}",
+        enc_session.state().document.blocks.len()
+    );
+    println!("demo complete — editor + export + encrypt path verified");
     Ok(())
 }

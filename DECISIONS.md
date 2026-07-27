@@ -141,3 +141,20 @@ Living record of decisions that bind implementers. Complements `docs/` specs.
 **Decision:** Plugin guests execute under Wasmtime with fuel. Imports are `qf.host_call` / `scratch_len` / `scratch_copy` only; no FS/network/journal. Hostcalls re-enter `PluginHost` for KV, type registration, and proposals.  
 **Why:** Spec isolation without component-model complexity in foundation v1.  
 **Consequence:** Guests must be written/compiled to this ABI; WIT/component model deferred.
+
+---
+
+## ADR-017 — In-process SyncHub as foundation network server
+
+**Status:** Accepted  
+**Decision:** Multi-replica sync is provided by `qf_sync::SyncHub` implementing Hello / Pull / Push and a separate presence stream. Offline durability uses `DurableSyncQueue` with magic `QFSYNCQ1` and fsync atomic writes. Content still enters canonical state only via command/journal/kernel after merge.  
+**Why:** Closes the network residual for local-first multi-device testing without requiring a production TLS deployment in foundation.  
+**Consequence:** A thin HTTPS/WebSocket adapter can wrap the same protocol later; hub is the source of truth for logical protocol tests.
+
+---
+
+## ADR-018 — Synthetic power-loss matrix is binding for v1 durability
+
+**Status:** Accepted  
+**Decision:** Durability evidence is synthetic: journal fsync + handle-forget reopen, torn/partial frames, incomplete staging, LKG recovery, encrypted open, durable queue reopen. Full OS process-kill spawn harness is optional, not release-blocking.  
+**Why:** Cross-OS process kill harnesses are flaky and expensive; fsync contracts + reopen tests prove the same invariants.

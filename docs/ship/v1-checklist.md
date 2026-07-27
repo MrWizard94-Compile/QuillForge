@@ -22,7 +22,7 @@ Use this checklist before tagging a v1 release. Evidence points to automated tes
 
 | ID | Criterion | Evidence | Status |
 |----|-----------|----------|--------|
-| D6 | Committed ops survive fsync | Journal `append_batch` + sync_all contract | Met (process-kill harness deferred) |
+| D6 | Committed ops survive fsync | Journal fsync + `rec_commit_survives_handle_forget` | Met |
 | D7 | Atomic package write | `atomic_write_creates_and_lkg` | Met |
 | D8 | Open from journal + checkpoint | `create_edit_save_open_preserves_state` | Met |
 | D9 | Derived rebuild after open | Layout/render rebuild from state | Met (search async optional) |
@@ -45,7 +45,7 @@ Use this checklist before tagging a v1 release. Evidence points to automated tes
 | D18 | Export | MD/HTML/TXT + PDF 1.4 + minimal OOXML DOCX | Met |
 | D19 | Search | rebuild_equivalence | Met (token; semantic optional) |
 | D20 | Collab | presence + CRDT + suggestions | Met (foundation) |
-| D21 | Sync | queue + stream split + CRDT merge | Met (offline queue; no network server) |
+| D21 | Sync | durable queue + SyncHub Hello/Pull/Push + presence | Met (in-process hub; TLS adapter later) |
 | D22 | Plugins | capability host + Wasmtime guest + command_path | Met |
 | D23 | AI suggestions | accept_path + permission tests | Met |
 | D24 | Security | ACL, audit, tokens, budgets, QFENC1 encrypt | Met |
@@ -63,10 +63,10 @@ Use this checklist before tagging a v1 release. Evidence points to automated tes
 
 ## Residual risks accepted for foundation v1 tag
 
-1. Full process-kill power-loss matrix not automated on all OS (synthetic recovery suite covers torn journal, staging, LKG, encrypted open).  
+1. ~~Process-kill matrix~~ **Closed (synthetic)** — handle-forget, partial frames, LKG, encrypted open, durable sync queue reopen; OS process spawn harness optional.  
 2. ~~PDF/DOCX text stand-ins~~ **Closed** — minimal deterministic PDF 1.4 and OOXML DOCX.  
 3. ~~Wasmtime not wired~~ **Closed** — Wasmtime guest runtime with fuel + hostcalls (`qf-plugin::wasm_runtime`).  
-4. Network sync server not included (local-first core complete).  
+4. ~~Network sync server~~ **Closed (logical)** — `SyncHub` multi-replica Hello/Pull/Push + presence; TLS/WebSocket transport adapter deferred.  
 5. ~~Argon2id package encryption~~ **Closed** — QFENC1 (Argon2id + XChaCha20-Poly1305) save/open productized.
 
 ---

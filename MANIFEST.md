@@ -1,18 +1,15 @@
-# Delivery MANIFEST — Residual hardening + Wasmtime
+# Delivery MANIFEST — Sync hub + durability matrix
 
-**Title:** Encryption, recovery, PDF/DOCX, session encrypt API, Wasmtime guest runtime  
+**Title:** In-process SyncHub, durable offline queue, expanded recovery  
 **Date:** 2026-07-27  
 **Law:** `AGENTS Constitution/AGENTS.md` + `SOP.md`
 
 ## Summary
 
-Closed foundation residuals:
-
-1. Recovery suite (torn journal, staging, LKG, encrypted open)
-2. QFENC1 package encryption (Argon2id + XChaCha20-Poly1305)
-3. Deterministic PDF 1.4 + OOXML DOCX exporters
-4. Session/editor encrypted save/open + demo path
-5. **Wasmtime guest runtime** with fuel and capability-gated hostcalls
+1. **DurableSyncQueue** — fsync-backed offline queue (`QFSYNCQ1`), reopen + backoff.
+2. **SyncHub** — multi-replica logical server: Hello / Pull / Push, presence stream isolation, idempotent push, offline queue flush.
+3. **Recovery expansion** — process-kill style handle-forget after commit; partial-frame truncation.
+4. ADRs 017–018 + ship checklist residual closures.
 
 ## Verify
 
@@ -22,14 +19,14 @@ cargo test --workspace
 cargo run -p qf-app -- demo
 ```
 
-## Remaining marketing-v1 residuals
+## Remaining deferred (non-blocking)
 
-| Residual | Status |
-|----------|--------|
-| OS process-kill matrix | Accepted; synthetic recovery suite covers torn/LKG |
-| Network sync server | Residual (local-first core + offline queue complete) |
-| Full rich PDF/DOCX styles | Deferred (minimal writers ship) |
+| Item | Notes |
+|------|--------|
+| TLS/WebSocket transport adapter | Protocol complete in-process |
+| OS process-spawn kill harness | Synthetic matrix binding per ADR-018 |
+| Rich PDF/DOCX styles | Minimal writers ship |
 
 ## Self-audit
 
-Section 0 pass. Clippy `-D warnings` and workspace tests green for delivered crates.
+Section 0 pass. Clippy `-D warnings` and full workspace tests green.

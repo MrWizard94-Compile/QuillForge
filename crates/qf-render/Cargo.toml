@@ -1,0 +1,13 @@
+[package]
+name = "qf-render"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+license.workspace = true
+description = "Quillforge render scheduler"
+
+[dependencies]
+qf-core = { workspace = true }
+qf-layout = { workspace = true }
+qf-gpu = { workspace = true }
+qf-theme = { workspace = true }

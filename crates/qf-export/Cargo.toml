@@ -1,0 +1,13 @@
+[package]
+name = "qf-export"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+license.workspace = true
+description = "Quillforge deterministic exporters"
+
+[dependencies]
+qf-core = { workspace = true }
+qf-doc = { workspace = true }
+qf-blocks = { workspace = true }
+qf-kernel = { workspace = true }

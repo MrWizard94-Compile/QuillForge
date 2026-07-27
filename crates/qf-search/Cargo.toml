@@ -1,0 +1,13 @@
+[package]
+name = "qf-search"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+license.workspace = true
+description = "Quillforge derived search indexes"
+
+[dependencies]
+qf-core = { workspace = true }
+qf-doc = { workspace = true }
+qf-kernel = { workspace = true }
+qf-blocks = { workspace = true }

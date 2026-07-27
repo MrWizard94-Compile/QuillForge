@@ -1,0 +1,11 @@
+[package]
+name = "qf-theme"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+license.workspace = true
+description = "Quillforge theme tokens"
+
+[dependencies]
+qf-core = { workspace = true }
+serde = { workspace = true }

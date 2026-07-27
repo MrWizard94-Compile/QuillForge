@@ -1,0 +1,11 @@
+[package]
+name = "qf-collab"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+license.workspace = true
+description = "Quillforge collaboration: presence, comments, suggestions"
+
+[dependencies]
+qf-core = { workspace = true }
+serde = { workspace = true }

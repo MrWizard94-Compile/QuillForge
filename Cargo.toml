@@ -1,0 +1,70 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/qf-core",
+    "crates/qf-blocks",
+    "crates/qf-doc",
+    "crates/qf-journal",
+    "crates/qf-kernel",
+    "crates/qf-storage",
+    "crates/qf-layout",
+    "crates/qf-gpu",
+    "crates/qf-render",
+    "crates/qf-input",
+    "crates/qf-search",
+    "crates/qf-sync",
+    "crates/qf-collab",
+    "crates/qf-export",
+    "crates/qf-ai",
+    "crates/qf-citation",
+    "crates/qf-plugin",
+    "crates/qf-security",
+    "crates/qf-telemetry",
+    "crates/qf-theme",
+    "crates/qf-app",
+    "xtask",
+]
+default-members = ["crates/qf-app"]
+
+[workspace.package]
+version = "0.0.0"
+edition = "2021"
+license = "UNLICENSED"
+publish = false
+authors = ["Quillforge Team"]
+repository = "https://github.com/MrWizard94-Compile/QuillForge"
+
+[workspace.dependencies]
+qf-core = { path = "crates/qf-core" }
+qf-blocks = { path = "crates/qf-blocks" }
+qf-doc = { path = "crates/qf-doc" }
+qf-journal = { path = "crates/qf-journal" }
+qf-kernel = { path = "crates/qf-kernel" }
+qf-storage = { path = "crates/qf-storage" }
+qf-layout = { path = "crates/qf-layout" }
+qf-gpu = { path = "crates/qf-gpu" }
+qf-render = { path = "crates/qf-render" }
+qf-input = { path = "crates/qf-input" }
+qf-search = { path = "crates/qf-search" }
+qf-sync = { path = "crates/qf-sync" }
+qf-collab = { path = "crates/qf-collab" }
+qf-export = { path = "crates/qf-export" }
+qf-ai = { path = "crates/qf-ai" }
+qf-citation = { path = "crates/qf-citation" }
+qf-plugin = { path = "crates/qf-plugin" }
+qf-security = { path = "crates/qf-security" }
+qf-telemetry = { path = "crates/qf-telemetry" }
+qf-theme = { path = "crates/qf-theme" }
+
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+uuid = { version = "1", features = ["v4", "v7", "serde"] }
+bytes = "1"
+sha2 = "0.10"
+crc32c = "0.6"
+tracing = "0.1"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1

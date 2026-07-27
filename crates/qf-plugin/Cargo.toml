@@ -1,0 +1,13 @@
+[package]
+name = "qf-plugin"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+license.workspace = true
+description = "Quillforge WASM plugin host and capability sandbox"
+
+[dependencies]
+qf-core = { workspace = true }
+qf-security = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }

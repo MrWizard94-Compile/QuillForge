@@ -1,0 +1,2 @@
+# Quillforge clippy configuration — keep strict over time.
+cognitive-complexity-threshold = 30

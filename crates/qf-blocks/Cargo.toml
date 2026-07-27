@@ -1,0 +1,12 @@
+[package]
+name = "qf-blocks"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+license.workspace = true
+description = "Quillforge native block types and UnknownBlock"
+
+[dependencies]
+qf-core = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }

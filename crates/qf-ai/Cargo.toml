@@ -1,0 +1,12 @@
+[package]
+name = "qf-ai"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+license.workspace = true
+description = "Quillforge AI suggestion-only integration"
+
+[dependencies]
+qf-core = { workspace = true }
+qf-collab = { workspace = true }
+qf-security = { workspace = true }

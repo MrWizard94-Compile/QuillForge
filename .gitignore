@@ -1,0 +1,46 @@
+# Rust
+/target/
+**/*.rs.bk
+# Cargo.lock is committed for the application workspace (reproducible builds).
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+
+# Quillforge local runtime
+.qf/
+*.qfdoc.tmp
+*.qfdoc.bak
+*.qfdoc.journal
+crash-dumps/
+recovery-staging/
+
+# Build / coverage
+coverage/
+lcov.info
+*.profraw
+*.profdata
+flamegraph.svg
+perf.data*
+
+# Docs tooling
+/book/book/
+node_modules/
+
+# Generated
+**/generated/
+**/.cache/

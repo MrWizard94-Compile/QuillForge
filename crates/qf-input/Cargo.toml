@@ -1,0 +1,10 @@
+[package]
+name = "qf-input"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+license.workspace = true
+description = "Quillforge input → command translation"
+
+[dependencies]
+qf-core = { workspace = true }

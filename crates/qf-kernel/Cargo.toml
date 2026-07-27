@@ -1,0 +1,15 @@
+[package]
+name = "qf-kernel"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+license.workspace = true
+description = "Quillforge document kernel — sole canonical applier"
+
+[dependencies]
+qf-core = { workspace = true }
+qf-doc = { workspace = true }
+qf-blocks = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+uuid = { workspace = true }

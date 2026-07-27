@@ -71,6 +71,12 @@ chacha20poly1305 = "0.10"
 argon2 = "0.5"
 getrandom = "0.2"
 zeroize = { version = "1", features = ["derive"] }
+wasmtime = { version = "31", default-features = false, features = [
+    "cranelift",
+    "runtime",
+    "std",
+] }
+wat = "1"
 
 [profile.release]
 lto = "thin"

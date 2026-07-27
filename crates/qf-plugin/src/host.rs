@@ -303,6 +303,11 @@ impl PluginHost {
         Ok(())
     }
 
+    /// Public fuel burn for Wasmtime hostcall bridge.
+    pub fn burn_fuel_public(&mut self, n: u64) -> Result<(), PluginError> {
+        self.burn_fuel(n)
+    }
+
     pub fn reset_fuel(&mut self) {
         self.fuel = self.fuel_budget;
     }

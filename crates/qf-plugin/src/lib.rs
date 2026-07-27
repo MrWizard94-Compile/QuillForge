@@ -1,8 +1,8 @@
 //! Capability-based plugin sandbox host.
 //!
-//! **v1 isolation:** guests are treated as untrusted pure handlers invoked by the host.
-//! Native dynamic libraries are forbidden. Raw filesystem and journal access are impossible
-//! through this API surface. Future builds may execute the same hostcalls from Wasmtime.
+//! **v1 isolation:** WebAssembly guests run under Wasmtime with fuel; hostcalls are
+//! capability-gated. Native dynamic libraries are forbidden. Raw filesystem and journal
+//! access are impossible through this API surface.
 //!
 //! Plugins MUST NOT mutate canonical state. They may only:
 //! - register types / hooks under capability grants
@@ -14,12 +14,14 @@ mod host;
 mod kv;
 mod manifest;
 mod registry;
+mod wasm_runtime;
 
 pub use caps::*;
 pub use host::*;
 pub use kv::*;
 pub use manifest::*;
 pub use registry::*;
+pub use wasm_runtime::{load_and_activate_wasm, GuestRunResult, WasmEngine};
 
 /// Hard policy: third-party native plugins are not loadable in v1.
 pub fn native_dynamic_plugins_allowed() -> bool {

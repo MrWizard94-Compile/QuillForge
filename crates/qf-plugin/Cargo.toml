@@ -12,7 +12,9 @@ qf-security = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
 uuid = { workspace = true }
+wasmtime = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
 qf-storage = { workspace = true }
+wat = { workspace = true }

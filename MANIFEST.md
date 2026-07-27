@@ -1,30 +1,25 @@
-# Delivery MANIFEST — M8 collab CRDT + stream split
+# Delivery MANIFEST — SOP rename
 
-**Title:** Text CRDT convergence and presence/content stream separation  
+**Title:** Adopt SOP.md as process law (replaces WORKFLOW.md)  
 **Date:** 2026-07-27  
-**Law:** `AGENTS Constitution/AGENTS.md` + `WORKFLOW.md`
+**Law:** `AGENTS Constitution/AGENTS.md` + `AGENTS Constitution/SOP.md`
 
 ## Summary
 
-M8 delivers offline concurrent text editing via an RGA-style `TextCrdt` (merge → kernel ops) and hard-separates ephemeral presence from durable content streams.
+Recognized rename of WORKFLOW.md → SOP.md. Updated all project pointers. Cleaned SOP structure (roles, procedure 1–10, quality controls) while preserving stages and adding Quillforge baseline + AGENTS gate linkage.
 
 ## Verify
 
 ```bash
+# Docs only — optional full suite:
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 ```
 
-## Commits
-
-1. `Implement RGA-style text CRDT for offline concurrent editing.`  
-2. `Separate content and presence sync streams with CRDT merge.`  
-3. Docs/lockfile update  
-
 ## Self-audit
 
-Section 0 pass for M8: complete APIs, convergence tests, presence emits zero ops, clippy clean.
+References updated; no broken WORKFLOW.md links in entrypoints.
 
 ## Next
 
-**M9** plugin WASM host capabilities (production host still capability-enforced stub → deepen hooks) or full remote batch through DocumentSession.
+Continue green-light milestones (M9 plugin host) under SOP procedure step 7+.

@@ -99,7 +99,7 @@ cargo xtask check
 | M9+ | Plugins → AI → ship checklist | Next |
 
 Binding law: **[AGENTS Constitution/AGENTS.md](AGENTS%20Constitution/AGENTS.md)** (entry: [AGENTS.md](AGENTS.md)).  
-Workflow stages: **[AGENTS Constitution/WORKFLOW.md](AGENTS%20Constitution/WORKFLOW.md)**.  
+SOP (delivery process): **[AGENTS Constitution/SOP.md](AGENTS%20Constitution/SOP.md)**.  
 Research program: **[docs/research/00-index.md](docs/research/00-index.md)**.  
 Latest delivery: **[MANIFEST.md](MANIFEST.md)**.  
 Decisions: **[DECISIONS.md](DECISIONS.md)**.

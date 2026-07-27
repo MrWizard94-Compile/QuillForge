@@ -47,7 +47,7 @@ fn print_help() {
     println!("  quillforge version             Print version");
     println!("  quillforge help                Show this help");
     println!();
-    println!("Law: AGENTS Constitution/AGENTS.md + WORKFLOW.md");
+    println!("Law: AGENTS Constitution/AGENTS.md + SOP.md");
     println!("Architecture: Input → Command → Journal → Kernel → Layout");
 }
 

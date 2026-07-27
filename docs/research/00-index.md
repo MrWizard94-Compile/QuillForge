@@ -5,7 +5,7 @@
 **Constitution:** AGENTS.md is law  
 **Date:** 2026-07-27  
 
-## Workflow stages
+## SOP stages (see `AGENTS Constitution/SOP.md`)
 
 | Stage | Document | Status |
 |-------|----------|--------|
@@ -13,10 +13,10 @@
 | 4 Synthesize design | [02-synthesis-design.md](02-synthesis-design.md) | Complete |
 | 5 Foundational documentation | [03-foundational-delta.md](03-foundational-delta.md) + existing `docs/01–25` | Complete |
 | 6 Engineering plan | [04-engineering-plan.md](04-engineering-plan.md) | Complete |
-| 7 Implement | Code in workspace (see MANIFEST) | In progress → delivered per plan slice |
-| 8 Audit | [05-audit-report.md](05-audit-report.md) | Complete |
-| 9 Harden | Code + audit report | Complete |
-| 10 Final delivery | [06-final-delivery.md](06-final-delivery.md) | Complete |
+| 7 Implement | Code in workspace (see MANIFEST) | Ongoing (M0–M8 done) |
+| 8 Audit | [05-audit-report.md](05-audit-report.md) | Complete for past slices |
+| 9 Harden | Code + audit report | Complete for past slices |
+| 10 Final delivery | [06-final-delivery.md](06-final-delivery.md) | Partial until v1 DoD |
 
 ## Selected projects (10)
 

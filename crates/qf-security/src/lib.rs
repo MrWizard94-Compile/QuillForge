@@ -18,6 +18,11 @@ impl ContentPermissionToken {
     pub fn is_valid_at(&self, now_unix_ms: i64) -> bool {
         now_unix_ms <= self.expires_unix_ms
     }
+
+    /// Reject tokens that claim a different document or actor than the active context.
+    pub fn matches_scope(&self, document_id: DocumentId, actor_id: ActorId) -> bool {
+        self.document_id == document_id && self.actor_id == actor_id
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -78,4 +83,45 @@ pub fn derive_key_material(passphrase: &str, salt: &[u8]) -> Hash256 {
     data.extend_from_slice(salt);
     data.extend_from_slice(passphrase.as_bytes());
     Hash256::sha256(&data)
+}
+
+/// Constant-time-ish empty check for passphrases (length only; not a KDF).
+pub fn passphrase_nonempty(passphrase: &str) -> bool {
+    !passphrase.is_empty()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use qf_core::SeqIdGen;
+
+    #[test]
+    fn audit_rejects_oversized_detail() {
+        let mut log = AuditLog::default();
+        let mut gen = SeqIdGen::default();
+        log.append(AuditEvent {
+            actor: ActorId::new(&mut gen),
+            kind: "x".into(),
+            document_id: None,
+            op_seq: None,
+            detail: "a".repeat(600),
+        });
+        assert!(log.events().is_empty());
+    }
+
+    #[test]
+    fn token_scope_match() {
+        let mut gen = SeqIdGen::default();
+        let doc = DocumentId::new(&mut gen);
+        let actor = ActorId::new(&mut gen);
+        let tok = ContentPermissionToken {
+            document_id: doc,
+            actor_id: actor,
+            scope_hash: Hash256::ZERO,
+            expires_unix_ms: 1,
+            grant_id: [1u8; 16],
+        };
+        assert!(tok.matches_scope(doc, actor));
+        assert!(!tok.matches_scope(doc, ActorId::new(&mut gen)));
+    }
 }

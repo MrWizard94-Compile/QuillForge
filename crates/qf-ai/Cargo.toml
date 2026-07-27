@@ -10,3 +10,10 @@ description = "Quillforge AI suggestion-only integration"
 qf-core = { workspace = true }
 qf-collab = { workspace = true }
 qf-security = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+qf-storage = { workspace = true }
+qf-doc = { workspace = true }

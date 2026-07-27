@@ -4,8 +4,11 @@ version.workspace = true
 edition.workspace = true
 publish.workspace = true
 license.workspace = true
-description = "Quillforge collaboration: presence, comments, suggestions"
+description = "Quillforge collaboration: presence, CRDT text, suggestions"
 
 [dependencies]
 qf-core = { workspace = true }
 serde = { workspace = true }
+uuid = { workspace = true }
+
+[dev-dependencies]

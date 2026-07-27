@@ -1,48 +1,23 @@
-//! Collaboration: presence (ephemeral), comments/suggestions (via ops).
+//! Collaboration: ephemeral presence, CRDT text, suggestions.
+//!
+//! # Stream separation (binding)
+//!
+//! | Stream     | Durable? | Path                          |
+//! |------------|----------|-------------------------------|
+//! | Content    | Yes      | Command → Journal → Kernel    |
+//! | Presence   | No       | PresenceBroker only           |
+//! | Suggestions| Yes      | Ops via command path          |
+//!
+//! Presence MUST NOT be written to the journal.
 
-use qf_core::{
-    ActorId, Operation, SessionId, SuggestionId, TextTarget, Timestamp,
-};
+mod presence;
+mod text_crdt;
+
+pub use presence::*;
+pub use text_crdt::*;
+
+use qf_core::{ActorId, Operation, SuggestionId};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct PresenceState {
-    pub session_id: SessionId,
-    pub actor_id: ActorId,
-    pub display_name: String,
-    pub cursor: Option<TextTarget>,
-    pub last_seen: Timestamp,
-}
-
-#[derive(Clone, Debug)]
-pub enum PresenceEvent {
-    Join(PresenceState),
-    Update(PresenceState),
-    Leave { session_id: SessionId },
-}
-
-#[derive(Default)]
-pub struct PresenceBroker {
-    peers: HashMap<SessionId, PresenceState>,
-}
-
-impl PresenceBroker {
-    pub fn apply(&mut self, ev: PresenceEvent) {
-        match ev {
-            PresenceEvent::Join(s) | PresenceEvent::Update(s) => {
-                self.peers.insert(s.session_id, s);
-            }
-            PresenceEvent::Leave { session_id } => {
-                self.peers.remove(&session_id);
-            }
-        }
-    }
-
-    pub fn peers(&self) -> impl Iterator<Item = &PresenceState> {
-        self.peers.values()
-    }
-}
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SuggestionStatus {
@@ -71,3 +46,7 @@ pub struct Suggestion {
 pub fn presence_is_ephemeral() -> bool {
     true
 }
+
+/// Compile-time documentation of stream policy for audits.
+pub const CONTENT_STREAM_DURABLE: bool = true;
+pub const PRESENCE_STREAM_DURABLE: bool = false;

@@ -42,13 +42,13 @@ Use this checklist before tagging a v1 release. Evidence points to automated tes
 | D15 | Editing offline | EditorController e2e | Met |
 | D16 | Layout | Golden fixtures | Met |
 | D17 | Rendering | qf-render headless tests | Met (headless GPU abstraction) |
-| D18 | Export | MD/HTML/TXT paths + cite markers | Met (PDF/DOCX textual stand-in) |
+| D18 | Export | MD/HTML/TXT + PDF 1.4 + minimal OOXML DOCX | Met |
 | D19 | Search | rebuild_equivalence | Met (token; semantic optional) |
 | D20 | Collab | presence + CRDT + suggestions | Met (foundation) |
 | D21 | Sync | queue + stream split + CRDT merge | Met (offline queue; no network server) |
 | D22 | Plugins | capability host + command_path test | Met (host API; Wasmtime guest later) |
 | D23 | AI suggestions | accept_path + permission tests | Met |
-| D24 | Security | ACL, audit, tokens, package budgets | Met (at-rest encrypt API partial) |
+| D24 | Security | ACL, audit, tokens, budgets, QFENC1 encrypt | Met |
 
 ## Quality
 
@@ -63,11 +63,11 @@ Use this checklist before tagging a v1 release. Evidence points to automated tes
 
 ## Residual risks accepted for foundation v1 tag
 
-1. Full process-kill power-loss matrix not automated on all OS.  
-2. PDF/DOCX binary writers are deterministic text stand-ins.  
+1. Full process-kill power-loss matrix not automated on all OS (synthetic recovery suite covers torn journal, staging, LKG, encrypted open).  
+2. ~~PDF/DOCX text stand-ins~~ **Closed** — minimal deterministic PDF 1.4 and OOXML DOCX.  
 3. Wasmtime not wired; hostcall surface is production-shaped.  
 4. Network sync server not included (local-first core complete).  
-5. Argon2id package encryption not fully productized (KDF helper only).  
+5. ~~Argon2id package encryption~~ **Closed** — QFENC1 (Argon2id + XChaCha20-Poly1305) save/open productized.
 
 ---
 

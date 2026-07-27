@@ -106,3 +106,29 @@ Living record of decisions that bind implementers. Complements `docs/` specs.
 **Status:** Accepted  
 **Decision:** ZIP open enforces max entries (100k), max total uncompressed (512 MiB), max entry (256 MiB), and rejects path traversal. Corrupt primaries may be quarantine-copied without overwrite.  
 **Why:** Zip-bomb / path traversal class of attacks on local document apps.
+
+---
+
+## ADR-013 — QFENC1 at-rest package encryption
+
+**Status:** Accepted  
+**Decision:** Encrypted `.qfdoc` files use magic `QFENC1`, Argon2id KDF (m/t/p stored in header), XChaCha20-Poly1305 AEAD over the ZIP package bytes with AAD = magic. Open requires passphrase via `OpenOptions`.  
+**Why:** Local-first documents may hold secrets; AEAD detects tampering; Argon2id resists offline passphrase attack better than a bare hash.  
+**Consequence:** Random salt/nonce → ciphertext non-deterministic (plaintext seals remain deterministic). Tests use reduced Argon2 memory.
+
+---
+
+## ADR-014 — Minimal deterministic PDF export
+
+**Status:** Accepted  
+**Decision:** v1 PDF export is PDF 1.4, fixed Helvetica, US Letter, plain-text layout of export lines — no external fonts, no images. Same document state yields identical bytes.  
+**Why:** Ship a real binary PDF without font subsetting complexity; full typography deferred.
+
+---
+
+## ADR-015 — Minimal deterministic OOXML DOCX export
+
+**Status:** Accepted  
+**Decision:** DOCX export is a minimal valid Office Open XML ZIP (`[Content_Types].xml`, `_rels/.rels`, `word/document.xml`) with fixed ZIP timestamps and deflate, one paragraph per plain-export line.  
+**Why:** Interop with Word/LibreOffice without full style/theme model.  
+**Consequence:** Rich formatting, images, and styles deferred.

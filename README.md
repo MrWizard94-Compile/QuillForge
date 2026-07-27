@@ -87,12 +87,15 @@ cargo xtask check
 |-------|------|--------|
 | 0 | Workspace + specs | **Done** |
 | 1 | Command bus, journal, kernel, package | **Done** (`DocumentSession`) |
-| 2 | Recovery, migration, unknown content | **Done** (gates in `canonical_path` tests) |
-| 3+ | Layout → GPU → input → … | Next |
+| 2 | Recovery, migration, unknown content | **Done** |
+| Research program | 10-project study → design → plan | **Done** (`docs/research/`) |
+| M2 harden | ZIP budgets, layout hash, citations, search | **Done** |
+| 3+ | Layout goldens → GPU → input → collab → … | Next |
 
-Binding law for all AI/human contributors: **[AGENTS.md](AGENTS.md)**.  
-Latest delivery package: **[MANIFEST.md](MANIFEST.md)**.  
-Decision log: **[DECISIONS.md](DECISIONS.md)**.
+Binding law: **[AGENTS.md](AGENTS.md)**.  
+Research program: **[docs/research/00-index.md](docs/research/00-index.md)**.  
+Latest delivery: **[MANIFEST.md](MANIFEST.md)**.  
+Decisions: **[DECISIONS.md](DECISIONS.md)**.
 
 ## License
 

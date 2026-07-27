@@ -368,6 +368,7 @@ version = "0.0.0"
 dependencies = [
  "qf-core",
  "serde",
+ "thiserror",
 ]
 
 [[package]]
@@ -455,11 +456,14 @@ dependencies = [
 name = "qf-layout"
 version = "0.0.0"
 dependencies = [
+ "ciborium",
  "qf-blocks",
  "qf-core",
  "qf-doc",
  "qf-kernel",
  "serde",
+ "tempfile",
+ "uuid",
 ]
 
 [[package]]

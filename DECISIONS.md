@@ -89,3 +89,20 @@ Living record of decisions that bind implementers. Complements `docs/` specs.
 **Status:** Accepted for layout phase  
 **Decision:** Layout uses Fixed32 (1/64 pt).  
 **Why:** Cross-platform float variance threatens determinism.
+
+---
+
+## ADR-011 — Competitive research synthesis (2026-07-27)
+
+**Status:** Accepted  
+**Decision:** Product strategy absorbs: Obsidian ownership, Logseq block atoms, Notion review roles, AFFiNE/Yjs presence split + CRDT, ProseMirror transactional discipline, Automerge history stance, Zotero citations, Typst determinism, Anytype encryption posture—without cloud-only lock-in or unrestricted native plugins.  
+**Why:** Ten-project study (`docs/research/01-ten-projects.md`).  
+**Consequence:** Engineering milestones M2+ prioritize package untrusted-input hardening, layout hashes, citation validation, search rebuild equivalence.
+
+---
+
+## ADR-012 — Untrusted package budgets
+
+**Status:** Accepted  
+**Decision:** ZIP open enforces max entries (100k), max total uncompressed (512 MiB), max entry (256 MiB), and rejects path traversal. Corrupt primaries may be quarantine-copied without overwrite.  
+**Why:** Zip-bomb / path traversal class of attacks on local document apps.

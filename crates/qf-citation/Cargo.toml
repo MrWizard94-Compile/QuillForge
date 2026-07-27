@@ -9,3 +9,4 @@ description = "Quillforge citations and source references"
 [dependencies]
 qf-core = { workspace = true }
 serde = { workspace = true }
+thiserror = { workspace = true }

@@ -243,10 +243,12 @@ fn journal_replay_matches_live_hash() {
 
 #[test]
 fn other_files_preserved_in_package() {
-    use qf_storage::{write_qfdoc, read_qfdoc, PackageStore};
+    use qf_storage::{read_qfdoc, write_qfdoc, PackageStore};
     let dir = tempfile::tempdir().unwrap();
     let mut session = DocumentSession::create_default(&dir.path().join("o.log")).unwrap();
-    session.other_files.insert("extra/note.txt".into(), b"keepme".to_vec());
+    session
+        .other_files
+        .insert("extra/note.txt".into(), b"keepme".to_vec());
     let pkg_path = dir.path().join("o.qfdoc");
     session.save(&pkg_path).unwrap();
     let bytes = fs::read(&pkg_path).unwrap();
@@ -257,4 +259,24 @@ fn other_files_preserved_in_package() {
     );
     let _ = PackageStore::default();
     let _ = write_qfdoc(&pkg).unwrap();
+}
+
+#[test]
+fn rejects_zip_path_traversal_names() {
+    use qf_storage::validate_member_name;
+    assert!(validate_member_name("ok/path.txt").is_ok());
+    assert!(validate_member_name("../secret").is_err());
+}
+
+#[test]
+fn quarantine_copy_preserves_original() {
+    use qf_storage::quarantine_copy;
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("doc.qfdoc");
+    fs::write(&path, b"primary").unwrap();
+    let q = quarantine_copy(&path).unwrap();
+    assert!(q.exists());
+    assert_eq!(fs::read(&path).unwrap(), b"primary");
+    assert_eq!(fs::read(&q).unwrap(), b"primary");
+    assert_ne!(q, path);
 }

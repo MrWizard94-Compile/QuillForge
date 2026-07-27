@@ -23,4 +23,7 @@ pub use package::{
     PackageStore, APP_VERSION, FORMAT_VERSION, MIME_TYPE,
 };
 pub use session::{CommitOutcome, DocumentSession, UndoService};
-pub use zip_io::{read_qfdoc, write_qfdoc};
+pub use zip_io::{
+    quarantine_copy, read_qfdoc, read_qfdoc_with_limits, validate_member_name, write_qfdoc,
+    ReadLimits, MAX_ENTRY_BYTES, MAX_UNCOMPRESSED_BYTES, MAX_ZIP_ENTRIES,
+};

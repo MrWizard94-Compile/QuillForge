@@ -183,9 +183,10 @@ impl PackageStore {
                         }),
                     }
                 } else {
+                    let q = crate::zip_io::quarantine_copy(path).ok();
                     Ok(OpenOutcome::Corrupt {
                         message: e.to_string(),
-                        quarantine_hint: Some(path.to_path_buf()),
+                        quarantine_hint: q.or_else(|| Some(path.to_path_buf())),
                     })
                 }
             }

@@ -350,7 +350,11 @@ dependencies = [
  "qf-blocks",
  "qf-core",
  "qf-export",
+ "qf-input",
+ "qf-layout",
  "qf-storage",
+ "tempfile",
+ "thiserror",
 ]
 
 [[package]]

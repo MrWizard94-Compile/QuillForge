@@ -90,9 +90,13 @@ cargo xtask check
 | 2 | Recovery, migration, unknown content | **Done** |
 | Research program | 10-project study → design → plan | **Done** (`docs/research/`) |
 | M2 harden | ZIP budgets, layout hash, citations, search | **Done** |
-| 3+ | Layout goldens → GPU → input → collab → … | Next |
+| M3 | Layout golden fixtures | **Done** |
+| M4 | EditorController input↔session | **Done** |
+| M5 | Search rebuild equivalence | **Done** |
+| M6+ | Export cites → GPU → collab → plugins → AI | Next |
 
-Binding law: **[AGENTS.md](AGENTS.md)**.  
+Binding law: **[AGENTS Constitution/AGENTS.md](AGENTS%20Constitution/AGENTS.md)** (entry: [AGENTS.md](AGENTS.md)).  
+Workflow stages: **[AGENTS Constitution/WORKFLOW.md](AGENTS%20Constitution/WORKFLOW.md)**.  
 Research program: **[docs/research/00-index.md](docs/research/00-index.md)**.  
 Latest delivery: **[MANIFEST.md](MANIFEST.md)**.  
 Decisions: **[DECISIONS.md](DECISIONS.md)**.

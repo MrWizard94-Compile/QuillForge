@@ -39,16 +39,16 @@
 | **M0** | Research program docs | `docs/research/*` complete | — |
 | **M1** | Phase 1–2 session | Done (prior commit) | — |
 | **M2** | Untrusted package hardening + layout hash | Tests + clippy green | M1 |
-| **M3** | Layout block coverage + golden fixtures | Determinism tests | M2 |
-| **M4** | Input↔session wiring + edit integration | End-to-end edit tests | M3 |
-| **M5** | Search rebuild equivalence | Property test | M4 |
+| **M3** | Layout block coverage + golden fixtures | Determinism tests | M2 — **Done** |
+| **M4** | Input↔session wiring + edit integration | End-to-end edit tests | M3 — **Done** |
+| **M5** | Search rebuild equivalence | Property test | M4 — **Done** (rebuild_equivalence) |
 | **M6** | Citations validation + export cite markers | Unit/integration | M5 |
 | **M7** | GPU render of layout frames | Smoke + no kernel write | M6 |
 | **M8** | Collab CRDT text mode | Convergence tests | M7 |
 | **M9** | Plugin WASM host | Capability tests | M8 |
 | **M10** | AI suggestions + harden + ship checklist | DoD v1 | M9 |
 
-**This delivery implements M0 + M2 fully, and advances M3 foundations.**
+**Status:** M0–M4 complete. Next: M5 (already partially done via search rebuild) → M6/M7.
 
 ---
 

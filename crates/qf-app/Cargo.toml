@@ -4,7 +4,11 @@ version.workspace = true
 edition.workspace = true
 publish.workspace = true
 license.workspace = true
-description = "Quillforge application binary — wires command bus, journal, kernel"
+description = "Quillforge application — editor controller and CLI"
+
+[lib]
+name = "qf_app"
+path = "src/lib.rs"
 
 [[bin]]
 name = "quillforge"
@@ -15,3 +19,9 @@ qf-core = { workspace = true }
 qf-blocks = { workspace = true }
 qf-storage = { workspace = true }
 qf-export = { workspace = true }
+qf-input = { workspace = true }
+qf-layout = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

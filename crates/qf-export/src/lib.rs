@@ -3,6 +3,8 @@
 //! Derived only — never mutates journal/kernel. Citation markers follow Zotero-inspired
 //! locator fidelity (see `qf-citation`).
 
+mod pdf;
+
 use qf_blocks::{BlockBody, Mark, Span};
 use qf_citation::{format_source_marker, SourceKind, SourceRef, SourceTable};
 use qf_core::{Hash256, SourceId};
@@ -103,16 +105,18 @@ pub struct CoreExporter;
 impl Exporter for CoreExporter {
     fn export(&self, state: &CanonicalState, req: &ExportRequest) -> Result<ExportOutput, String> {
         let sources = sources_from_state(state);
-        let text = match req.format {
-            ExportFormat::Markdown => export_markdown(state, &sources, &req.config),
-            ExportFormat::PlainText => export_plain(state, &sources, &req.config),
-            ExportFormat::Html => export_html(state, &sources, &req.config),
-            ExportFormat::Pdf | ExportFormat::Docx => {
-                // Deterministic textual stand-in until binary writers land.
-                export_plain(state, &sources, &req.config)
+        let bytes = match req.format {
+            ExportFormat::Markdown => {
+                export_markdown(state, &sources, &req.config).into_bytes()
+            }
+            ExportFormat::PlainText => export_plain(state, &sources, &req.config).into_bytes(),
+            ExportFormat::Html => export_html(state, &sources, &req.config).into_bytes(),
+            ExportFormat::Pdf => pdf::export_pdf(state, &sources, &req.config)?,
+            ExportFormat::Docx => {
+                // Structured text stand-in (OOXML binary writer is post-foundation).
+                export_plain(state, &sources, &req.config).into_bytes()
             }
         };
-        let bytes = text.into_bytes();
         let content_hash = Hash256::sha256(&bytes);
         Ok(ExportOutput {
             bytes,

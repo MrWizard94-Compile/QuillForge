@@ -24,3 +24,5 @@ jobs:
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: test
         run: cargo test --workspace
+      - name: performance budgets
+        run: cargo test --workspace budget_ -- --nocapture

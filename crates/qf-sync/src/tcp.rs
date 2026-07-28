@@ -295,6 +295,7 @@ mod tests {
     use crate::hub::SyncHub;
     use qf_collab::TextCrdt;
     use qf_core::{ActorId, DocumentId, Hash256, Operation, SeqIdGen, SessionId};
+    use std::time::Instant;
 
     fn hash_ops(ops: &[Operation]) -> Hash256 {
         let mut buf = Vec::new();
@@ -401,6 +402,55 @@ mod tests {
             }
         }
         panic!("tcp_crdt_push_over_socket failed after retries: {last_err:?}");
+    }
+
+    /// PB-SYNC-001 — 50 TCP Hello/Push/Pull round-trips under CI budget.
+    #[test]
+    fn budget_tcp_50_roundtrips_under_limit() {
+        let server = TcpSyncServer::start(SyncHub::new()).unwrap();
+        let client = TcpSyncClient::connect(server.addr());
+        let mut gen = SeqIdGen::default();
+        let doc = DocumentId::new(&mut gen);
+        let start = Instant::now();
+        let mut head = 0u64;
+        for i in 1..=50u64 {
+            let ack = client
+                .hello(Hello {
+                    client_id: ActorId::new(&mut gen),
+                    session_id: SessionId::new(&mut gen),
+                    document_id: doc,
+                    have_seq: head,
+                })
+                .unwrap();
+            let ops = vec![Operation::Noop {
+                reason: qf_core::NoopReason::Other(format!("rt{i}")),
+            }];
+            let payload_hash = hash_ops(&ops);
+            let push = client
+                .push(PushRequest {
+                    token: ack.token.clone(),
+                    first_seq: i,
+                    last_seq: i,
+                    ops,
+                    crdt: None,
+                    payload_hash,
+                })
+                .unwrap();
+            head = push.accepted_head_seq;
+            let pull = client
+                .pull(PullRequest {
+                    token: ack.token,
+                    have_seq: head.saturating_sub(1),
+                })
+                .unwrap();
+            assert!(pull.server_head_seq >= head);
+        }
+        let elapsed = start.elapsed();
+        assert!(
+            elapsed < Duration::from_secs(15),
+            "PB-SYNC-001 exceeded: {elapsed:?}"
+        );
+        server.stop();
     }
 
     #[test]

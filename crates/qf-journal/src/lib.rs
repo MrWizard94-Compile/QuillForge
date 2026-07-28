@@ -322,6 +322,42 @@ fn parse_bytes(data: &[u8]) -> Result<ScanResult, JournalError> {
 mod tests {
     use super::*;
     use qf_core::{BlockId, SeqIdGen, TextOffset};
+    use std::time::{Duration, Instant};
+
+    /// PB-JOURNAL-001 — append + fsync 500 records under CI budget.
+    #[test]
+    fn budget_append_500_under_limit() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("budget.log");
+        let mut gen = SeqIdGen::default();
+        let mut j = Journal::open_or_create(&path).unwrap();
+        let doc = DocumentId::new(&mut gen);
+        let actor = ActorId::new(&mut gen);
+        let session = SessionId::new(&mut gen);
+        let start = Instant::now();
+        for i in 1..=500u64 {
+            let rec = make_record(RecordDraft {
+                prev_hash: j.last_hash(),
+                seq: OpSeq(i),
+                op_id: OpId::new(&mut gen),
+                document_id: doc,
+                actor_id: actor,
+                session_id: session,
+                committed_at: Timestamp { unix_ms: i as i64 },
+                payload: Operation::Noop {
+                    reason: qf_core::NoopReason::Other(format!("b{i}")),
+                },
+            });
+            j.append_batch(&[rec]).unwrap();
+        }
+        let elapsed = start.elapsed();
+        assert_eq!(j.last_seq(), OpSeq(500));
+        j.verify_chain().unwrap();
+        assert!(
+            elapsed < Duration::from_secs(10),
+            "PB-JOURNAL-001 exceeded: {elapsed:?}"
+        );
+    }
 
     #[test]
     fn append_and_replay() {

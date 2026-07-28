@@ -168,6 +168,27 @@ pub fn plaintext_seal(plaintext: &[u8]) -> Hash256 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::time::{Duration, Instant};
+
+    /// PB-CRYPTO-001 — encrypt/decrypt under test KDF params within CI budget.
+    #[test]
+    fn budget_encrypt_decrypt_under_limit() {
+        let params = KdfParams {
+            m_kib: 8,
+            t_cost: 1,
+            p_cost: 1,
+        };
+        let pt = vec![0xABu8; 64 * 1024]; // 64 KiB
+        let start = Instant::now();
+        let ct = encrypt_package("budget-pass", &pt, &params).unwrap();
+        let out = decrypt_package("budget-pass", &ct).unwrap();
+        let elapsed = start.elapsed();
+        assert_eq!(out, pt);
+        assert!(
+            elapsed < Duration::from_secs(3),
+            "PB-CRYPTO-001 exceeded: {elapsed:?}"
+        );
+    }
 
     #[test]
     fn encrypt_decrypt_roundtrip() {

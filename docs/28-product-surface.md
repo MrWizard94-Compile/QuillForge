@@ -73,7 +73,7 @@ After foundation, **productization order** is:
 | P1 | Native window shell: page canvas + command bar + status | **Done** (`quillforge edit`) |
 | P2 | Print-layout fidelity (WYSIWYG vs layout tree) | **Done** — layout pages drive GUI + PDF `/Count` |
 | P3 | Review UI (suggestions accept/reject) | **Done** — panel + journal accept/reject (`review-demo`) |
-| P4 | DOCX round-trip import | Open Word files into `.qfdoc` |
+| P4 | DOCX round-trip import | **Done** — `import-docx` + export/import parity tests |
 | P5 | Polish: rulers, headers/footers, images | Parity set documented |
 
 Kernel law is unchanged: all edits still Command → Journal → Kernel.

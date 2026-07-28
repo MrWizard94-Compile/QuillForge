@@ -187,6 +187,40 @@ impl ShellSession {
         Ok(path)
     }
 
+    /// Import a .docx file into this session and refresh surface/draft.
+    pub fn import_docx(&mut self, path: &Path) -> Result<usize, EditorError> {
+        let n = self.editor.import_docx_path(path)?;
+        self.draft = self.editor.focused_text().unwrap_or_default();
+        // If first block is heading/code, draft may be empty — use document plain head.
+        if self.draft.is_empty() {
+            self.draft = self.editor.document_plain();
+        }
+        self.dirty = true;
+        self.refresh_surface();
+        Ok(n)
+    }
+
+    /// Export DOCX next to the package path.
+    pub fn export_docx(&mut self) -> Result<std::path::PathBuf, EditorError> {
+        self.apply_draft()?;
+        let bytes = self.editor.export_docx_bytes()?;
+        let path = self.package_path.with_extension("docx");
+        std::fs::write(&path, bytes).map_err(|e| EditorError::Other(e.to_string()))?;
+        Ok(path)
+    }
+
+    /// Open a new shell session from a .docx file (saves `.qfdoc` beside work_dir).
+    pub fn open_from_docx(
+        work_dir: &Path,
+        name: &str,
+        docx_path: &Path,
+    ) -> Result<Self, EditorError> {
+        let mut session = Self::open_or_create(work_dir, name)?;
+        session.import_docx(docx_path)?;
+        session.save()?;
+        Ok(session)
+    }
+
     /// Assert editor layout page count matches PDF `/Count` (print fidelity).
     pub fn layout_pdf_page_parity(&self) -> Result<(), EditorError> {
         let layout_pages = self.editor.page_count();
@@ -292,5 +326,39 @@ mod tests {
         s.reject_selected().unwrap();
         assert_eq!(s.draft, "Keep me");
         assert_eq!(s.editor.focused_text().unwrap(), "Keep me");
+    }
+
+    #[test]
+    fn docx_export_import_round_trip() {
+        let dir = tempdir().unwrap();
+        let mut s = ShellSession::open_or_create(dir.path(), "round").unwrap();
+        s.draft = "Round-trip body".into();
+        s.apply_draft().unwrap();
+        // Promote first block text; also insert a heading via import path after export.
+        let docx = s.export_docx().unwrap();
+        assert!(docx.exists());
+        let mut s2 = ShellSession::open_or_create(dir.path(), "round-import").unwrap();
+        let n = s2.import_docx(&docx).unwrap();
+        assert!(n >= 1);
+        let plain = s2.editor.document_plain();
+        assert!(
+            plain.contains("Round-trip body"),
+            "imported plain missing body: {plain}"
+        );
+        s2.save().unwrap();
+        assert!(s2.package_path.exists());
+    }
+
+    #[test]
+    fn open_from_docx_writes_qfdoc() {
+        let dir = tempdir().unwrap();
+        let mut seed = ShellSession::open_or_create(dir.path(), "seed").unwrap();
+        seed.draft = "From Word-class DOCX".into();
+        seed.apply_draft().unwrap();
+        let docx = seed.export_docx().unwrap();
+        let opened =
+            ShellSession::open_from_docx(dir.path(), "opened", &docx).unwrap();
+        assert!(opened.package_path.exists());
+        assert!(opened.editor.document_plain().contains("From Word-class DOCX"));
     }
 }

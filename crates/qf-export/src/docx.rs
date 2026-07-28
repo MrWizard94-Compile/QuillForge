@@ -12,7 +12,7 @@ use zip::write::SimpleFileOptions;
 use zip::{CompressionMethod, DateTime, ZipWriter};
 
 /// Build a structured .docx from canonical state (not plain-text flattening).
-pub fn export_docx(
+pub(crate) fn export_docx(
     state: &CanonicalState,
     sources: &SourceTable,
     _cfg: &ExportConfig,

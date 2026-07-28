@@ -70,6 +70,17 @@ fn main() -> ExitCode {
                 ExitCode::FAILURE
             }
         },
+        "import-docx" => {
+            let path = args.next();
+            let name = args.next().unwrap_or_else(|| "Imported".into());
+            match run_import_docx(path, name) {
+                Ok(()) => ExitCode::SUCCESS,
+                Err(e) => {
+                    eprintln!("error: {e}");
+                    ExitCode::FAILURE
+                }
+            }
+        },
         "edit" | "gui" => {
             let work = PathBuf::from("target/quill-gui");
             let name = args.next().unwrap_or_else(|| "Document".into());
@@ -91,6 +102,26 @@ fn main() -> ExitCode {
             ExitCode::FAILURE
         }
     }
+}
+
+fn run_import_docx(path: Option<String>, name: String) -> Result<(), String> {
+    let Some(path) = path else {
+        return Err("usage: quillforge import-docx <file.docx> [name]".into());
+    };
+    let path = PathBuf::from(path);
+    if !path.exists() {
+        return Err(format!("file not found: {}", path.display()));
+    }
+    let work = PathBuf::from("target/quill-import");
+    let session =
+        ShellSession::open_from_docx(&work, &name, &path).map_err(|e| e.to_string())?;
+    println!("imported: {}", path.display());
+    println!("package:  {}", session.package_path.display());
+    println!("blocks:   {}", session.editor.page_count()); // at least pages
+    println!("words:    {}", session.editor.word_count());
+    println!("plain preview:\n{}", session.editor.document_plain());
+    println!("import-docx complete — DOCX → .qfdoc via journal");
+    Ok(())
 }
 
 fn run_review_demo() -> Result<(), String> {
@@ -157,6 +188,7 @@ fn print_help() {
     println!("  quillforge surface             Show Word-class product chrome model");
     println!("  quillforge edit [name]         Open Word-class GUI shell");
     println!("  quillforge review-demo         Propose / accept / reject suggestions");
+    println!("  quillforge import-docx <file> [name]  Import .docx → .qfdoc");
     println!("  quillforge sync-demo           Localhost TCP multi-client sync demo");
     println!("  quillforge tls-sync-demo       Localhost TLS (rustls) sync demo");
     println!("  quillforge version             Print version and WPAI identity");
@@ -392,6 +424,9 @@ fn run_demo(path: Option<String>) -> Result<(), String> {
         )
         .map_err(|e| e.to_string())?;
     println!("export docx: {} bytes (OOXML)", docx.bytes.len());
+    let docx_path = work.join("demo.docx");
+    std::fs::write(&docx_path, &docx.bytes).map_err(|e| e.to_string())?;
+    println!("wrote docx: {}", docx_path.display());
 
     let pkg_path = path
         .map(PathBuf::from)

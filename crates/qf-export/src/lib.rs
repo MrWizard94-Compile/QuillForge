@@ -4,10 +4,13 @@
 //! locator fidelity (see `qf-citation`).
 
 mod docx;
+mod docx_import;
 mod pdf;
 
 /// Layout-aligned PDF helpers (print fidelity with `qf_layout`).
 pub use pdf::pdf_layout_page_count;
+/// DOCX import intermediate blocks (apply via journal in app/storage).
+pub use docx_import::{import_docx_blocks, import_docx_path, DocxImportBlock};
 
 use qf_blocks::{BlockBody, Mark, Span};
 use qf_citation::{format_source_marker, SourceKind, SourceRef, SourceTable};

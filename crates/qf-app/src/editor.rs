@@ -332,6 +332,101 @@ impl EditorController {
         })
     }
 
+    /// Import DOCX blocks via journaled InsertBlock commands (P4 round-trip path).
+    ///
+    /// Replaces current document body: existing blocks are removed, then import
+    /// blocks are inserted in order. Layout reflows after commit.
+    pub fn import_docx_bytes(&mut self, bytes: &[u8]) -> Result<usize, EditorError> {
+        use qf_blocks::{BlockBody, CodeBlock};
+        use qf_export::{import_docx_blocks, DocxImportBlock};
+        use qf_kernel::encode_body;
+
+        let blocks = import_docx_blocks(bytes).map_err(EditorError::Other)?;
+        // Remove existing root-section blocks (newest first so indices stay valid).
+        let existing: Vec<BlockId> = {
+            let doc = &self.session.state().document;
+            let root = doc.root_section_id;
+            doc.sections
+                .get(&root)
+                .map(|s| s.blocks.clone())
+                .unwrap_or_default()
+        };
+        for bid in existing.into_iter().rev() {
+            let _ = self.session.commit_command(Command::DeleteBlock { block_id: bid });
+        }
+
+        let mut count = 0u32;
+        for block in &blocks {
+            let (body_type, body_payload) = match block {
+                DocxImportBlock::Paragraph { text } => ("paragraph".into(), text.as_bytes().to_vec()),
+                DocxImportBlock::Heading { level, text } => {
+                    let mut payload = vec![*level];
+                    payload.extend_from_slice(text.as_bytes());
+                    ("heading".into(), payload)
+                }
+                DocxImportBlock::Quote { text } => ("quote".into(), text.as_bytes().to_vec()),
+                DocxImportBlock::Code { text } => {
+                    let bb = encode_body(&BlockBody::Code(CodeBlock {
+                        language: None,
+                        text: text.clone(),
+                        show_line_numbers: false,
+                    }))
+                    .map_err(|e| EditorError::Other(e.to_string()))?;
+                    (bb.type_name, bb.payload)
+                }
+                DocxImportBlock::PageBreak => ("page_break".into(), Vec::new()),
+            };
+            self.session.commit_command(Command::InsertBlock {
+                parent: ParentRef::DocumentRoot,
+                index: count,
+                body_type,
+                body_payload,
+            })?;
+            count = count.saturating_add(1);
+        }
+
+        if count == 0 {
+            self.ensure_editable_paragraph()?;
+        } else {
+            // Focus first text-bearing block when possible.
+            let first = {
+                let doc = &self.session.state().document;
+                let root = doc.root_section_id;
+                doc.sections
+                    .get(&root)
+                    .and_then(|s| s.blocks.first().copied())
+            };
+            if let Some(id) = first {
+                let _ = self.focus(id, TextOffset(0));
+            }
+        }
+        self.reflow();
+        Ok(count as usize)
+    }
+
+    pub fn import_docx_path(&mut self, path: &Path) -> Result<usize, EditorError> {
+        let bytes = std::fs::read(path).map_err(|e| EditorError::Other(e.to_string()))?;
+        self.import_docx_bytes(&bytes)
+    }
+
+    /// Export current document as DOCX bytes (round-trip partner for import).
+    pub fn export_docx_bytes(&self) -> Result<Vec<u8>, EditorError> {
+        use qf_export::{CoreExporter, ExportFormat, ExportRequest, Exporter};
+        let out = CoreExporter
+            .export(
+                self.session.state(),
+                &ExportRequest {
+                    format: ExportFormat::Docx,
+                    config: qf_export::ExportConfig {
+                        include_bibliography: false,
+                        include_timestamps: false,
+                    },
+                },
+            )
+            .map_err(EditorError::Other)?;
+        Ok(out.bytes)
+    }
+
     pub fn save(&mut self, path: &Path) -> Result<(), EditorError> {
         self.session.save(path)?;
         Ok(())

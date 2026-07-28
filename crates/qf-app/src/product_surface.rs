@@ -200,6 +200,7 @@ fn groups_for_tab(tab: CommandBarTab) -> Vec<CommandGroup> {
             actions: vec![
                 action("file.new", "New", "CreateDocument"),
                 action("file.open", "Open", "OpenPackage"),
+                action("file.import_docx", "Import DOCX", "ImportDocx"),
                 action("file.save", "Save", "SavePackage"),
                 action("file.save_as", "Save As", "SavePackageAs"),
                 action("file.export", "Export", "ExportDialog"),

@@ -1945,6 +1945,7 @@ dependencies = [
  "qf-core",
  "qf-export",
  "qf-input",
+ "qf-kernel",
  "qf-layout",
  "qf-storage",
  "qf-sync",

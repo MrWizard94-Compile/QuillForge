@@ -88,7 +88,29 @@ impl QuillShellApp {
                 }
                 Err(e) => self.session.last_error = Some(e.to_string()),
             },
-            "export.docx" | "export.md" | "export.html" => {
+            "export.docx" => match self.session.export_docx() {
+                Ok(path) => {
+                    self.session.last_error = Some(format!("Exported {}", path.display()));
+                }
+                Err(e) => self.session.last_error = Some(e.to_string()),
+            },
+            "file.import_docx" => {
+                // Word-class import: load sibling/default import path under work dir.
+                let path = self
+                    .session
+                    .package_path
+                    .parent()
+                    .map(|p| p.join("import.docx"))
+                    .unwrap_or_else(|| PathBuf::from("import.docx"));
+                match self.session.import_docx(&path) {
+                    Ok(n) => {
+                        self.session.last_error =
+                            Some(format!("Imported {n} blocks from {}", path.display()));
+                    }
+                    Err(e) => self.session.last_error = Some(e.to_string()),
+                }
+            }
+            "export.md" | "export.html" => {
                 if let Err(e) = self.session.apply_draft() {
                     self.session.last_error = Some(e.to_string());
                 }

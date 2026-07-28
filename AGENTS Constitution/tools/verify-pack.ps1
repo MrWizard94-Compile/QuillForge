@@ -36,7 +36,7 @@ Write-Host ""
 
 # --- GOV-INT-002 required files ---
 $required = @(
-    "VERSION", "PACK.md", "ADOPT.md",
+    "VERSION", "PACK.md", "LOCK.md", "ADOPT.md",
     "AGENTS.md", "SOP.md", "README.md", "Modularize.md",
     "RULE-REGISTRY.md", "MODULE-INDEX.md", "INTEGRITY.md",
     "constitution/00-CORE-LAW.md",
@@ -248,7 +248,7 @@ if ($agents -notmatch 'Version\*\*:\s*5\.') {
 
 # --- GOV-PORT-001: no absolute host paths in binding law files ---
 $bindingGlobs = @(
-    "AGENTS.md", "SOP.md", "PACK.md", "ADOPT.md", "README.md", "INTEGRITY.md",
+    "AGENTS.md", "SOP.md", "PACK.md", "LOCK.md", "ADOPT.md", "README.md", "INTEGRITY.md",
     "RULE-REGISTRY.md", "MODULE-INDEX.md", "Modularize.md", "VERSION"
 )
 # Pattern built in parts so this file does not contain a forbidden literal host path.

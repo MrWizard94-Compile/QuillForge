@@ -3,7 +3,7 @@
 ```
 Document: Project Lifecycle
 Module ID: MOD-OPS-LIFE-001
-Version: 1.1.0
+Version: 1.1.1
 Status: Binding
 Authority: AGENTS.md
 Applies When: Project birth, growth, maintenance, archive, deprecation
@@ -39,7 +39,7 @@ Overrides: None
 
 ## LIFE-BIRTH-001 — Project birth (RepoForge)
 
-For **new Python projects**, prefer **RepoForge** (`Software/RepoForge`) to:
+For **new Python projects**, prefer **RepoForge** (empire bootstrap tool) to:
 
 1. Scaffold venv, git, profile deps, tests, optional remote.
 2. Attach this constitution pack via `--constitution` (pointer) or `--constitution-vendor`.

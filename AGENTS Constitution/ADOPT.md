@@ -3,12 +3,13 @@
 ```
 Document: Pack Adoption Guide
 Module ID: MOD-GOV-ADOPT-001
-Version: 5.0.0
+Version: 5.0.1
 Status: Binding guidance (how to attach projects)
 Authority: AGENTS.md
 Applies When: Installing, moving, or linking the constitution pack into a project
 Dependencies:
   - PACK.md
+  - LOCK.md
   - AGENTS.md
   - templates/PROJECT-POINTER.template.md
 Overrides: None
@@ -57,21 +58,21 @@ Copy the full pack into the repo (e.g. `law/AGENTS-Constitution/` or `AGENTS Con
 
 ## Option D — RepoForge (Python project birth)
 
-[RepoForge](../../RepoForge/) (sibling under `Software/`) bootstraps Python projects and
-can attach this pack automatically:
+**RepoForge** (separate empire tool) bootstraps Python projects and can attach this pack:
 
 ```bash
-# From any directory; point at this pack
+# Pointer into this pack
 python path/to/repoforge.py my-tool --profile cli \
-  --constitution "path/to/AGENTS Constitution"
+  --constitution "path/to/this-pack"
 
 # Vendor pack into law/AGENTS-Constitution/
-python path/to/repoforge.py my-tool --constitution "path/to/AGENTS Constitution" \
+python path/to/repoforge.py my-tool --constitution "path/to/this-pack" \
   --constitution-vendor
 ```
 
 Also supported: `REPOFORGE_CONSTITUTION` env, `constitution_path` in `~/.repoforge.json`,
-and auto-discovery of a sibling `QuillForge/AGENTS Constitution` tree.
+and auto-discovery of a nearby folder named `AGENTS Constitution` / `AGENTS-Constitution`
+(or a monorepo layout that contains that pack).
 
 RepoForge writes a Level-4 `AGENTS.md` pointer (same role as
 `templates/PROJECT-POINTER.template.md`).

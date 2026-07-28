@@ -3,13 +3,14 @@
 ```
 Document: Rule Registry
 Module ID: MOD-GOV-REG-001
-Version: 1.2.0
+Version: 1.2.1
 Status: Binding (governance)
 Authority: AGENTS.md
 Applies When: Creating, amending, or citing Rule IDs; audits; delivery reports
 Dependencies:
   - AGENTS.md
   - PACK.md
+  - LOCK.md
 Overrides: None
 ```
 
@@ -207,6 +208,11 @@ Overrides: None
 | GOV-PORT-004 | Copy and mirror discipline | `PACK.md` | Active |
 | GOV-PORT-005 | No host coupling in binding docs | `PACK.md` | Active |
 | GOV-PORT-006 | Universal domain applicability | `PACK.md` | Active |
+| GOV-LOCK-001 | No casual amendment; human + complete replace + verify | `LOCK.md` | Active |
+| GOV-LOCK-002 | Non-law surfaces (reports, archive, docs, Modularize) | `LOCK.md` | Active |
+| GOV-LOCK-003 | One active editor surface for amendments | `LOCK.md` | Active |
+| GOV-LOCK-004 | Forbidden silent weakenings of core quality rules | `LOCK.md` | Active |
+| GOV-LOCK-005 | Release checklist before lock-ready claim | `LOCK.md` | Active |
 
 ---
 

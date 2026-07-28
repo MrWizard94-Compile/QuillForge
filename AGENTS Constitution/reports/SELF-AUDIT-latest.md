@@ -1,18 +1,18 @@
 # Pack Self-Audit
 
-**Pack root:** `C:\WPAI\Software\QuillForge\AGENTS Constitution`
-**Date (UTC):** 2026-07-28 00:27:37Z
+**Pack root:** `C:\Users\Bulkl\OneDrive\Desktop\AGENTS Constitution Human workspace`
+**Date (UTC):** 2026-07-28 00:43:48Z
 **Rules:** CONST-GATE-001, CONST-DONE-001, GOV-INT-001, GOV-SYNC-001
 
 ## 1. GOV-INT-001 verify-pack
 ```
 AGENTS Constitution integrity check
-Pack root: C:\WPAI\Software\QuillForge\AGENTS Constitution
+Pack root: C:\Users\Bulkl\OneDrive\Desktop\AGENTS Constitution Human workspace
 
-Pack VERSION:                5.0.0
-Active Rule IDs in registry: 130
-Rule IDs cited in pack:      135
-Markdown files scanned:      57
+Pack VERSION:                5.0.1
+Active Rule IDs in registry: 136
+Rule IDs cited in pack:      141
+Markdown files scanned:      60
 
 RESULT: PASS (GOV-INT-001)
 ```
@@ -24,8 +24,9 @@ PASS: No forbidden aliases outside deprecation/governance docs
 PASS: No incomplete-work markers (TODO:/FIXME: as open work)
 PASS: All AGENTS.md relative links resolve
 PASS: AGENTS.md version 5.x (universal pack)
-PASS: VERSION file 5.0.0
+PASS: VERSION file 5.0.1
 PASS: PACK.md present
+PASS: LOCK.md present
 PASS: ADOPT.md present
 PASS: Always-load present: SOP.md
 PASS: Always-load present: constitution/03-DEFINITION-OF-DONE.md
@@ -72,8 +73,8 @@ PASS: Always-load present: standards/DOCUMENTATION.md
 
 ## 5. MANIFEST (pack inventory summary)
 
-- Markdown files (ex-archive): **57**
-- All files (ex-archive): **63**
+- Markdown files (ex-archive): **60**
+- All files (ex-archive): **66**
 - Active Rule IDs (registry rows): see verify-pack output
 
 ## 6. Result

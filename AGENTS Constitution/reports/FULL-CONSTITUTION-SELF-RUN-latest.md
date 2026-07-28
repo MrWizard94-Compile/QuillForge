@@ -3,8 +3,8 @@
 | Field | Value |
 |-------|-------|
 | **Pack root** | `C:\Users\Bulkl\OneDrive\Desktop\AGENTS Constitution Human workspace` |
-| **Pack VERSION** | 5.0.0 |
-| **Date (UTC)** | 2026-07-28 00:23:40Z |
+| **Pack VERSION** | 5.0.1 |
+| **Date (UTC)** | 2026-07-28 00:43:47Z |
 | **Constitution** | AGENTS.md (see header) |
 | **SOP** | SOP-PROD-001 |
 | **Portability** | Path-independent; root may be moved |
@@ -13,8 +13,9 @@
 ## 0. Pack root resolution
 
 **PASS:** Pack root resolves
-**PASS:** VERSION present (5.0.0)
+**PASS:** VERSION present (5.0.1)
 **PASS:** PACK.md present
+**PASS:** LOCK.md present
 **PASS:** ADOPT.md present
 Tools resolve pack root from script location or -PackRoot (GOV-PORT-001). Folder name is not identity.
 
@@ -29,7 +30,7 @@ Tools resolve pack root from script location or -PackRoot (GOV-PORT-001). Folder
 
 ## 2. Full module inventory (Level 1–3 + governance + tools)
 
-**PASS:** Full constitution file set present (44 paths)
+**PASS:** Full constitution file set present (45 paths)
 
 ## 3. GOV-INT-001 — verify-pack
 
@@ -37,10 +38,10 @@ Tools resolve pack root from script location or -PackRoot (GOV-PORT-001). Folder
 AGENTS Constitution integrity check
 Pack root: C:\Users\Bulkl\OneDrive\Desktop\AGENTS Constitution Human workspace
 
-Pack VERSION:                5.0.0
-Active Rule IDs in registry: 130
-Rule IDs cited in pack:      135
-Markdown files scanned:      57
+Pack VERSION:                5.0.1
+Active Rule IDs in registry: 136
+Rule IDs cited in pack:      141
+Markdown files scanned:      60
 
 RESULT: PASS (GOV-INT-001)
 ```
@@ -52,7 +53,7 @@ RESULT: PASS (GOV-INT-001)
 # Pack Self-Audit
 
 **Pack root:** `C:\Users\Bulkl\OneDrive\Desktop\AGENTS Constitution Human workspace`
-**Date (UTC):** 2026-07-28 00:23:41Z
+**Date (UTC):** 2026-07-28 00:43:48Z
 **Rules:** CONST-GATE-001, CONST-DONE-001, GOV-INT-001, GOV-SYNC-001
 
 ## 1. GOV-INT-001 verify-pack
@@ -60,10 +61,10 @@ RESULT: PASS (GOV-INT-001)
 AGENTS Constitution integrity check
 Pack root: C:\Users\Bulkl\OneDrive\Desktop\AGENTS Constitution Human workspace
 
-Pack VERSION:                5.0.0
-Active Rule IDs in registry: 130
-Rule IDs cited in pack:      135
-Markdown files scanned:      57
+Pack VERSION:                5.0.1
+Active Rule IDs in registry: 136
+Rule IDs cited in pack:      141
+Markdown files scanned:      60
 
 RESULT: PASS (GOV-INT-001)
 ```
@@ -75,8 +76,9 @@ PASS: No forbidden aliases outside deprecation/governance docs
 PASS: No incomplete-work markers (TODO:/FIXME: as open work)
 PASS: All AGENTS.md relative links resolve
 PASS: AGENTS.md version 5.x (universal pack)
-PASS: VERSION file 5.0.0
+PASS: VERSION file 5.0.1
 PASS: PACK.md present
+PASS: LOCK.md present
 PASS: ADOPT.md present
 PASS: Always-load present: SOP.md
 PASS: Always-load present: constitution/03-DEFINITION-OF-DONE.md
@@ -89,14 +91,13 @@ PASS: Always-load present: standards/DOCUMENTATION.md
 | # | Check | Result |
 |---|--------|--------|
 | 1 Completeness | Pass | Required tree + modules present; no open stubs |
-| 2 Dependency-first | Pass | Registry/index/integrity define pack dependencies |
 ... (truncated; full: reports/SELF-AUDIT-latest.md) ...
 | REV-PACK-001 | Pass | This report |
 
 ## 5. MANIFEST (pack inventory summary)
 
-- Markdown files (ex-archive): **57**
-- All files (ex-archive): **63**
+- Markdown files (ex-archive): **60**
+- All files (ex-archive): **66**
 - Active Rule IDs (registry rows): see verify-pack output
 
 ## 6. Result
@@ -160,7 +161,7 @@ Wrote C:\Users\Bulkl\OneDrive\Desktop\AGENTS Constitution Human workspace\report
 | 5 | Docs synchronized | **Pass** | README + SOP docs |
 | 6 | Security & validation | **Pass** | SECURITY.md present; no runtime I/O; no secrets |
 | 7 | Performance reasoning | **Pass** | Always-load set + applicability matrix |
-| 8 | Version/stack fidelity | **Pass** | Pack 5.x + AGENTS 5.x |
+| 8 | Version/stack fidelity | **Pass** | Pack 5.0.1 locked baseline |
 | 9 | Full package ready | **Pass** | Drop-in movable folder |
 | 10 | Resource & constraint | **Pass** | Selective module load; portable SoT |
 | 11 | Reproducibility | **Pass** | Deterministic tools |
@@ -200,9 +201,9 @@ Wrote C:\Users\Bulkl\OneDrive\Desktop\AGENTS Constitution Human workspace\report
 
 ## 11. Inventory counts
 
-- Markdown (ex-archive): **57**
-- All files (ex-archive): **63**
-- Module paths checked: **44**
+- Markdown (ex-archive): **60**
+- All files (ex-archive): **66**
+- Module paths checked: **45**
 - SOP phase artifacts: **13**
 
 ## 12. REV-PACK handoff (this run)

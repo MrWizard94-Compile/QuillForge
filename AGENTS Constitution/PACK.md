@@ -3,7 +3,7 @@
 ```
 Document: Pack Identity & Portability Contract
 Module ID: MOD-GOV-PACK-001
-Version: 5.0.0
+Version: 5.0.1
 Status: Binding (governance)
 Authority: AGENTS.md
 Applies When: Moving, copying, adopting, or releasing this pack
@@ -11,6 +11,7 @@ Dependencies:
   - AGENTS.md
   - INTEGRITY.md
   - ADOPT.md
+  - LOCK.md
 Overrides: None
 ```
 
@@ -21,7 +22,8 @@ Overrides: None
 | Field | Value |
 |-------|-------|
 | **Pack name** | AGENTS Constitution |
-| **Pack version** | **5.0.0** (see also `VERSION`) |
+| **Pack version** | **5.0.1** (see also `VERSION`) |
+| **Lock state** | **LOCKED baseline** — see [LOCK.md](LOCK.md) |
 | **Classification** | Universal, reusable, movable quality + process law pack |
 | **SOUL** | `AGENTS.md` |
 | **Process** | `SOP.md` |
@@ -73,28 +75,17 @@ This folder is a **self-contained constitution pack**. It may live on a desktop,
 
 ```text
 <pack-root>/
-├── VERSION                 # semver string
-├── PACK.md                 # this file
-├── ADOPT.md                # how to adopt / move / point projects
-├── README.md               # start here
-├── AGENTS.md               # Level 1 SOUL
-├── SOP.md                  # Level 2 process
-├── RULE-REGISTRY.md
-├── MODULE-INDEX.md
-├── INTEGRITY.md
-├── Modularize.md           # design history
-├── constitution/
-├── standards/
-├── operations/
-├── collaboration/
-├── specialist/
-├── templates/
+├── VERSION · PACK.md · LOCK.md · ADOPT.md · README.md
+├── AGENTS.md · SOP.md
+├── RULE-REGISTRY.md · MODULE-INDEX.md · INTEGRITY.md
+├── Modularize.md           # design history (advisory)
+├── constitution/ · standards/ · operations/
+├── collaboration/ · specialist/ · templates/
 ├── tools/                  # portable PowerShell verifiers
-├── docs/                   # optional SOP evidence / pack evolution notes
-└── reports/                # generated; safe to delete and regenerate
+├── docs/                   # advisory SOP evidence
+├── reports/                # generated; not law
+└── _archive_*/             # optional history; not required
 ```
-
-Optional: `_archive_*` historical material (not required for integrity).
 
 ---
 
@@ -102,12 +93,15 @@ Optional: `_archive_*` historical material (not required for integrity).
 
 | Kind | Where | Rule |
 |------|--------|------|
-| Pack release | `VERSION`, `PACK.md` | Semver; bump on material pack change |
+| Pack release | `VERSION`, `PACK.md`, `LOCK.md` | Semver; bump on material pack change |
 | SOUL | `AGENTS.md` header | Complete-file replace + changelog |
 | Modules | module metadata `Version:` | Bump per file on change |
 | Process | `SOP.md` header | Complete-file replace + revision history |
 
-**5.0.0** marks the **universal portable pack** solidification (path-independent identity, adopt/move contract, hardened tooling).
+| Release | Meaning |
+|---------|---------|
+| **5.0.0** | Universal portable pack solidification |
+| **5.0.1** | Cleanup + lockdown baseline (`LOCK.md`, non-law surfaces labeled, host-coupling scrub) |
 
 ---
 

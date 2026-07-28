@@ -3,13 +3,14 @@
 ```
 Document: Pack Integrity
 Module ID: MOD-GOV-INT-001
-Version: 1.2.0
+Version: 1.2.1
 Status: Binding (governance)
 Authority: AGENTS.md
 Applies When: Amending the constitution pack; before publishing a pack version; move/copy/mirror
 Dependencies:
   - AGENTS.md
   - PACK.md
+  - LOCK.md
   - RULE-REGISTRY.md
   - MODULE-INDEX.md
 Overrides: None
@@ -39,6 +40,7 @@ All of the following must exist (relative to pack root):
 
 * `VERSION`
 * `PACK.md`
+* `LOCK.md`
 * `ADOPT.md`
 * `AGENTS.md`
 * `SOP.md`
@@ -184,15 +186,19 @@ Portability details: [PACK.md](PACK.md) (`GOV-PORT-*`). Adoption: [ADOPT.md](ADO
 
 When amending the pack, confirm:
 
-1. `verify-pack.ps1` → pass  
-2. Registry updated if any Rule ID added/changed  
-3. Module index updated if any file added/renamed  
-4. `PACK.md` / `VERSION` / folder map still accurate  
-5. No forbidden aliases reintroduced  
-6. No full restatement of rules outside canonical homes  
-7. Version bumps on changed files  
-8. No absolute host paths in binding law (`GOV-PORT-001`)  
-9. After move/copy: re-run verify  
+1. Human direction exists (`GOV-LOCK-001`)  
+2. `verify-pack.ps1` → pass  
+3. Registry updated if any Rule ID added/changed  
+4. Module index updated if any file added/renamed  
+5. `PACK.md` / `LOCK.md` / `VERSION` / folder map still accurate  
+6. No forbidden aliases reintroduced  
+7. No full restatement of rules outside canonical homes  
+8. Version bumps on changed files  
+9. No absolute host paths in binding law (`GOV-PORT-001`)  
+10. After move/copy: re-run verify  
+11. Prefer self-audit / full self-run green before calling locked pack ready  
+
+See also [LOCK.md](LOCK.md).
 
 ---
 

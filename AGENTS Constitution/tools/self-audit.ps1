@@ -113,6 +113,7 @@ if (Test-Path $verPath) {
     if ($pv -match '^5\.') { Pass "VERSION file $pv" } else { Fail "VERSION not 5.x ($pv)" }
 } else { Fail "VERSION file missing" }
 if (Test-Path (Join-Path $PackRoot "PACK.md")) { Pass "PACK.md present" } else { Fail "PACK.md missing" }
+if (Test-Path (Join-Path $PackRoot "LOCK.md")) { Pass "LOCK.md present" } else { Fail "LOCK.md missing" }
 if (Test-Path (Join-Path $PackRoot "ADOPT.md")) { Pass "ADOPT.md present" } else { Fail "ADOPT.md missing" }
 
 # Always-load set

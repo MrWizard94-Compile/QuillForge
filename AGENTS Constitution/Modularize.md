@@ -1,8 +1,9 @@
 # Modularize — Design Spec for the AGENTS Constitution
 
-**Status:** Implemented as constitution **v4.0.0**  
-**Date:** 2026-07-27  
+**Status:** Design history only (advisory) — live pack is **v5.0.1 LOCKED**  
+**Date:** 2026-07-28  
 **Scope:** Reusable empire-wide `AGENTS Constitution` folder  
+**Not binding law** — see `LOCK.md` (`GOV-LOCK-002`)
 
 ---
 

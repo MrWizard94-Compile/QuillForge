@@ -3,7 +3,7 @@
 ```
 Document: Module Index
 Module ID: MOD-GOV-IDX-001
-Version: 1.2.0
+Version: 1.2.1
 Status: Binding (governance)
 Authority: AGENTS.md
 Applies When: Loading modules; amending pack structure; verifying pack integrity
@@ -17,7 +17,7 @@ Overrides: None
 
 Every Level-3+ document has a stable **Module ID** (`MOD-…-001` form). Adding a module requires updating this index, `AGENTS.md` folder map, and `INTEGRITY.md` required-file list in the same delivery.
 
-**Pack version:** see `VERSION` (currently 5.0.0).
+**Pack version:** see `VERSION` (currently **5.0.1** LOCKED).
 
 ---
 
@@ -40,6 +40,7 @@ Every Level-3+ document has a stable **Module ID** (`MOD-…-001` form). Adding 
 |------|-----------|
 | `VERSION` | pack semver stamp |
 | `PACK.md` | MOD-GOV-PACK-001 |
+| `LOCK.md` | MOD-GOV-LOCK-001 |
 | `ADOPT.md` | MOD-GOV-ADOPT-001 |
 | `RULE-REGISTRY.md` | MOD-GOV-REG-001 |
 | `MODULE-INDEX.md` | MOD-GOV-IDX-001 |

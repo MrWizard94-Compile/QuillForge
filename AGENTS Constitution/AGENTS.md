@@ -1,20 +1,20 @@
 # AGENTS.md — Constitution of an AI Empire
 
-**Version**: 5.0.0  
+**Version**: 5.0.1  
 **Last Updated**: 2026-07-28  
-**Status**: Binding — Universal Production Constitution (Portable Pack)  
+**Status**: Binding — Universal Production Constitution (**LOCKED** portable pack)  
 **Classification**: Level 1 — Constitution (Immutable cross-project quality law)  
 **Document ID**: MOD-CONST-ROOT-001  
 **Module ID**: MOD-CONST-ROOT-001  
-**Pack version**: **5.0.0** ([VERSION](VERSION), [PACK.md](PACK.md))  
+**Pack version**: **5.0.1** ([VERSION](VERSION), [PACK.md](PACK.md), [LOCK.md](LOCK.md))  
 
 **Purpose**: Sovereign entry point for quality law. Process law lives in [SOP.md](SOP.md). Execution detail lives in scoped modules. Project-local law lives in each project’s own docs.
 
 This file is authoritative and short. It does not restate module contents in full. Every important rule has **exactly one canonical home** (`CONST-ONEHOME-001`, [RULE-REGISTRY.md](RULE-REGISTRY.md)).
 
-This constitution ships as a **universal, reusable, movable pack** ([PACK.md](PACK.md), [ADOPT.md](ADOPT.md)). Folder location is not identity (`GOV-PORT-001`).
+This constitution ships as a **universal, reusable, movable pack** ([PACK.md](PACK.md), [ADOPT.md](ADOPT.md)). Folder location is not identity (`GOV-PORT-001`). Amendments follow [LOCK.md](LOCK.md).
 
-**Governance:** [PACK.md](PACK.md) · [RULE-REGISTRY.md](RULE-REGISTRY.md) · [MODULE-INDEX.md](MODULE-INDEX.md) · [INTEGRITY.md](INTEGRITY.md) · `tools/verify-pack.ps1`
+**Governance:** [PACK.md](PACK.md) · [LOCK.md](LOCK.md) · [RULE-REGISTRY.md](RULE-REGISTRY.md) · [MODULE-INDEX.md](MODULE-INDEX.md) · [INTEGRITY.md](INTEGRITY.md) · `tools/verify-pack.ps1`
 
 ---
 
@@ -234,19 +234,18 @@ Rules:
 
 ```
 <pack-root>/                  ← movable; any path/name
-├── VERSION · PACK.md · ADOPT.md · README.md
+├── VERSION · PACK.md · LOCK.md · ADOPT.md · README.md
 ├── AGENTS.md                 ← You are here (Level 1 entry)
 ├── SOP.md                    ← Level 2 process law
 ├── RULE-REGISTRY.md · MODULE-INDEX.md · INTEGRITY.md
 ├── tools/                    ← verify / self-audit / full self-run / checksums
 ├── constitution/ · standards/ · operations/
 ├── collaboration/ · specialist/ · templates/
-├── docs/                     ← optional SOP evidence
-└── reports/                  ← generated; not law
+├── docs/ · reports/ · _archive_*/   ← non-law or history (see LOCK.md)
 ```
 
 Full module catalog: [MODULE-INDEX.md](MODULE-INDEX.md).  
-Adopt / move: [ADOPT.md](ADOPT.md).
+Adopt / move: [ADOPT.md](ADOPT.md). Lock: [LOCK.md](LOCK.md).
 
 ### Constitution
 
@@ -336,6 +335,12 @@ SOP steps must satisfy at least: `ENG-WARN-001`, `TEST-BEHAVIOR-001`, `DOC-SYNC-
 ---
 
 ## Changelog
+
+### 5.0.1 — 2026-07-28
+
+* **Cleanup + lockdown**: [LOCK.md](LOCK.md) (`GOV-LOCK-001`–`005`); non-law surfaces labeled (`reports/`, `docs/`, `_archive_*`).  
+* Host/project coupling scrubbed from adopt/lifecycle wording.  
+* Pack baseline declared **LOCKED** — amendments require human direction, complete replacements, version bump, verify-pack green.
 
 ### 5.0.0 — 2026-07-28
 

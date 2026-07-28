@@ -67,6 +67,7 @@ Section "0. Pack root resolution"
 if (Test-Path -LiteralPath $PackRoot) { Pass "Pack root resolves" } else { Fail "Pack root missing" }
 if (Test-Rel "VERSION") { Pass "VERSION present ($packVer)" } else { Fail "VERSION missing" }
 if (Test-Rel "PACK.md") { Pass "PACK.md present" } else { Fail "PACK.md missing" }
+if (Test-Rel "LOCK.md") { Pass "LOCK.md present" } else { Fail "LOCK.md missing" }
 if (Test-Rel "ADOPT.md") { Pass "ADOPT.md present" } else { Fail "ADOPT.md missing" }
 P "Tools resolve pack root from script location or -PackRoot (GOV-PORT-001). Folder name is not identity."
 
@@ -115,6 +116,7 @@ $modules = @(
     "specialist/CONSTRAINED-HARDWARE.md",
     "VERSION",
     "PACK.md",
+    "LOCK.md",
     "ADOPT.md",
     "RULE-REGISTRY.md",
     "MODULE-INDEX.md",
@@ -225,7 +227,7 @@ $gateRows = @(
     @("5", "Docs synchronized", $(if ((Test-Rel "README.md") -and (Test-Rel "Modularize.md") -and $phaseMissing -eq 0) { "Pass" } else { "Fail" }), "README + SOP docs"),
     @("6", "Security & validation", $sec6, "SECURITY.md present; no runtime I/O; no secrets"),
     @("7", "Performance reasoning", "Pass", "Always-load set + applicability matrix"),
-    @("8", "Version/stack fidelity", $(if ((Read-Rel "AGENTS.md") -match "5\.\d+\.\d+" -and $packVer -match "^5\.") { "Pass" } else { "Fail" }), "Pack 5.x + AGENTS 5.x"),
+    @("8", "Version/stack fidelity", $(if ((Read-Rel "AGENTS.md") -match "5\.0\.1" -and $packVer -match "^5\.0\.1") { "Pass" } else { "Fail" }), "Pack 5.0.1 locked baseline"),
     @("9", "Full package ready", "Pass", "Drop-in movable folder"),
     @("10", "Resource & constraint", "Pass", "Selective module load; portable SoT"),
     @("11", "Reproducibility", $(if ($vExit -eq 0) { "Pass" } else { "Fail" }), "Deterministic tools"),

@@ -2155,6 +2155,7 @@ dependencies = [
  "qf-collab",
  "qf-core",
  "rcgen",
+ "ring",
  "rustls",
  "rustls-pki-types",
  "serde",

@@ -14,31 +14,30 @@
 | Layer | Scope | Completion | Notes |
 |-------|--------|------------|--------|
 | **Foundation DoD** | Ship checklist D1–D28 | **~98%** | All criteria **Met** |
-| **Local-first core product** | Offline edit, package, recovery, export, plugins, AI, sync+TLS | **~98%** | Foundation + Word-class **P0–P5** |
-| **Marketing / “v1 product”** | Polish exports, multi-OS CI, browser sync, UX | **~90%** | Word-class surface complete for planned P0–P5; browser sync / rich media depth open |
-| **Long-term vision** | Full document OS, multiplayer UX, semantic search, rich GPU | **~72%** | Editor product surface on durable core |
+| **Local-first core product** | Offline edit, package, recovery, export, plugins, AI, sync | **~98%** | + Word-class P0–P5 + **WebSocket QFSNC1** |
+| **Marketing / “v1 product”** | Polish, multi-OS CI, browser UX | **~92%** | Browser *transport* ships (`ws://…/qfsnc1`); rich media / JS client open |
+| **Long-term vision** | Full document OS, multiplayer UX, semantic search, rich GPU | **~74%** | Editor surface + multi-transport sync |
 
 **Headline for directors:**  
-**Foundation ~98% DoD. Word-class product surface P0–P5 complete (shell, print, review, DOCX import, polish). Overall vision ~72%.**
-
-### Product surface priority (director)
-
-| Priority | Target | Status |
-|----------|--------|--------|
-| **User appearance** | Upgraded Word-class document editor | **P0–P5 live** |
-| **Brand** | WPAI only | Enforced |
-| **Engine** | Command → Journal → Kernel | Intact |
-| **Law** | `docs/28-product-surface.md` · `docs/29-p5-polish-parity.md` | Binding |
+**Foundation ~98% DoD. Word-class P0–P5 complete. Sync transports: TCP + TLS + WebSocket (QFSNC1). Overall vision ~74%.**
 
 ---
 
-## What remains (post P5 product surface)
+## What is done (recent)
 
-1. WebSocket / browser sync  
-2. Rich media fidelity (real image decode, tables/fonts in DOCX/PDF)  
+- Word-class product surface **P0–P5**  
+- Sync: in-process hub, TCP, TLS 1.3, **WebSocket** (`docs/30-websocket-sync.md`)  
+- Constitution pack **v5.0.1**  
+
+---
+
+## What remains (ordered)
+
+1. **wss://** (TLS + WebSocket) and browser reference client  
+2. Rich media fidelity (real image decode, tables/fonts)  
 3. Semantic search  
 4. Multi-OS CI matrix  
-5. Section-level headers, floating images  
+5. Long-lived WS sessions / presence over WS  
 
 ---
 
@@ -49,9 +48,9 @@ pwsh -File "AGENTS Constitution/tools/verify-pack.ps1"
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 cargo run -p qf-app -- demo
-cargo run -p qf-app -- review-demo
 cargo run -p qf-app -- polish-demo
-cargo run -p qf-app -- import-docx target/demo.docx Imported
+cargo run -p qf-app -- ws-sync-demo
+cargo run -p qf-app -- tls-sync-demo
 cargo run -p qf-app -- edit
 ```
 

@@ -16,6 +16,8 @@ uuid = { workspace = true }
 rustls = { workspace = true }
 rustls-pki-types = { workspace = true }
 rcgen = { workspace = true }
+# SHA-1 for WebSocket Sec-WebSocket-Accept (RFC 6455); ring already in graph via rustls.
+ring = "0.17"
 
 [dev-dependencies]
 tempfile = { workspace = true }

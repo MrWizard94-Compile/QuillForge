@@ -64,8 +64,19 @@ session.pull(pull_req)?;
 
 Same pattern for `WssSyncClient::open_session`. One-shot `hello`/`push`/`pull` on the client types still open a short session per call.
 
+## Live head notify
+
+Subscribed sessions receive unsolicited `Notify` frames when a peer Push advances the hub head (concurrent WS workers + live channels). See `docs/38-server-push-notify.md`.
+
+```rust
+session.subscribe(SubscribeRequest { token })?;
+// peer push elsewhere…
+let batch = session.wait_notify(Duration::from_secs(2))?;
+// then Pull and merge via command path
+```
+
 ## Out of scope (next)
 
-- Server-push / notify without client request  
 - Production CA / public trust  
 - Multiplexed documents on one socket with framing channels  
+- Browser client subscribe UI  

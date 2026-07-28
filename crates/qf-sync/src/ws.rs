@@ -6,7 +6,8 @@
 //! Path: `/qfsnc1` — servers reject other upgrade targets.
 
 use crate::hub::{
-    Hello, HelloAck, PullRequest, PullResponse, PushAck, PushRequest, SyncHub,
+    DrainNotifyRequest, HeadNotify, Hello, HelloAck, NotifyBatch, PullRequest, PullResponse,
+    PushAck, PushRequest, SessionToken, SubscribeRequest, Subscribed, SyncHub,
 };
 use crate::wire::{
     dispatch, err_resp, map_wire_err, read_frame, write_frame, WireRequest, WireResponse,
@@ -16,9 +17,13 @@ use ring::digest::{digest, SHA1_FOR_LEGACY_USE_ONLY};
 use std::io::{Cursor, Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
+
+/// How often a long-lived server session wakes to flush live notifies.
+const LIVE_POLL: Duration = Duration::from_millis(50);
 
 const WS_GUID: &str = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 const WS_PATH: &str = "/qfsnc1";
@@ -95,7 +100,12 @@ fn accept_loop(listener: TcpListener, hub: Arc<Mutex<SyncHub>>, stop: Arc<Atomic
                 if stop.load(Ordering::SeqCst) {
                     break;
                 }
-                let _ = handle_connection(stream, &hub);
+                // Concurrent multi-connection: each socket gets a worker thread
+                // so peer Push can unsolicited-notify other open sessions.
+                let hub_c = hub.clone();
+                thread::spawn(move || {
+                    let _ = handle_connection(stream, &hub_c);
+                });
             }
             Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
                 thread::sleep(Duration::from_millis(5));
@@ -109,8 +119,9 @@ fn handle_connection(mut stream: TcpStream, hub: &Arc<Mutex<SyncHub>>) -> Result
     stream
         .set_nonblocking(false)
         .map_err(|e| SyncError::Network(e.to_string()))?;
+    // Short read timeout so the serve loop can flush live notifies between requests.
     stream
-        .set_read_timeout(Some(Duration::from_secs(30)))
+        .set_read_timeout(Some(LIVE_POLL))
         .map_err(|e| SyncError::Network(e.to_string()))?;
     stream
         .set_write_timeout(Some(Duration::from_secs(30)))
@@ -196,32 +207,157 @@ impl WsSyncSession {
         }
     }
 
+    pub fn subscribe(&mut self, req: SubscribeRequest) -> Result<Subscribed, SyncError> {
+        match self.round_trip(WireRequest::Subscribe(req))? {
+            WireResponse::Subscribed(s) => Ok(s),
+            WireResponse::Error { kind, message } => Err(map_wire_err(kind, message)),
+            other => Err(SyncError::Network(format!("unexpected response: {other:?}"))),
+        }
+    }
+
+    pub fn drain_notify(&mut self, req: DrainNotifyRequest) -> Result<NotifyBatch, SyncError> {
+        match self.round_trip(WireRequest::DrainNotify(req))? {
+            WireResponse::Notify(n) => Ok(n),
+            WireResponse::Error { kind, message } => Err(map_wire_err(kind, message)),
+            other => Err(SyncError::Network(format!("unexpected response: {other:?}"))),
+        }
+    }
+
+    /// Wait for an unsolicited server `Notify` (no client request). Empty batch on timeout.
+    pub fn wait_notify(&mut self, timeout: Duration) -> Result<NotifyBatch, SyncError> {
+        self.stream
+            .set_read_timeout(Some(timeout))
+            .map_err(|e| SyncError::Network(e.to_string()))?;
+        match read_qfsnc1_ws::<_, WireResponse>(&mut self.stream) {
+            Ok(WireResponse::Notify(n)) => Ok(n),
+            Ok(WireResponse::Error { kind, message }) => Err(map_wire_err(kind, message)),
+            Ok(other) => Err(SyncError::Network(format!(
+                "expected unsolicited Notify, got {other:?}"
+            ))),
+            Err(e) if is_timeout(&e) => Ok(NotifyBatch { events: vec![] }),
+            Err(e) => Err(e),
+        }
+    }
+
     fn round_trip(&mut self, req: WireRequest) -> Result<WireResponse, SyncError> {
+        // Round-trips may see unsolicited Notify frames first; skip/collect them.
         write_qfsnc1_ws(&mut self.stream, &req, true)?;
-        read_qfsnc1_ws(&mut self.stream)
+        loop {
+            match read_qfsnc1_ws::<_, WireResponse>(&mut self.stream)? {
+                WireResponse::Notify(_) => {
+                    // Stale notify interleaved — ignore and keep waiting for the response.
+                    continue;
+                }
+                other => return Ok(other),
+            }
+        }
     }
 }
 
 /// Serve many request/response pairs until the peer closes or an I/O error ends the session.
+///
+/// While subscribed, this connection registers a live channel so peer Pushes produce
+/// unsolicited `WireResponse::Notify` frames without a client `DrainNotify`.
 pub(crate) fn serve_session_ws<S: Read + Write>(
     stream: &mut S,
     hub: &Arc<Mutex<SyncHub>>,
     client_masking: bool,
 ) -> Result<(), SyncError> {
+    let (tx, rx): (Sender<HeadNotify>, Receiver<HeadNotify>) = mpsc::channel();
+    let mut live_token: Option<SessionToken> = None;
+
     loop {
+        // 1) Flush any live head notifies as unsolicited frames.
+        if flush_live_notifies(stream, &rx, client_masking).is_err() {
+            unregister_live(hub, &live_token);
+            return Ok(());
+        }
+
+        // 2) Wait for next client request (timeout → loop & flush again).
         match read_qfsnc1_ws::<_, WireRequest>(stream) {
             Ok(req) => {
+                // Track token for live registration after Subscribe.
+                let subscribe_token = match &req {
+                    WireRequest::Subscribe(s) => Some(s.token.clone()),
+                    WireRequest::Hello(_) => None,
+                    _ => None,
+                };
                 let resp = dispatch(hub, req);
-                write_qfsnc1_ws(stream, &resp, client_masking)?;
+                if let Err(e) = write_qfsnc1_ws(stream, &resp, client_masking) {
+                    unregister_live(hub, &live_token);
+                    return if is_peer_gone(&e) { Ok(()) } else { Err(e) };
+                }
+                // After successful Subscribe, bind this socket's live channel.
+                if matches!(resp, WireResponse::Subscribed(_)) {
+                    if let Some(tok) = subscribe_token {
+                        if let Ok(mut h) = hub.lock() {
+                            let _ = h.register_live_notify(&tok, tx.clone());
+                        }
+                        // Drop previous registration if token changed.
+                        if live_token.as_ref().map(|t| t.0) != Some(tok.0) {
+                            if let Some(old) = live_token.take() {
+                                if old.0 != tok.0 {
+                                    if let Ok(mut h) = hub.lock() {
+                                        h.unregister_live_notify(&old);
+                                    }
+                                }
+                            }
+                        }
+                        live_token = Some(tok);
+                    }
+                }
             }
-            Err(e) if is_peer_gone(&e) => return Ok(()),
+            Err(e) if is_timeout(&e) => {
+                // Idle tick — keep flushing live notifies.
+                continue;
+            }
+            Err(e) if is_peer_gone(&e) => {
+                unregister_live(hub, &live_token);
+                return Ok(());
+            }
             Err(e) => {
-                // Protocol error: try to surface once, then end session.
                 let _ = write_qfsnc1_ws(stream, &err_resp(e), client_masking);
+                unregister_live(hub, &live_token);
                 return Ok(());
             }
         }
     }
+}
+
+fn flush_live_notifies<S: Write>(
+    stream: &mut S,
+    rx: &Receiver<HeadNotify>,
+    client_masking: bool,
+) -> Result<(), SyncError> {
+    let mut events = Vec::new();
+    while let Ok(ev) = rx.try_recv() {
+        events.push(ev);
+    }
+    if events.is_empty() {
+        return Ok(());
+    }
+    write_qfsnc1_ws(
+        stream,
+        &WireResponse::Notify(NotifyBatch { events }),
+        client_masking,
+    )
+}
+
+fn unregister_live(hub: &Arc<Mutex<SyncHub>>, token: &Option<SessionToken>) {
+    if let Some(tok) = token {
+        if let Ok(mut h) = hub.lock() {
+            h.unregister_live_notify(tok);
+        }
+    }
+}
+
+fn is_timeout(e: &SyncError) -> bool {
+    let msg = e.to_string().to_ascii_lowercase();
+    msg.contains("timed out")
+        || msg.contains("timeout")
+        || msg.contains("10060") // WSAETIMEDOUT
+        || msg.contains("os error 10060")
+        || msg.contains("would block")
 }
 
 fn is_peer_gone(e: &SyncError) -> bool {
@@ -607,6 +743,71 @@ mod tests {
             .unwrap();
         assert_eq!(pull.server_head_seq, 1);
         assert_eq!(pull.ops.len(), 1);
+
+        server.stop();
+    }
+
+    #[test]
+    fn ws_unsolicited_notify_on_peer_push() {
+        let server = WsSyncServer::start(SyncHub::new()).unwrap();
+        let addr = server.addr();
+        let mut gen = SeqIdGen::default();
+        let doc = DocumentId::new(&mut gen);
+
+        let mut a = WsSyncSession::open(addr).unwrap();
+        let mut b = WsSyncSession::open(addr).unwrap();
+        // Give worker threads a moment after concurrent accept.
+        thread::sleep(Duration::from_millis(30));
+
+        let ack_a = a
+            .hello(Hello {
+                client_id: ActorId::new(&mut gen),
+                session_id: SessionId::new(&mut gen),
+                document_id: doc,
+                have_seq: 0,
+            })
+            .unwrap();
+        let ack_b = b
+            .hello(Hello {
+                client_id: ActorId::new(&mut gen),
+                session_id: SessionId::new(&mut gen),
+                document_id: doc,
+                have_seq: 0,
+            })
+            .unwrap();
+        b.subscribe(SubscribeRequest {
+            token: ack_b.token.clone(),
+        })
+        .unwrap();
+
+        // B idles waiting for unsolicited Notify (no DrainNotify).
+        let ops = vec![Operation::Noop {
+            reason: qf_core::NoopReason::Other("live".into()),
+        }];
+        a.push(PushRequest {
+            token: ack_a.token,
+            first_seq: 1,
+            last_seq: 1,
+            ops: ops.clone(),
+            crdt: None,
+            payload_hash: hash_ops(&ops),
+        })
+        .unwrap();
+
+        let mut batch = NotifyBatch { events: vec![] };
+        for _ in 0..40 {
+            batch = b.wait_notify(Duration::from_millis(100)).unwrap();
+            if !batch.events.is_empty() {
+                break;
+            }
+        }
+        assert_eq!(
+            batch.events.len(),
+            1,
+            "expected unsolicited HeadNotify on open WS session"
+        );
+        assert_eq!(batch.events[0].server_head_seq, 1);
+        assert_eq!(batch.events[0].document_id, doc);
 
         server.stop();
     }

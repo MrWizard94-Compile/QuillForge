@@ -108,7 +108,11 @@ fn accept_loop_wss(
                 if stop.load(Ordering::SeqCst) {
                     break;
                 }
-                let _ = handle_wss_connection(stream, &hub, &cfg);
+                let hub_c = hub.clone();
+                let cfg_c = cfg.clone();
+                thread::spawn(move || {
+                    let _ = handle_wss_connection(stream, &hub_c, &cfg_c);
+                });
             }
             Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
                 thread::sleep(Duration::from_millis(5));
@@ -126,8 +130,9 @@ fn handle_wss_connection(
     stream
         .set_nonblocking(false)
         .map_err(|e| SyncError::Network(e.to_string()))?;
+    // Short read timeout so live notify flush works between requests (same as plain WS).
     stream
-        .set_read_timeout(Some(Duration::from_secs(30)))
+        .set_read_timeout(Some(Duration::from_millis(50)))
         .map_err(|e| SyncError::Network(e.to_string()))?;
     stream
         .set_write_timeout(Some(Duration::from_secs(30)))

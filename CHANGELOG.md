@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Live WS/WSS head notify:** concurrent session workers + hub live channels push unsolicited `Notify` frames to subscribers (`wait_notify`); mailbox `DrainNotify` still available (`docs/38-server-push-notify.md`).
 - **Server-push head notify:** `Subscribe` / `DrainNotify` + hub mailbox fan-out on peer Push so clients need not poll Pull while idle (`docs/38-server-push-notify.md`).
 - **DOCX DrawingML images:** `export_docx_with_assets` embeds PNG/JPEG as `word/media/*` with inline DrawingML; import restores package assets + Image blocks (`docs/37-docx-drawingml.md`).
 - **Offline dense embeddings:** signed feature hashing pack `hash_ngram_v1` (tokens + char 3-grams, dim 64), `SearchMode::Dense`, hybrid chain, GUI Dense mode, `search-demo` pack JSON (`docs/36-dense-embeddings.md`).

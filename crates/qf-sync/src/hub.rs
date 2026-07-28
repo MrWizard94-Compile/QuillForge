@@ -11,6 +11,7 @@ use qf_collab::{PresenceEvent, TextCrdt};
 use qf_core::{ActorId, DocumentId, Hash256, Operation, SessionId};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap, VecDeque};
+use std::sync::mpsc::Sender;
 use uuid::Uuid;
 
 /// Opaque session token issued by HelloAck.
@@ -131,6 +132,8 @@ pub struct SyncHub {
     docs: HashMap<DocumentId, DocReplica>,
     /// Per-session notify mailbox (token → pending head events).
     notify_mail: HashMap<Uuid, VecDeque<HeadNotify>>,
+    /// Live transport channels (WS/WSS) for unsolicited Notify frames.
+    live_notify: HashMap<Uuid, Sender<HeadNotify>>,
 }
 
 impl SyncHub {
@@ -189,6 +192,25 @@ impl SyncHub {
         Ok(NotifyBatch { events })
     }
 
+    /// Register a live channel so the transport can push unsolicited `Notify` frames.
+    /// Replaces any previous channel for this token.
+    pub fn register_live_notify(
+        &mut self,
+        token: &SessionToken,
+        tx: Sender<HeadNotify>,
+    ) -> Result<(), SyncError> {
+        if !self.sessions.contains_key(&token.0) {
+            return Err(SyncError::Auth("unknown session".into()));
+        }
+        self.live_notify.insert(token.0, tx);
+        Ok(())
+    }
+
+    /// Drop live channel (connection closed or re-subscribe on a new socket).
+    pub fn unregister_live_notify(&mut self, token: &SessionToken) {
+        self.live_notify.remove(&token.0);
+    }
+
     fn fanout_notify(
         &mut self,
         document_id: DocumentId,
@@ -211,6 +233,10 @@ impl SyncHub {
         };
         for id in recipients {
             self.notify_mail.entry(id).or_default().push_back(event.clone());
+            // Best-effort live push (drop if channel full/disconnected).
+            if let Some(tx) = self.live_notify.get(&id) {
+                let _ = tx.send(event.clone());
+            }
         }
     }
 

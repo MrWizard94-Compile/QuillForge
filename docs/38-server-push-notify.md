@@ -33,12 +33,22 @@ Publisher does not receive its own notify. Unsubscribed sessions get an empty dr
 
 | Surface | Entry |
 |---------|--------|
-| Hub | `SyncHub::subscribe` / `drain_notifies` |
+| Hub | `SyncHub::subscribe` / `drain_notifies` / `register_live_notify` |
 | Client helper | `SyncClient::subscribe` / `drain_notifies` |
 | Wire | `WireRequest::Subscribe` / `DrainNotify` |
-| TCP | `TcpSyncClient::subscribe` / `drain_notify` |
+| TCP | `TcpSyncClient::subscribe` / `drain_notify` (mailbox drain) |
+| WS / WSS | Concurrent workers + live channel → **unsolicited** `Notify` frames |
+| WS client | `WsSyncSession::subscribe` / `wait_notify` |
 
 Notify is a **signal**, not content. After notify, call `Pull` and merge via the normal path.
+
+### Live (unsolicited) path
+
+1. WS accept spawns **one thread per connection**.  
+2. On `Subscribe`, the serve loop registers an `mpsc` sender on the hub.  
+3. Peer `Push` fan-out fills the mailbox **and** `send`s on live channels.  
+4. The idle serve loop (short read timeout) flushes pending events as `WireResponse::Notify` without a client request.  
+5. Connection close unregisters the live channel.
 
 ---
 
@@ -47,12 +57,13 @@ Notify is a **signal**, not content. After notify, call `Pull` and merge via the
 ```bash
 cargo test -p qf-sync subscribe_receives_notify -- --nocapture
 cargo test -p qf-sync tcp_subscribe_notify -- --nocapture
+cargo test -p qf-sync ws_unsolicited_notify -- --nocapture
 ```
 
 ---
 
 ## Out of scope
 
-- Unsolicited multi-connection socket push without DrainNotify  
 - Presence fan-out over the same mailbox  
 - Browser client subscribe UI  
+- Backpressure / notify coalescing beyond batch-on-flush  

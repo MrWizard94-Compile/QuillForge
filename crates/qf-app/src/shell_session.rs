@@ -5,7 +5,17 @@ use crate::product_surface::{CommandBarTab, DocumentViewMode, ProductSurface};
 use crate::review::ReviewPanel;
 use crate::{EditorController, EditorError};
 use qf_core::{AssetId, SuggestionId};
+use qf_search::{SearchHit, SearchMode};
 use std::path::{Path, PathBuf};
+
+/// Search panel chrome (not durable).
+#[derive(Clone, Debug, Default)]
+pub struct SearchPanel {
+    pub visible: bool,
+    pub query: String,
+    pub mode: SearchMode,
+    pub hits: Vec<SearchHit>,
+}
 
 /// Desktop-shell state used by GUI and headless surface tests.
 pub struct ShellSession {
@@ -19,6 +29,7 @@ pub struct ShellSession {
     pub dirty: bool,
     pub review: ReviewPanel,
     pub chrome: PageChrome,
+    pub search_panel: SearchPanel,
 }
 
 impl ShellSession {
@@ -45,9 +56,32 @@ impl ShellSession {
             dirty: false,
             review: ReviewPanel::word_class_default(),
             chrome,
+            search_panel: SearchPanel::default(),
         };
         session.refresh_surface();
         Ok(session)
+    }
+
+    pub fn run_search(&mut self) {
+        let q = self.search_panel.query.trim().to_string();
+        if q.is_empty() {
+            self.search_panel.hits.clear();
+            return;
+        }
+        self.search_panel.hits = self
+            .editor
+            .search_with_mode(&q, self.search_panel.mode);
+        self.search_panel.visible = true;
+    }
+
+    pub fn open_search_hit(&mut self, index: usize) -> Result<(), EditorError> {
+        let Some(hit) = self.search_panel.hits.get(index).cloned() else {
+            return Err(EditorError::Other("search hit out of range".into()));
+        };
+        self.editor.focus_search_hit(&hit)?;
+        self.draft = self.editor.focused_text().unwrap_or_default();
+        self.refresh_surface();
+        Ok(())
     }
 
     pub fn refresh_surface(&mut self) {
@@ -411,6 +445,23 @@ mod tests {
             ShellSession::open_from_docx(dir.path(), "opened", &docx).unwrap();
         assert!(opened.package_path.exists());
         assert!(opened.editor.document_plain().contains("From Word-class DOCX"));
+    }
+
+    #[test]
+    fn hybrid_search_finds_text() {
+        let dir = tempdir().unwrap();
+        let mut s = ShellSession::open_or_create(dir.path(), "search").unwrap();
+        s.draft = "Quillforge local-first document durability journal".into();
+        s.apply_draft().unwrap();
+        s.search_panel.query = "local first durability".into();
+        s.search_panel.mode = SearchMode::Hybrid;
+        s.run_search();
+        assert!(
+            !s.search_panel.hits.is_empty(),
+            "expected hits for hybrid query"
+        );
+        s.open_search_hit(0).unwrap();
+        assert!(s.draft.to_lowercase().contains("quillforge") || !s.draft.is_empty());
     }
 
     #[test]

@@ -31,6 +31,7 @@ thiserror = { workspace = true }
 eframe = { workspace = true }
 egui = { workspace = true }
 qf-theme = { workspace = true }
+qf-search = { workspace = true }
 rustls = { workspace = true }
 image = { workspace = true }
 

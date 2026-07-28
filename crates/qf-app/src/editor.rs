@@ -5,6 +5,7 @@
 use qf_core::{BlockId, Command, CommandError, OpSeq, ParentRef, TextOffset};
 use qf_input::{InputState, KeyEvent, PointerEvent, Selection};
 use qf_layout::{LayoutConfig, LayoutEngine, LayoutTree};
+use qf_search::{SearchEngine, SearchHit, SearchIngestor, SearchMode, SearchQuery};
 use qf_storage::{CommitOutcome, DocumentSession};
 use std::path::Path;
 use thiserror::Error;
@@ -28,13 +29,14 @@ pub struct EditResult {
     pub layout_changed: bool,
 }
 
-/// Wires input → session commit → layout reflow.
+/// Wires input → session commit → layout reflow (+ derived search index).
 pub struct EditorController {
     pub session: DocumentSession,
     pub input: InputState,
     pub layout_engine: LayoutEngine,
     pub layout_config: LayoutConfig,
     pub layout_tree: LayoutTree,
+    pub search: SearchEngine,
 }
 
 impl EditorController {
@@ -42,12 +44,15 @@ impl EditorController {
         let layout_engine = LayoutEngine::new();
         let layout_config = LayoutConfig::default();
         let layout_tree = layout_engine.full_layout(session.state(), &layout_config);
+        let mut search = SearchEngine::new();
+        search.rebuild(session.state());
         Self {
             session,
             input: InputState::default(),
             layout_engine,
             layout_config,
             layout_tree,
+            search,
         }
     }
 
@@ -193,10 +198,37 @@ impl EditorController {
         }
     }
 
-    pub(crate) fn reflow(&mut self) {
+    /// Rebuild layout + search from current canonical state (derived only).
+    pub fn reflow(&mut self) {
         self.layout_tree = self
             .layout_engine
             .full_layout(self.session.state(), &self.layout_config);
+        // Search index is derived — always rebuildable from canonical state.
+        self.search.rebuild(self.session.state());
+    }
+
+    /// Hybrid search (token ∪ phrase ∪ TF–IDF semantic). Derived index only.
+    pub fn search_text(&mut self, query: &str) -> Vec<SearchHit> {
+        if self.search.state_gen != self.session.state().op_seq {
+            self.search.rebuild(self.session.state());
+        }
+        self.search.query(&SearchQuery::hybrid(query))
+    }
+
+    pub fn search_with_mode(&mut self, query: &str, mode: SearchMode) -> Vec<SearchHit> {
+        if self.search.state_gen != self.session.state().op_seq {
+            self.search.rebuild(self.session.state());
+        }
+        self.search.query(&SearchQuery {
+            text: query.into(),
+            mode,
+            limit: 50,
+        })
+    }
+
+    /// Focus a block from a search hit (caret at start).
+    pub fn focus_search_hit(&mut self, hit: &SearchHit) -> Result<(), EditorError> {
+        self.focus(hit.block_id, TextOffset(0))
     }
 
     fn block_parent_index(&self, block_id: BlockId) -> Result<(ParentRef, u32), EditorError> {

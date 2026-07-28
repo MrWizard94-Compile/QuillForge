@@ -9,6 +9,7 @@ use crate::ProductSurface;
 use eframe::egui::{self, Color32, ColorImage, FontId, RichText, Sense, TextureHandle, TextureOptions, Vec2};
 use qf_core::AssetId;
 use qf_layout::{fixed_to_pt, PAGE_HEIGHT_PT, PAGE_WIDTH_PT};
+use qf_search::{HitPath, SearchMode};
 use qf_theme::Theme;
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -195,6 +196,10 @@ impl QuillShellApp {
                 }
                 Err(e) => self.session.last_error = Some(e.to_string()),
             },
+            "search.open" => {
+                self.session.search_panel.visible = true;
+                self.session.surface.activate_tab(CommandBarTab::Home);
+            },
             "layout.margins" | "layout.orientation" | "layout.size" => {
                 self.session.chrome.panel_visible = true;
                 self.session.surface.activate_tab(CommandBarTab::Layout);
@@ -202,6 +207,72 @@ impl QuillShellApp {
                     Some("Page setup: US Letter · 1\" margins (layout engine)".into());
             }
             _ => self.session.toggle_bold_hint(),
+        }
+    }
+
+    fn paint_search_panel(&mut self, ui: &mut egui::Ui, ink: Color32, ember: Color32) {
+        ui.heading(RichText::new("Search").color(ember).size(16.0));
+        ui.label(
+            RichText::new("Hybrid: token · phrase · TF–IDF semantic (local)")
+                .small()
+                .color(Color32::from_gray(100)),
+        );
+        ui.separator();
+        ui.horizontal(|ui| {
+            ui.add(
+                egui::TextEdit::singleline(&mut self.session.search_panel.query)
+                    .desired_width(180.0)
+                    .hint_text("Find in document…"),
+            );
+            if ui.button("Find").clicked() {
+                self.session.run_search();
+            }
+        });
+        ui.horizontal(|ui| {
+            for (label, mode) in [
+                ("Hybrid", SearchMode::Hybrid),
+                ("Token", SearchMode::Token),
+                ("Phrase", SearchMode::Phrase),
+                ("Semantic", SearchMode::Semantic),
+            ] {
+                let selected = self.session.search_panel.mode == mode;
+                if ui.selectable_label(selected, label).clicked() {
+                    self.session.search_panel.mode = mode;
+                    if !self.session.search_panel.query.trim().is_empty() {
+                        self.session.run_search();
+                    }
+                }
+            }
+        });
+        ui.separator();
+        let hits = self.session.search_panel.hits.clone();
+        if hits.is_empty() {
+            ui.label(RichText::new("No hits").italics().color(ink));
+        } else {
+            egui::ScrollArea::vertical().show(ui, |ui| {
+                for (i, hit) in hits.iter().enumerate() {
+                    let path = match hit.path {
+                        HitPath::Token => "token",
+                        HitPath::Phrase => "phrase",
+                        HitPath::Semantic => "semantic",
+                    };
+                    let label = format!(
+                        "{:.2} · {} · {}",
+                        hit.score,
+                        path,
+                        hit.snippet.chars().take(80).collect::<String>()
+                    );
+                    if ui.selectable_label(false, RichText::new(label).color(ink)).clicked() {
+                        if let Err(e) = self.session.open_search_hit(i) {
+                            self.session.last_error = Some(e.to_string());
+                        }
+                    }
+                }
+            });
+        }
+        ui.separator();
+        if ui.small_button("Close").clicked() {
+            self.session.search_panel.visible = false;
         }
     }
 
@@ -677,6 +748,9 @@ impl eframe::App for QuillShellApp {
                             self.session.set_zoom_percent(z.saturating_add(10));
                         }
                         ui.separator();
+                        if ui.small_button("Search").clicked() {
+                            self.session.search_panel.visible = true;
+                        }
                         if ui.small_button("Review").clicked() {
                             self.session.toggle_review_panel();
                         }
@@ -687,8 +761,15 @@ impl eframe::App for QuillShellApp {
                 });
         }
 
-        // Review side panel (Word-class Suggestions surface)
-        if self.session.review.visible
+        // Side panels (one primary at a time)
+        if self.session.search_panel.visible {
+            egui::SidePanel::right("search_panel")
+                .default_width(300.0)
+                .frame(egui::Frame::none().fill(rail).inner_margin(10.0))
+                .show(ctx, |ui| {
+                    self.paint_search_panel(ui, ink, ember);
+                });
+        } else if self.session.review.visible
             || self.session.surface.active_tab == CommandBarTab::Review
         {
             self.session.review.visible = true;

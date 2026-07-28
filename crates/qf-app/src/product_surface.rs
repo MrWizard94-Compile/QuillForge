@@ -208,6 +208,11 @@ fn groups_for_tab(tab: CommandBarTab) -> Vec<CommandGroup> {
         }],
         CommandBarTab::Home => vec![
             CommandGroup {
+                id: "home.search".into(),
+                label: "Find".into(),
+                actions: vec![action("search.open", "Search", "OpenSearch")],
+            },
+            CommandGroup {
                 id: "home.clipboard".into(),
                 label: "Clipboard".into(),
                 actions: vec![

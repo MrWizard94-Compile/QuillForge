@@ -25,3 +25,4 @@ pub use product_surface::{
 };
 pub use review::{ReviewPanel, SuggestionRow};
 pub use shell_session::ShellSession;
+pub use qf_search::{HitPath, SearchHit, SearchMode, SearchQuery};

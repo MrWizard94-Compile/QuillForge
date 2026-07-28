@@ -2,7 +2,7 @@
 
 use qf_app::{
     run_browser_sync_demo, run_browser_wss_demo, run_gui, EditorController, ProductSurface,
-    ShellSession,
+    SearchMode, ShellSession,
 };
 use qf_blocks::BlockBody;
 use qf_core::{
@@ -75,6 +75,13 @@ fn main() -> ExitCode {
                 ExitCode::FAILURE
             }
         },
+        "search-demo" => match run_search_demo() {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(e) => {
+                eprintln!("error: {e}");
+                ExitCode::FAILURE
+            }
+        },
         "version" => {
             println!("{}", cli_banner());
             println!(
@@ -140,6 +147,67 @@ fn main() -> ExitCode {
             ExitCode::FAILURE
         }
     }
+}
+
+fn run_search_demo() -> Result<(), String> {
+    let work = PathBuf::from("target/quill-search");
+    let _ = std::fs::remove_dir_all(&work);
+    let mut session =
+        ShellSession::open_or_create(&work, "SearchDemo").map_err(|e| e.to_string())?;
+    // Multi-block corpus via sequential paragraph replaces after enter...
+    // Use single long draft then separate blocks via ensure + set on new inserts.
+    session.draft = "Machine learning models use neural networks for classification tasks.".into();
+    session.apply_draft().map_err(|e| e.to_string())?;
+    // Second block
+    session
+        .editor
+        .session
+        .commit_command(qf_core::Command::InsertBlock {
+            parent: qf_core::ParentRef::DocumentRoot,
+            index: 1,
+            body_type: "paragraph".into(),
+            body_payload: b"Baking sourdough bread with flour water salt".to_vec(),
+        })
+        .map_err(|e| e.to_string())?;
+    session
+        .editor
+        .session
+        .commit_command(qf_core::Command::InsertBlock {
+            parent: qf_core::ParentRef::DocumentRoot,
+            index: 2,
+            body_type: "paragraph".into(),
+            body_payload: b"Deep learning transformers and attention mechanisms".to_vec(),
+        })
+        .map_err(|e| e.to_string())?;
+    session.editor.reflow();
+
+    for (mode, q) in [
+        (SearchMode::Token, "neural"),
+        (SearchMode::Phrase, "deep learning"),
+        (SearchMode::Semantic, "neural network learning"),
+        (SearchMode::Hybrid, "learning models"),
+    ] {
+        let hits = session.editor.search_with_mode(q, mode);
+        println!(
+            "{mode:?} query={q:?} hits={} top={}",
+            hits.len(),
+            hits.first()
+                .map(|h| format!("{:.3} {}", h.score, h.snippet))
+                .unwrap_or_else(|| "(none)".into())
+        );
+        assert!(!hits.is_empty(), "expected hits for {mode:?} {q}");
+    }
+    session.search_panel.query = "learning".into();
+    session.search_panel.mode = SearchMode::Hybrid;
+    session.run_search();
+    println!(
+        "panel hits={} tokens_indexed={}",
+        session.search_panel.hits.len(),
+        session.editor.search.token_count()
+    );
+    assert!(!session.search_panel.hits.is_empty());
+    println!("search-demo complete — hybrid/semantic search verified");
+    Ok(())
 }
 
 fn run_polish_demo() -> Result<(), String> {
@@ -286,6 +354,7 @@ fn print_help() {
     println!("  quillforge wss-sync-demo       Localhost WSS (TLS+WS) QFSNC1 sync demo");
     println!("  quillforge browser-sync-demo   HTTP page + ws:// QFSNC1 browser client");
     println!("  quillforge browser-wss-demo    HTTPS page + wss:// QFSNC1 browser client");
+    println!("  quillforge search-demo         Hybrid / semantic search demo");
     println!("  quillforge version             Print version and WPAI identity");
     println!("  quillforge help                Show this help");
     println!();

@@ -36,6 +36,8 @@ pub struct QuillShellApp {
     theme: Theme,
     /// Decoded image textures keyed by asset UUID.
     textures: HashMap<String, TextureHandle>,
+    /// Product mark texture (command bar / about).
+    brand_logo: Option<TextureHandle>,
 }
 
 impl QuillShellApp {
@@ -45,7 +47,42 @@ impl QuillShellApp {
             session,
             theme: Theme::document_workspace_light(),
             textures: HashMap::new(),
+            brand_logo: None,
         })
+    }
+
+    fn ensure_brand_logo(&mut self, ctx: &egui::Context) -> Option<TextureHandle> {
+        if let Some(t) = &self.brand_logo {
+            return Some(t.clone());
+        }
+        let (w, h, rgba) = crate::decode_image_rgba(crate::product_mark_png())?;
+        // Fit command-bar height (~28px).
+        let max_h = 28u32;
+        let (dw, dh, pixels) = if h > max_h {
+            let scale = max_h as f32 / h as f32;
+            let nw = ((w as f32) * scale).round().max(1.0) as usize;
+            let nh = max_h as usize;
+            // Simple nearest-neighbor downscale for chrome (not print).
+            let mut out = vec![0u8; nw * nh * 4];
+            for y in 0..nh {
+                let sy = ((y as f32) / scale) as u32;
+                for x in 0..nw {
+                    let sx = ((x as f32) / scale) as u32;
+                    let si = ((sy * w + sx) * 4) as usize;
+                    let di = (y * nw + x) * 4;
+                    if si + 3 < rgba.len() {
+                        out[di..di + 4].copy_from_slice(&rgba[si..si + 4]);
+                    }
+                }
+            }
+            (nw, nh, out)
+        } else {
+            (w as usize, h as usize, rgba)
+        };
+        let image = ColorImage::from_rgba_unmultiplied([dw, dh], &pixels);
+        let handle = ctx.load_texture("quillforge-product-mark", image, TextureOptions::LINEAR);
+        self.brand_logo = Some(handle.clone());
+        Some(handle)
     }
 
     fn texture_for(
@@ -192,7 +229,15 @@ impl QuillShellApp {
             "insert.image" => match self.session.insert_image_placeholder() {
                 Ok(_) => {
                     self.textures.clear();
-                    self.session.last_error = Some("Image block inserted (decoded PNG)".into());
+                    self.session.last_error =
+                        Some("Product mark image inserted (Quillforge brand)".into());
+                }
+                Err(e) => self.session.last_error = Some(e.to_string()),
+            },
+            "insert.logo" => match self.session.insert_product_mark() {
+                Ok(_) => {
+                    self.textures.clear();
+                    self.session.last_error = Some("Quillforge logo inserted".into());
                 }
                 Err(e) => self.session.last_error = Some(e.to_string()),
             },
@@ -321,9 +366,14 @@ impl QuillShellApp {
             .small()
             .color(ink),
         );
-        if ui.button("Insert image").clicked() {
-            self.handle_action("insert.image");
-        }
+        ui.horizontal(|ui| {
+            if ui.button("Insert image").clicked() {
+                self.handle_action("insert.image");
+            }
+            if ui.button("Insert logo").clicked() {
+                self.handle_action("insert.logo");
+            }
+        });
     }
 
     fn paint_ruler_horizontal(&self, ui: &mut egui::Ui, page_w: f32, scale: f32) {
@@ -668,6 +718,14 @@ impl eframe::App for QuillShellApp {
             .frame(egui::Frame::none().fill(rail).inner_margin(6.0))
             .show(ctx, |ui| {
                 ui.horizontal(|ui| {
+                    if let Some(logo) = self.ensure_brand_logo(ctx) {
+                        let size = logo.size_vec2();
+                        ui.add(
+                            egui::Image::new((logo.id(), size))
+                                .fit_to_exact_size(size)
+                                .sense(Sense::hover()),
+                        );
+                    }
                     ui.label(
                         RichText::new("Quillforge")
                             .strong()

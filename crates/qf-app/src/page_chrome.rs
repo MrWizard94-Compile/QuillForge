@@ -63,7 +63,40 @@ pub fn decode_image_rgba(bytes: &[u8]) -> Option<(u32, u32, Vec<u8>)> {
     Some((w, h, img.into_raw()))
 }
 
-/// Build a solid-color PNG for demos (ember-ish) without external files.
+/// Official Quillforge product mark (PNG), shipped under `brand/assets/`.
+///
+/// Embedded at compile time so the app never depends on a relative path at runtime.
+pub const PRODUCT_MARK_PNG: &[u8] =
+    include_bytes!("../../../brand/assets/quillforge-product.png");
+
+/// Product mark bytes (same as [`PRODUCT_MARK_PNG`]).
+pub fn product_mark_png() -> &'static [u8] {
+    PRODUCT_MARK_PNG
+}
+
+/// Decode product mark; optionally downscale longest edge for document inserts.
+pub fn product_mark_png_for_document(max_edge: u32) -> Result<Vec<u8>, String> {
+    use image::imageops::FilterType;
+    let img = image::load_from_memory(PRODUCT_MARK_PNG).map_err(|e| e.to_string())?;
+    let w = img.width();
+    let h = img.height();
+    let max_edge = max_edge.clamp(32, 2048);
+    let scaled = if w.max(h) > max_edge {
+        let scale = max_edge as f32 / w.max(h) as f32;
+        let nw = ((w as f32) * scale).round().max(1.0) as u32;
+        let nh = ((h as f32) * scale).round().max(1.0) as u32;
+        img.resize(nw, nh, FilterType::Triangle)
+    } else {
+        img
+    };
+    let mut buf = std::io::Cursor::new(Vec::new());
+    scaled
+        .write_to(&mut buf, image::ImageFormat::Png)
+        .map_err(|e| e.to_string())?;
+    Ok(buf.into_inner())
+}
+
+/// Build a solid-color PNG for demos (ember-ish) without the product mark.
 pub fn demo_png_bytes(width: u32, height: u32) -> Result<Vec<u8>, String> {
     use image::{ImageBuffer, Rgba, RgbaImage};
     let w = width.clamp(8, 512);
@@ -221,7 +254,10 @@ impl EditorController {
 
 #[cfg(test)]
 mod tests {
-    use super::{decode_image_rgba, decode_image_size, demo_png_bytes};
+    use super::{
+        decode_image_rgba, decode_image_size, demo_png_bytes, product_mark_png,
+        product_mark_png_for_document, PRODUCT_MARK_PNG,
+    };
     use crate::EditorController;
     use tempfile::tempdir;
 
@@ -280,5 +316,24 @@ mod tests {
             flat.iter().any(|l| l.contains("[image:") && l.contains("32")),
             "expected image line in {flat:?}"
         );
+    }
+
+    #[test]
+    fn product_mark_png_is_valid_and_insertable() {
+        assert!(PRODUCT_MARK_PNG.len() > 1000);
+        assert_eq!(&PRODUCT_MARK_PNG[0..8], b"\x89PNG\r\n\x1a\n");
+        let (w, h) = decode_image_size(product_mark_png()).expect("decode product mark");
+        assert!(w >= 16 && h >= 16, "mark size {w}x{h}");
+        let doc = product_mark_png_for_document(256).unwrap();
+        let (dw, dh) = decode_image_size(&doc).unwrap();
+        assert!(dw.max(dh) <= 256);
+        let dir = tempdir().unwrap();
+        let mut ed = EditorController::create_default(&dir.path().join("mark.journal")).unwrap();
+        ed.ensure_editable_paragraph().unwrap();
+        let id = ed
+            .insert_image_bytes("Quillforge", &doc, Some(dw), Some(dh))
+            .unwrap();
+        assert_eq!(ed.image_block_count(), 1);
+        assert!(ed.asset_rgba(id).is_some());
     }
 }

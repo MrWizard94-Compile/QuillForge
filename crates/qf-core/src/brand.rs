@@ -15,6 +15,9 @@ pub const STUDIO_MARK: &str = "W.P.A.I";
 /// Product name.
 pub const PRODUCT_NAME: &str = "Quillforge";
 
+/// Relative path (repo root) of the product mark PNG for packaging/docs.
+pub const PRODUCT_MARK_ASSET: &str = "brand/assets/quillforge-product.png";
+
 /// Product line within the studio.
 pub const PRODUCT_DIVISION: &str = "Software";
 

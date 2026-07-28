@@ -19,7 +19,7 @@
 | **Long-term vision** | Full document OS, multiplayer UX, neural packs, rich GPU | **~89%** | PDF TrueType font packs |
 
 **Headline for directors:**  
-**Foundation shippable. Product surface + CI + search packs + media + live sync + embedded fonts. Overall vision ~89%.**
+**Foundation shippable. Product surface + product mark chrome + CI + search packs + media + live sync + fonts. Overall vision ~89%.**
 
 ---
 

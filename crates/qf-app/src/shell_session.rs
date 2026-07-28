@@ -133,13 +133,29 @@ impl ShellSession {
     }
 
     pub fn insert_image_placeholder(&mut self) -> Result<AssetId, EditorError> {
-        // Prefer a visible brand-colored PNG when encoding succeeds.
-        let id = match crate::demo_png_bytes(96, 64) {
+        // Prefer official product mark; fall back to ember gradient / 1×1 PNG.
+        let id = match crate::product_mark_png_for_document(320) {
             Ok(png) => self
                 .editor
-                .insert_image_bytes("Image", &png, None, None)?,
-            Err(_) => self.editor.insert_image("Image", 96, 64)?,
+                .insert_image_bytes("Quillforge", &png, None, None)?,
+            Err(_) => match crate::demo_png_bytes(96, 64) {
+                Ok(png) => self
+                    .editor
+                    .insert_image_bytes("Image", &png, None, None)?,
+                Err(_) => self.editor.insert_image("Image", 96, 64)?,
+            },
         };
+        self.dirty = true;
+        self.refresh_surface();
+        Ok(id)
+    }
+
+    /// Insert the full-resolution (document-scaled) product mark logo.
+    pub fn insert_product_mark(&mut self) -> Result<AssetId, EditorError> {
+        let png = crate::product_mark_png_for_document(480).map_err(EditorError::Other)?;
+        let id = self
+            .editor
+            .insert_image_bytes("Quillforge mark", &png, None, None)?;
         self.dirty = true;
         self.refresh_surface();
         Ok(id)
@@ -502,5 +518,14 @@ mod tests {
         assert_eq!(s.editor.image_block_count(), 1);
         s.save().unwrap();
         assert!(s.package_path.exists());
+    }
+
+    #[test]
+    fn insert_product_mark_via_shell() {
+        let dir = tempdir().unwrap();
+        let mut s = ShellSession::open_or_create(dir.path(), "logo").unwrap();
+        s.insert_product_mark().unwrap();
+        assert_eq!(s.editor.image_block_count(), 1);
+        assert!(!s.editor.session.assets.is_empty());
     }
 }

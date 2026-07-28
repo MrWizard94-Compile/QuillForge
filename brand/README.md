@@ -37,9 +37,12 @@ Authoritative voice copy: [BRAND-VOICE.md](BRAND-VOICE.md).
 
 | File | Use |
 |------|-----|
-| `assets/wpai-official-brand.jpg` | Primary mark with tagline |
-| `assets/wpai-official-brand-alt.jpg` | Mark without tagline |
+| `assets/quillforge-product.png` | **Product mark** — GUI chrome, insert image/logo, demos (`PRODUCT_MARK_PNG`) |
+| `assets/wpai-official-brand.jpg` | Studio mark with tagline |
+| `assets/wpai-official-brand-alt.jpg` | Studio mark without tagline |
 | `assets/wpai-official-backdrop.png` | Full backdrop |
+
+The product mark is **compile-embedded** into `qf-app` via `include_bytes!` so the shell never requires a relative path at runtime.
 
 ## Product attribution lines
 

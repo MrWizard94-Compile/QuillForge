@@ -182,7 +182,7 @@ fn run_search_demo() -> Result<(), String> {
     session.editor.reflow();
 
     println!(
-        "embedding pack: {}",
+        "embedding pack (default): {}",
         session.editor.search.embedding_pack().to_json()
     );
     for (mode, q) in [
@@ -202,6 +202,29 @@ fn run_search_demo() -> Result<(), String> {
         );
         assert!(!hits.is_empty(), "expected hits for {mode:?} {q}");
     }
+
+    // Optional neural_hash_v1 pack (offline multi-scale; no network weights).
+    session
+        .editor
+        .search
+        .set_embedding_pack(qf_search::EmbeddingPack::neural_hash_v1());
+    println!(
+        "embedding pack (neural_hash_v1): {}",
+        session.editor.search.embedding_pack().to_json()
+    );
+    let neural_hits = session
+        .editor
+        .search_with_mode("neural network deep learning", SearchMode::Dense);
+    assert!(
+        !neural_hits.is_empty(),
+        "neural_hash_v1 dense should rank ML text"
+    );
+    println!(
+        "Dense/neural_hash hits={} top={:.3}",
+        neural_hits.len(),
+        neural_hits[0].score
+    );
+
     session.search_panel.query = "learning".into();
     session.search_panel.mode = SearchMode::Hybrid;
     session.run_search();
@@ -211,7 +234,7 @@ fn run_search_demo() -> Result<(), String> {
         session.editor.search.token_count()
     );
     assert!(!session.search_panel.hits.is_empty());
-    println!("search-demo complete — hybrid/semantic search verified");
+    println!("search-demo complete — hybrid/semantic/neural pack verified");
     Ok(())
 }
 

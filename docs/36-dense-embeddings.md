@@ -6,7 +6,7 @@
 
 ---
 
-## Algorithm: `hash_ngram_v1`
+## Algorithm: `hash_ngram_v1` (default)
 
 | Piece | Detail |
 |-------|--------|
@@ -14,9 +14,11 @@
 | Projection | Signed feature hashing into fixed dim (default **64**) |
 | Normalize | L2 |
 | Similarity | Cosine (dot of unit vectors) |
-| Pack | [`EmbeddingPack`] — `{ version, dim, seed, algo }` |
+| Pack | [`EmbeddingPack`] — `{ version, dim, seed, algo, … }` |
 
 Same pack + same text ⇒ same vector (deterministic).
+
+Optional packs: **`neural_hash_v1`**, **`onnx_v1`** — see `docs/39-neural-onnx-pack.md`.
 
 ---
 
@@ -25,10 +27,10 @@ Same pack + same text ⇒ same vector (deterministic).
 | Surface | Entry |
 |---------|--------|
 | Library | `qf_search::embed_text`, `SearchMode::Dense` |
-| Engine | `SearchEngine::with_pack` / `embedding_pack` |
+| Engine | `SearchEngine::with_pack` / `set_embedding_pack` / `load_embedding_pack_path` |
 | GUI | Search panel → **Dense** |
 | Hybrid | Includes dense path |
-| CLI | `search-demo` prints pack JSON + Dense hits |
+| CLI | `search-demo` prints pack JSON + Dense (+ neural_hash swap) |
 
 ---
 
@@ -43,6 +45,7 @@ cargo run -p qf-app -- search-demo
 
 ## Out of scope
 
-- Downloaded neural weights / ONNX packs  
+- Cloud model download  
 - GPU embedding inference  
 - Cross-document vector DB  
+- Full ONNX graph runtime (pack identity ships first)  

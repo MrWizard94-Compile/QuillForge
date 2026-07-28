@@ -12,3 +12,7 @@ qf-doc = { workspace = true }
 qf-kernel = { workspace = true }
 qf-blocks = { workspace = true }
 serde = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

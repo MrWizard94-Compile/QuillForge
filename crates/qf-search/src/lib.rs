@@ -7,15 +7,18 @@
 //! | **Token** | Exact token inverted index (case-folded whitespace split) |
 //! | **Phrase** | Contiguous substring match (case-insensitive) |
 //! | **Semantic** | Cosine similarity over TF–IDF bag-of-words vectors (local, no network) |
-//! | **Dense** | Cosine over offline hash-ngram dense vectors ([`embeddings`]) |
+//! | **Dense** | Cosine over offline pack dense vectors ([`embeddings`]) |
 //! | **Hybrid** | Union of token + phrase + semantic + dense with score merge |
 //!
+//! Packs: `hash_ngram_v1` (default), `neural_hash_v1`, `onnx_v1` (local model file).
 //! No cloud embedding API. Suitable offline-first / local-first product law.
 
 mod embeddings;
 
 pub use embeddings::{
-    dense_cosine, embed_text, EmbeddingPack, DEFAULT_DENSE_DIM, EMBED_ALGO_HASH_NGRAM_V1,
+    dense_cosine, embed_text, load_embedding_pack_file, onnx_pack_from_model,
+    write_embedding_pack_file, EmbeddingPack, DEFAULT_DENSE_DIM, EMBED_ALGO_HASH_NGRAM_V1,
+    EMBED_ALGO_NEURAL_HASH_V1, EMBED_ALGO_ONNX_V1, NEURAL_HASH_DIM,
 };
 
 use qf_core::{BlockId, OpSeq, SourceId};
@@ -164,10 +167,17 @@ impl SearchEngine {
 
     pub fn set_embedding_pack(&mut self, pack: EmbeddingPack) {
         self.pack = pack;
-        // Vectors invalid until rebuild.
+        // Re-embed existing docs so Dense mode stays valid without full rebuild.
         for d in &mut self.docs {
-            d.dense.clear();
+            d.dense = embed_text(&d.text, &self.pack);
         }
+    }
+
+    /// Load pack JSON from disk (optional neural / ONNX sidecar) and re-embed.
+    pub fn load_embedding_pack_path(&mut self, path: &std::path::Path) -> Result<(), String> {
+        let pack = load_embedding_pack_file(path)?;
+        self.set_embedding_pack(pack);
+        Ok(())
     }
 
     pub fn block_count(&self) -> usize {
@@ -640,6 +650,33 @@ mod tests {
         assert_ne!(hits[0].block_id, ids[1]);
         assert_eq!(hits[0].path, HitPath::Dense);
         assert!(hits[0].score >= 0.12);
+    }
+
+    #[test]
+    fn neural_hash_pack_via_engine() {
+        let (k, ids) = kernel_with_docs(&[
+            "machine learning models and neural networks for classification",
+            "baking recipes with flour and sugar",
+            "deep learning transformers attention mechanisms",
+        ]);
+        let mut eng = SearchEngine::with_pack(EmbeddingPack::neural_hash_v1());
+        eng.rebuild(k.state());
+        assert_eq!(eng.dense_dim(), NEURAL_HASH_DIM);
+        assert_eq!(eng.embedding_pack().algo, EMBED_ALGO_NEURAL_HASH_V1);
+        let hits = eng.query(&SearchQuery::dense("neural network deep learning"));
+        assert!(!hits.is_empty());
+        assert_ne!(hits[0].block_id, ids[1]);
+    }
+
+    #[test]
+    fn set_pack_reembeds_without_rebuild() {
+        let (k, _) = kernel_with_docs(&["alpha beta gamma"]);
+        let mut eng = SearchEngine::new();
+        eng.rebuild(k.state());
+        let before = eng.docs[0].dense.clone();
+        eng.set_embedding_pack(EmbeddingPack::neural_hash_v1());
+        assert_ne!(before, eng.docs[0].dense);
+        assert_eq!(eng.docs[0].dense.len(), NEURAL_HASH_DIM);
     }
 
     #[test]

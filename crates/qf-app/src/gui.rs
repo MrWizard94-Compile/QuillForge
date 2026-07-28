@@ -213,7 +213,7 @@ impl QuillShellApp {
     fn paint_search_panel(&mut self, ui: &mut egui::Ui, ink: Color32, ember: Color32) {
         ui.heading(RichText::new("Search").color(ember).size(16.0));
         ui.label(
-            RichText::new("Hybrid: token · phrase · TF–IDF · dense hash-ngram (local)")
+            RichText::new("Hybrid: token · phrase · TF–IDF · dense pack (local)")
                 .small()
                 .color(Color32::from_gray(100)),
         );

@@ -2117,6 +2117,8 @@ dependencies = [
  "qf-doc",
  "qf-kernel",
  "serde",
+ "serde_json",
+ "tempfile",
 ]
 
 [[package]]

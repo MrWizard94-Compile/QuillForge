@@ -27,4 +27,5 @@ pub use review::{ReviewPanel, SuggestionRow};
 pub use shell_session::ShellSession;
 pub use qf_search::{
     EmbeddingPack, HitPath, SearchHit, SearchMode, SearchQuery, DEFAULT_DENSE_DIM,
+    EMBED_ALGO_HASH_NGRAM_V1, EMBED_ALGO_NEURAL_HASH_V1, EMBED_ALGO_ONNX_V1, NEURAL_HASH_DIM,
 };

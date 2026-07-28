@@ -55,6 +55,27 @@ Copy the full pack into the repo (e.g. `law/AGENTS-Constitution/` or `AGENTS Con
 3. Project pointer uses that relative path.
 4. After update: `verify-pack.ps1` exit 0.
 
+## Option D — RepoForge (Python project birth)
+
+[RepoForge](../../RepoForge/) (sibling under `Software/`) bootstraps Python projects and
+can attach this pack automatically:
+
+```bash
+# From any directory; point at this pack
+python path/to/repoforge.py my-tool --profile cli \
+  --constitution "path/to/AGENTS Constitution"
+
+# Vendor pack into law/AGENTS-Constitution/
+python path/to/repoforge.py my-tool --constitution "path/to/AGENTS Constitution" \
+  --constitution-vendor
+```
+
+Also supported: `REPOFORGE_CONSTITUTION` env, `constitution_path` in `~/.repoforge.json`,
+and auto-discovery of a sibling `QuillForge/AGENTS Constitution` tree.
+
+RepoForge writes a Level-4 `AGENTS.md` pointer (same role as
+`templates/PROJECT-POINTER.template.md`).
+
 ---
 
 ## Moving the pack

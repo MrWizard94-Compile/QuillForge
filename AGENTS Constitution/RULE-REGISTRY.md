@@ -132,6 +132,7 @@ Overrides: None
 | LIFE-PHASE-001 | Respect project lifecycle phase | `operations/PROJECT-LIFECYCLE.md` | Active |
 | LIFE-NODEAD-001 | No half-dead projects | `operations/PROJECT-LIFECYCLE.md` | Active |
 | LIFE-TOOL-001 | Tooling / DX expectations | `operations/PROJECT-LIFECYCLE.md` | Active |
+| LIFE-BIRTH-001 | Project birth via RepoForge + constitution attach | `operations/PROJECT-LIFECYCLE.md` | Active |
 | LIFE-PROCESS-001 | Lifecycle vs SOP ownership split | `operations/PROJECT-LIFECYCLE.md` | Active |
 
 ---

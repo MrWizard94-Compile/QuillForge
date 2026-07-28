@@ -37,6 +37,17 @@ Overrides: None
 * Avoid permanent paid/cloud seats unless already adopted.
 * Human DX should be zero-friction.
 
+## LIFE-BIRTH-001 — Project birth (RepoForge)
+
+For **new Python projects**, prefer **RepoForge** (`Software/RepoForge`) to:
+
+1. Scaffold venv, git, profile deps, tests, optional remote.
+2. Attach this constitution pack via `--constitution` (pointer) or `--constitution-vendor`.
+3. Land a Level-4 `AGENTS.md` so agents load quality law immediately.
+
+See pack [ADOPT.md](../ADOPT.md) Option D. Non-Python births still use
+`templates/PROJECT-POINTER.template.md` manually.
+
 ## LIFE-PROCESS-001 — Process vs Lifecycle
 
 * Product delivery phases (research → deliver) live in **SOP.md**.

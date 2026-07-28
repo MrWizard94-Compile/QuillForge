@@ -64,6 +64,8 @@ Must exit `0` after pack install, move, or update (`GOV-INT-001`).
 * Product specs / research: `docs/` (and related project docs)  
 * Architecture / ADRs: project-local as maintained  
 * Overrides: pack `templates/PROJECT-OVERRIDE.template.md` (store under this project if used)  
+* **New Python projects:** bootstrap with sibling [RepoForge](../RepoForge/) using  
+  `--constitution "AGENTS Constitution"` (or absolute pack path) so Level-4 `AGENTS.md` is attached  
 
 **QuillForge note:** Honor canonical path `Command → Operations → Journal → Kernel → Derived` where applicable.
 

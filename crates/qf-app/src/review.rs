@@ -1,7 +1,7 @@
 //! Word-class Review surface: suggestions accept/reject.
 //!
 //! Binding law (AI + collab): suggestions are recorded via journal ops only.
-//! Accept applies proposed content ops; reject is status-only. Never silent apply.
+//! Accept applies proposed content ops; reject journals status only (text unchanged). Never silent apply.
 
 use qf_ai::{issue_content_permission, AiRequest, AiService, LocalNoteProvider};
 use qf_collab::{Suggestion, SuggestionSource, SuggestionStatus};

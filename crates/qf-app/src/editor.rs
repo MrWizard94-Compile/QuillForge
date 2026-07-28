@@ -621,4 +621,232 @@ impl EditorController {
         self.session.save_encrypted(path, passphrase)?;
         Ok(())
     }
+
+    fn focused_range(&self) -> Result<qf_core::DocRange, EditorError> {
+        use qf_core::{DocRange, TextTarget};
+        let block_id = self.input.selection.block_id.ok_or(EditorError::NoFocus)?;
+        let len = self
+            .session
+            .state()
+            .document
+            .project_text(block_id)
+            .map(|t| t.chars().count() as u32)
+            .unwrap_or(0);
+        let target = |off: u32| TextTarget {
+            block_id,
+            span_id: None,
+            offset: TextOffset(off),
+        };
+        Ok(DocRange {
+            start: target(0),
+            end: target(len),
+        })
+    }
+
+    /// Toggle a character mark on the focused block (whole-block foundation formatting).
+    pub fn toggle_mark(&mut self, mark: qf_blocks::Mark) -> Result<(), EditorError> {
+        let range = self.focused_range()?;
+        let kind = match &mark {
+            qf_blocks::Mark::Bold => "bold",
+            qf_blocks::Mark::Italic => "italic",
+            qf_blocks::Mark::Underline => "underline",
+            qf_blocks::Mark::Strike => "strike",
+            qf_blocks::Mark::Code => "code",
+            _ => "unknown",
+        };
+        let block_id = range.start.block_id;
+        let has = self
+            .session
+            .state()
+            .document
+            .blocks
+            .get(&block_id)
+            .map(|b| match &b.body {
+                qf_blocks::BlockBody::Paragraph(p) => p
+                    .spans
+                    .first()
+                    .map(|s| s.marks.iter().any(|m| mark_kind(m) == kind))
+                    .unwrap_or(false),
+                qf_blocks::BlockBody::Heading(h) => h
+                    .spans
+                    .first()
+                    .map(|s| s.marks.iter().any(|m| mark_kind(m) == kind))
+                    .unwrap_or(false),
+                _ => false,
+            })
+            .unwrap_or(false);
+        if has {
+            self.session.commit_command(Command::RemoveMark {
+                range,
+                mark_kind: kind.into(),
+            })?;
+        } else {
+            let mut buf = Vec::new();
+            ciborium::into_writer(&mark, &mut buf)
+                .map_err(|e| EditorError::Other(e.to_string()))?;
+            self.session.commit_command(Command::ApplyMark {
+                range,
+                mark_payload: buf,
+            })?;
+        }
+        self.reflow();
+        Ok(())
+    }
+
+    pub fn insert_page_break(&mut self) -> Result<(), EditorError> {
+        let index = self.root_block_count();
+        self.session.commit_command(Command::InsertBlock {
+            parent: ParentRef::DocumentRoot,
+            index,
+            body_type: "page_break".into(),
+            body_payload: Vec::new(),
+        })?;
+        self.reflow();
+        Ok(())
+    }
+
+    pub fn insert_heading(&mut self, level: u8, text: &str) -> Result<(), EditorError> {
+        let mut payload = vec![level.clamp(1, 6)];
+        payload.extend_from_slice(text.as_bytes());
+        let index = self.root_block_count();
+        self.session.commit_command(Command::InsertBlock {
+            parent: ParentRef::DocumentRoot,
+            index,
+            body_type: "heading".into(),
+            body_payload: payload,
+        })?;
+        self.reflow();
+        Ok(())
+    }
+
+    pub fn insert_bullet_paragraph(&mut self, text: &str) -> Result<(), EditorError> {
+        let body = format!("• {text}");
+        let index = self.root_block_count();
+        self.session.commit_command(Command::InsertBlock {
+            parent: ParentRef::DocumentRoot,
+            index,
+            body_type: "paragraph".into(),
+            body_payload: body.into_bytes(),
+        })?;
+        self.reflow();
+        Ok(())
+    }
+
+    pub fn insert_simple_table(&mut self, rows: u32, cols: u32) -> Result<(), EditorError> {
+        use qf_blocks::{BlockBody, TableBlock, TableCell, TableRow};
+        use qf_kernel::encode_body;
+        let rows = rows.clamp(1, 8);
+        let cols = cols.clamp(1, 8);
+        let mut table_rows = Vec::new();
+        for _ in 0..rows {
+            let mut cells = Vec::new();
+            for _ in 0..cols {
+                cells.push(TableCell {
+                    id: BlockId::new(self.session.ids.as_mut()),
+                    colspan: 1,
+                    rowspan: 1,
+                    blocks: vec![],
+                });
+            }
+            table_rows.push(TableRow { cells });
+        }
+        let body = BlockBody::Table(TableBlock {
+            rows: table_rows,
+            column_count: cols,
+        });
+        let bb = encode_body(&body).map_err(|e| EditorError::Other(e.to_string()))?;
+        let index = self.root_block_count();
+        self.session.commit_command(Command::InsertBlock {
+            parent: ParentRef::DocumentRoot,
+            index,
+            body_type: bb.type_name,
+            body_payload: bb.payload,
+        })?;
+        self.reflow();
+        Ok(())
+    }
+
+    pub fn insert_citation_paragraph(&mut self, locator: &str) -> Result<(), EditorError> {
+        let text = format!("[cite: {locator}]");
+        let index = self.root_block_count();
+        self.session.commit_command(Command::InsertBlock {
+            parent: ParentRef::DocumentRoot,
+            index,
+            body_type: "paragraph".into(),
+            body_payload: text.into_bytes(),
+        })?;
+        self.reflow();
+        Ok(())
+    }
+
+    fn root_block_count(&self) -> u32 {
+        let doc = &self.session.state().document;
+        doc.sections
+            .get(&doc.root_section_id)
+            .map(|s| s.blocks.len() as u32)
+            .unwrap_or(0)
+    }
+
+    /// Cycle page margin: 0.5", 1", 1.5" (layout config, derived reflow).
+    pub fn cycle_margins(&mut self) -> Result<String, EditorError> {
+        let cur = fixed_to_inch(self.layout_config.margin);
+        let next = if (cur - 0.5).abs() < 0.01 {
+            1.0
+        } else if (cur - 1.0).abs() < 0.01 {
+            1.5
+        } else {
+            0.5
+        };
+        self.layout_config.margin = qf_layout::Fixed32::from_pt((next * 72.0) as i32);
+        self.reflow();
+        Ok(format!("{next}\" margins"))
+    }
+
+    /// Toggle US Letter portrait (612×792) vs landscape (792×612).
+    pub fn toggle_orientation(&mut self) -> Result<String, EditorError> {
+        let w = self.layout_config.page_width;
+        let h = self.layout_config.page_height;
+        self.layout_config.page_width = h;
+        self.layout_config.page_height = w;
+        self.reflow();
+        let label = if self.layout_config.page_width.0 > self.layout_config.page_height.0 {
+            "Landscape"
+        } else {
+            "Portrait"
+        };
+        Ok(label.into())
+    }
+
+    /// Cycle page size: Letter → A4-ish → Letter.
+    pub fn cycle_page_size(&mut self) -> Result<String, EditorError> {
+        let w = self.layout_config.page_width.0 / 64;
+        let (nw, nh, name) = if w <= 620 {
+            (595, 842, "A4")
+        } else {
+            (612, 792, "US Letter")
+        };
+        self.layout_config.page_width = qf_layout::Fixed32::from_pt(nw);
+        self.layout_config.page_height = qf_layout::Fixed32::from_pt(nh);
+        self.reflow();
+        Ok(name.into())
+    }
+}
+
+fn mark_kind(m: &qf_blocks::Mark) -> &'static str {
+    match m {
+        qf_blocks::Mark::Bold => "bold",
+        qf_blocks::Mark::Italic => "italic",
+        qf_blocks::Mark::Underline => "underline",
+        qf_blocks::Mark::Strike => "strike",
+        qf_blocks::Mark::Code => "code",
+        qf_blocks::Mark::Link { .. } => "link",
+        qf_blocks::Mark::Highlight { .. } => "highlight",
+        qf_blocks::Mark::CommentRef { .. } => "comment",
+        qf_blocks::Mark::CitationRef { .. } => "citation",
+        qf_blocks::Mark::Unknown { .. } => "unknown",
+    }
+}
+
+fn fixed_to_inch(f: qf_layout::Fixed32) -> f32 {
+    f.0 as f32 / 64.0 / 72.0
 }

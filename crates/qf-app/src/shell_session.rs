@@ -30,6 +30,8 @@ pub struct ShellSession {
     pub review: ReviewPanel,
     pub chrome: PageChrome,
     pub search_panel: SearchPanel,
+    /// Local clipboard for cut/copy/paste (session-scoped buffer).
+    pub clipboard: String,
 }
 
 impl ShellSession {
@@ -57,6 +59,7 @@ impl ShellSession {
             review: ReviewPanel::word_class_default(),
             chrome,
             search_panel: SearchPanel::default(),
+            clipboard: String::new(),
         };
         session.refresh_surface();
         Ok(session)
@@ -245,9 +248,176 @@ impl ShellSession {
         Ok(())
     }
 
-    pub fn toggle_bold_hint(&mut self) {
-        // Formatting marks land in P2; surface still exposes the action.
-        self.surface.activate_tab(CommandBarTab::Home);
+    pub fn toggle_bold(&mut self) -> Result<(), EditorError> {
+        self.editor.toggle_mark(qf_blocks::Mark::Bold)?;
+        self.dirty = true;
+        self.refresh_surface();
+        Ok(())
+    }
+
+    pub fn toggle_italic(&mut self) -> Result<(), EditorError> {
+        self.editor.toggle_mark(qf_blocks::Mark::Italic)?;
+        self.dirty = true;
+        self.refresh_surface();
+        Ok(())
+    }
+
+    pub fn toggle_underline(&mut self) -> Result<(), EditorError> {
+        self.editor.toggle_mark(qf_blocks::Mark::Underline)?;
+        self.dirty = true;
+        self.refresh_surface();
+        Ok(())
+    }
+
+    pub fn cut_selection(&mut self) -> Result<(), EditorError> {
+        self.clipboard = self.draft.clone();
+        self.draft.clear();
+        self.apply_draft()?;
+        Ok(())
+    }
+
+    pub fn copy_selection(&mut self) {
+        self.clipboard = if self.draft.is_empty() {
+            self.editor.document_plain()
+        } else {
+            self.draft.clone()
+        };
+    }
+
+    pub fn paste_clipboard(&mut self) -> Result<(), EditorError> {
+        if self.clipboard.is_empty() {
+            return Ok(());
+        }
+        self.draft.push_str(&self.clipboard);
+        self.apply_draft()?;
+        Ok(())
+    }
+
+    pub fn insert_page_break(&mut self) -> Result<(), EditorError> {
+        self.apply_draft()?;
+        self.editor.insert_page_break()?;
+        self.dirty = true;
+        self.refresh_surface();
+        Ok(())
+    }
+
+    pub fn insert_heading(&mut self) -> Result<(), EditorError> {
+        let text = if self.draft.trim().is_empty() {
+            "Heading".to_string()
+        } else {
+            self.draft.trim().to_string()
+        };
+        self.apply_draft()?;
+        self.editor.insert_heading(1, &text)?;
+        self.dirty = true;
+        self.refresh_surface();
+        Ok(())
+    }
+
+    pub fn insert_bullet(&mut self) -> Result<(), EditorError> {
+        let text = if self.draft.trim().is_empty() {
+            "List item".to_string()
+        } else {
+            self.draft.trim().to_string()
+        };
+        self.apply_draft()?;
+        self.editor.insert_bullet_paragraph(&text)?;
+        self.dirty = true;
+        self.refresh_surface();
+        Ok(())
+    }
+
+    pub fn insert_table(&mut self) -> Result<(), EditorError> {
+        self.apply_draft()?;
+        self.editor.insert_simple_table(2, 2)?;
+        self.dirty = true;
+        self.refresh_surface();
+        Ok(())
+    }
+
+    pub fn insert_citation(&mut self) -> Result<(), EditorError> {
+        self.apply_draft()?;
+        self.editor.insert_citation_paragraph("local-source")?;
+        self.dirty = true;
+        self.refresh_surface();
+        Ok(())
+    }
+
+    pub fn add_comment_note(&mut self, body: &str) -> Result<SuggestionId, EditorError> {
+        self.apply_draft()?;
+        let id = self
+            .editor
+            .propose_human_suggestion(body, "")?;
+        self.review.visible = true;
+        self.review.selected = Some(id);
+        self.surface.activate_tab(CommandBarTab::Review);
+        self.refresh_surface();
+        Ok(id)
+    }
+
+    pub fn new_document(&mut self, name: &str) -> Result<(), EditorError> {
+        let work = self
+            .package_path
+            .parent()
+            .map(|p| p.to_path_buf())
+            .unwrap_or_else(|| PathBuf::from("."));
+        *self = Self::open_or_create(&work, name)?;
+        Ok(())
+    }
+
+    pub fn open_sibling_package(&mut self, file_name: &str) -> Result<(), EditorError> {
+        let work = self
+            .package_path
+            .parent()
+            .map(|p| p.to_path_buf())
+            .unwrap_or_else(|| PathBuf::from("."));
+        let path = work.join(file_name);
+        if !path.exists() {
+            return Err(EditorError::Other(format!(
+                "open failed: {} not found",
+                path.display()
+            )));
+        }
+        let stem = path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("Opened");
+        *self = Self::open_from_path(&work, stem, &path)?;
+        Ok(())
+    }
+
+    pub fn save_as(&mut self, name: &str) -> Result<PathBuf, EditorError> {
+        let work = self
+            .package_path
+            .parent()
+            .map(|p| p.to_path_buf())
+            .unwrap_or_else(|| PathBuf::from("."));
+        self.package_path = work.join(format!("{name}.qfdoc"));
+        self.journal_path = work.join(format!("{name}.journal"));
+        self.save()?;
+        self.surface.set_document_name(name);
+        Ok(self.package_path.clone())
+    }
+
+    pub fn cycle_margins(&mut self) -> Result<(), EditorError> {
+        let msg = self.editor.cycle_margins()?;
+        self.last_error = Some(msg);
+        self.refresh_surface();
+        Ok(())
+    }
+
+    pub fn toggle_orientation(&mut self) -> Result<(), EditorError> {
+        let msg = self.editor.toggle_orientation()?;
+        self.last_error = Some(format!("Orientation: {msg}"));
+        self.refresh_surface();
+        Ok(())
+    }
+
+    pub fn cycle_page_size(&mut self) -> Result<(), EditorError> {
+        let msg = self.editor.cycle_page_size()?;
+        self.last_error = Some(format!("Page size: {msg}"));
+        self.refresh_surface();
+        Ok(())
     }
 
     pub fn set_view(&mut self, mode: DocumentViewMode) {
@@ -384,6 +554,7 @@ impl ShellSession {
                 review: ReviewPanel::word_class_default(),
                 chrome,
                 search_panel: SearchPanel::default(),
+                clipboard: String::new(),
             };
             session.refresh_surface();
             return Ok(session);
@@ -599,6 +770,60 @@ mod tests {
         s.insert_product_mark().unwrap();
         assert_eq!(s.editor.image_block_count(), 1);
         assert!(!s.editor.session.assets.is_empty());
+    }
+
+    #[test]
+    fn product_surface_marks_clipboard_insert_layout_comment() {
+        use qf_blocks::Mark;
+        let dir = tempdir().unwrap();
+        let mut s = ShellSession::open_or_create(dir.path(), "surface").unwrap();
+        s.draft = "Bold me".into();
+        s.apply_draft().unwrap();
+
+        s.toggle_bold().unwrap();
+        let block_id = s.editor.selection().block_id.expect("focus");
+        let has_bold = s
+            .editor
+            .session
+            .state()
+            .document
+            .blocks
+            .get(&block_id)
+            .map(|b| match &b.body {
+                qf_blocks::BlockBody::Paragraph(p) => p
+                    .spans
+                    .first()
+                    .map(|sp| sp.marks.iter().any(|m| matches!(m, Mark::Bold)))
+                    .unwrap_or(false),
+                _ => false,
+            })
+            .unwrap_or(false);
+        assert!(has_bold, "bold mark must apply via journal");
+        s.toggle_bold().unwrap();
+
+        s.draft = "cut-copy-paste".into();
+        s.cut_selection().unwrap();
+        assert_eq!(s.clipboard, "cut-copy-paste");
+        s.paste_clipboard().unwrap();
+        assert!(s.editor.document_plain().contains("cut-copy-paste"));
+
+        s.insert_heading().unwrap();
+        s.insert_bullet().unwrap();
+        s.insert_table().unwrap();
+        s.insert_page_break().unwrap();
+        s.insert_citation().unwrap();
+        let plain = s.editor.document_plain();
+        assert!(plain.contains("Heading") || plain.contains("•") || plain.contains("[cite:"));
+
+        let m0 = s.editor.cycle_margins().unwrap();
+        assert!(m0.contains("margins"));
+        let o = s.editor.toggle_orientation().unwrap();
+        assert!(o == "Landscape" || o == "Portrait");
+        let sz = s.editor.cycle_page_size().unwrap();
+        assert!(sz == "A4" || sz == "US Letter");
+
+        let id = s.add_comment_note("ship note").unwrap();
+        assert!(s.editor.suggestion_by_id(id).is_some());
     }
 
     #[test]

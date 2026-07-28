@@ -142,14 +142,263 @@ impl QuillShellApp {
 
     fn handle_action(&mut self, id: &str) {
         match id {
+            // —— File ——
+            "file.new" => match self.session.new_document("Untitled") {
+                Ok(()) => {
+                    self.textures.clear();
+                    self.session.last_error = Some("New document".into());
+                }
+                Err(e) => self.session.last_error = Some(e.to_string()),
+            },
+            "file.open" => {
+                let parent = self
+                    .session
+                    .package_path
+                    .parent()
+                    .map(|p| p.to_path_buf())
+                    .unwrap_or_else(|| PathBuf::from("."));
+                let candidates = [
+                    parent.join("open.qfdoc"),
+                    parent.join("open.docx"),
+                    parent.join("open.md"),
+                    parent.join("open.html"),
+                    parent.join("open.txt"),
+                ];
+                match candidates.into_iter().find(|p| p.exists()) {
+                    Some(path) => {
+                        let name = path
+                            .file_stem()
+                            .and_then(|s| s.to_str())
+                            .unwrap_or("Opened");
+                        match self.session.open_sibling_package(
+                            path.file_name()
+                                .and_then(|s| s.to_str())
+                                .unwrap_or("open.qfdoc"),
+                        ) {
+                            Ok(()) => {
+                                self.textures.clear();
+                                self.session.last_error =
+                                    Some(format!("Opened {name}"));
+                            }
+                            Err(e) => self.session.last_error = Some(e.to_string()),
+                        }
+                    }
+                    None => {
+                        self.session.last_error = Some(
+                            "No open.qfdoc|docx|md|html|txt beside package; place file and retry"
+                                .into(),
+                        );
+                    }
+                }
+            }
             "file.save" => {
                 if let Err(e) = self.session.save() {
                     self.session.last_error = Some(e.to_string());
+                } else {
+                    self.session.last_error = Some("Saved".into());
                 }
             }
-            "view.page" => self.session.set_view(DocumentViewMode::Page),
-            "view.draft" => self.session.set_view(DocumentViewMode::Draft),
-            "view.focus" => self.session.set_view(DocumentViewMode::Focus),
+            "file.save_as" => match self.session.save_as("DocumentCopy") {
+                Ok(path) => {
+                    self.session.last_error =
+                        Some(format!("Saved as {}", path.display()));
+                }
+                Err(e) => self.session.last_error = Some(e.to_string()),
+            },
+            "file.export" => {
+                self.session.surface.activate_tab(CommandBarTab::Export);
+                self.session.last_error =
+                    Some("Export tab — choose PDF · DOCX · MD · HTML · TXT · All".into());
+            }
+            "file.import_docx" | "file.import" => {
+                let parent = self
+                    .session
+                    .package_path
+                    .parent()
+                    .map(|p| p.to_path_buf())
+                    .unwrap_or_else(|| PathBuf::from("."));
+                let candidates = [
+                    parent.join("import.docx"),
+                    parent.join("import.md"),
+                    parent.join("import.html"),
+                    parent.join("import.txt"),
+                ];
+                match candidates.into_iter().find(|p| p.exists()) {
+                    Some(path) => match self.session.import_path(&path) {
+                        Ok(n) => {
+                            self.session.last_error =
+                                Some(format!("Imported {n} blocks from {}", path.display()));
+                        }
+                        Err(e) => self.session.last_error = Some(e.to_string()),
+                    },
+                    None => {
+                        self.session.last_error = Some(
+                            "No import.docx|md|html|txt beside package; place file and retry"
+                                .into(),
+                        );
+                    }
+                }
+            }
+            // —— Clipboard ——
+            "edit.cut" => match self.session.cut_selection() {
+                Ok(()) => self.session.last_error = Some("Cut".into()),
+                Err(e) => self.session.last_error = Some(e.to_string()),
+            },
+            "edit.copy" => {
+                self.session.copy_selection();
+                self.session.last_error = Some("Copied".into());
+            }
+            "edit.paste" => match self.session.paste_clipboard() {
+                Ok(()) => self.session.last_error = Some("Pasted".into()),
+                Err(e) => self.session.last_error = Some(e.to_string()),
+            },
+            // —— Marks (real journal ApplyMark / RemoveMark → SetMarks) ——
+            "mark.bold" => match self.session.toggle_bold() {
+                Ok(()) => self.session.last_error = Some("Bold toggled".into()),
+                Err(e) => self.session.last_error = Some(e.to_string()),
+            },
+            "mark.italic" => match self.session.toggle_italic() {
+                Ok(()) => self.session.last_error = Some("Italic toggled".into()),
+                Err(e) => self.session.last_error = Some(e.to_string()),
+            },
+            "mark.underline" => match self.session.toggle_underline() {
+                Ok(()) => self.session.last_error = Some("Underline toggled".into()),
+                Err(e) => self.session.last_error = Some(e.to_string()),
+            },
+            // —— Paragraph / blocks ——
+            "block.heading" => match self.session.insert_heading() {
+                Ok(()) => self.session.last_error = Some("Heading inserted".into()),
+                Err(e) => self.session.last_error = Some(e.to_string()),
+            },
+            "block.bullet" => match self.session.insert_bullet() {
+                Ok(()) => self.session.last_error = Some("Bullet inserted".into()),
+                Err(e) => self.session.last_error = Some(e.to_string()),
+            },
+            // —— Insert ——
+            "insert.table" => match self.session.insert_table() {
+                Ok(()) => self.session.last_error = Some("Table inserted".into()),
+                Err(e) => self.session.last_error = Some(e.to_string()),
+            },
+            "insert.page_break" => match self.session.insert_page_break() {
+                Ok(()) => self.session.last_error = Some("Page break inserted".into()),
+                Err(e) => self.session.last_error = Some(e.to_string()),
+            },
+            "insert.citation" => match self.session.insert_citation() {
+                Ok(()) => self.session.last_error = Some("Citation inserted".into()),
+                Err(e) => self.session.last_error = Some(e.to_string()),
+            },
+            "insert.image" => match self.session.insert_image_placeholder() {
+                Ok(_) => {
+                    self.textures.clear();
+                    self.session.last_error =
+                        Some("Product mark image inserted (Quillforge brand)".into());
+                }
+                Err(e) => self.session.last_error = Some(e.to_string()),
+            },
+            "insert.logo" => match self.session.insert_product_mark() {
+                Ok(_) => {
+                    self.textures.clear();
+                    self.session.last_error = Some("Quillforge logo inserted".into());
+                }
+                Err(e) => self.session.last_error = Some(e.to_string()),
+            },
+            // —— Layout (real layout_config reflow) ——
+            "layout.margins" => {
+                self.session.chrome.panel_visible = true;
+                self.session.surface.activate_tab(CommandBarTab::Layout);
+                if let Err(e) = self.session.cycle_margins() {
+                    self.session.last_error = Some(e.to_string());
+                }
+            }
+            "layout.orientation" => {
+                self.session.chrome.panel_visible = true;
+                self.session.surface.activate_tab(CommandBarTab::Layout);
+                if let Err(e) = self.session.toggle_orientation() {
+                    self.session.last_error = Some(e.to_string());
+                }
+            }
+            "layout.size" => {
+                self.session.chrome.panel_visible = true;
+                self.session.surface.activate_tab(CommandBarTab::Layout);
+                if let Err(e) = self.session.cycle_page_size() {
+                    self.session.last_error = Some(e.to_string());
+                }
+            }
+            "layout.header" | "layout.footer" => {
+                self.session.chrome.panel_visible = true;
+                self.session.surface.activate_tab(CommandBarTab::Layout);
+                self.session.last_error =
+                    Some("Edit header/footer in Layout panel, then Apply".into());
+            }
+            // —— Review ——
+            "review.suggest" => {
+                self.session.review.visible = true;
+                self.session.surface.activate_tab(CommandBarTab::Review);
+                match self.session.propose_suggestion() {
+                    Ok(_) => {
+                        self.session.last_error =
+                            Some("Suggestion recorded (pending accept)".into());
+                    }
+                    Err(e) => self.session.last_error = Some(e.to_string()),
+                }
+            }
+            "review.accept" => {
+                if let Err(e) = self.session.accept_selected() {
+                    self.session.last_error = Some(e.to_string());
+                } else {
+                    self.session.last_error = Some("Suggestion accepted".into());
+                }
+            }
+            "review.reject" => {
+                if let Err(e) = self.session.reject_selected() {
+                    self.session.last_error = Some(e.to_string());
+                } else {
+                    self.session.last_error =
+                        Some("Suggestion rejected (status journaled; text unchanged)".into());
+                }
+            }
+            "review.comment" => {
+                let note = if self.session.review.instruction.trim().is_empty() {
+                    "Review comment".to_string()
+                } else {
+                    self.session.review.instruction.trim().to_string()
+                };
+                match self.session.add_comment_note(&note) {
+                    Ok(_) => {
+                        self.session.last_error =
+                            Some(format!("Comment recorded: {note}"));
+                    }
+                    Err(e) => self.session.last_error = Some(e.to_string()),
+                }
+            }
+            // —— View ——
+            "view.page" => {
+                self.session.set_view(DocumentViewMode::Page);
+                self.session.last_error = Some("Page view".into());
+            }
+            "view.draft" => {
+                self.session.set_view(DocumentViewMode::Draft);
+                self.session.last_error = Some("Draft view".into());
+            }
+            "view.focus" => {
+                self.session.set_view(DocumentViewMode::Focus);
+                self.session.last_error = Some("Focus view".into());
+            }
+            "view.ruler" => {
+                self.session.toggle_rulers();
+                self.session.last_error = Some(if self.session.surface.show_rulers {
+                    "Rulers shown".into()
+                } else {
+                    "Rulers hidden".into()
+                });
+            }
+            // —— Search ——
+            "search.open" => {
+                self.session.search_panel.visible = true;
+                self.session.surface.activate_tab(CommandBarTab::Home);
+                self.session.last_error = Some("Search open".into());
+            }
+            // —— Export ——
             "export.pdf" => match self.session.export_as("pdf") {
                 Ok(path) => {
                     self.session.last_error = Some(format!("Exported {}", path.display()));
@@ -189,106 +438,10 @@ impl QuillShellApp {
                 }
                 Err(e) => self.session.last_error = Some(e.to_string()),
             },
-            "file.import_docx" | "file.import" => {
-                // Prefer import.* sibling files under work dir (docx, md, html, txt).
-                let parent = self
-                    .session
-                    .package_path
-                    .parent()
-                    .map(|p| p.to_path_buf())
-                    .unwrap_or_else(|| PathBuf::from("."));
-                let candidates = [
-                    parent.join("import.docx"),
-                    parent.join("import.md"),
-                    parent.join("import.html"),
-                    parent.join("import.txt"),
-                ];
-                let path = candidates.into_iter().find(|p| p.exists());
-                match path {
-                    Some(path) => match self.session.import_path(&path) {
-                        Ok(n) => {
-                            self.session.last_error =
-                                Some(format!("Imported {n} blocks from {}", path.display()));
-                        }
-                        Err(e) => self.session.last_error = Some(e.to_string()),
-                    },
-                    None => {
-                        self.session.last_error = Some(
-                            "No import.docx|md|html|txt beside package; place file and retry"
-                                .into(),
-                        );
-                    }
-                }
-            }
-            "review.suggest" => {
-                self.session.review.visible = true;
-                self.session.surface.activate_tab(CommandBarTab::Review);
-                match self.session.propose_suggestion() {
-                    Ok(_) => {
-                        self.session.last_error =
-                            Some("Suggestion recorded (pending accept)".into());
-                    }
-                    Err(e) => self.session.last_error = Some(e.to_string()),
-                }
-            }
-            "review.accept" => {
-                if let Err(e) = self.session.accept_selected() {
-                    self.session.last_error = Some(e.to_string());
-                } else {
-                    self.session.last_error = Some("Suggestion accepted".into());
-                }
-            }
-            "review.reject" => {
-                if let Err(e) = self.session.reject_selected() {
-                    self.session.last_error = Some(e.to_string());
-                } else {
-                    self.session.last_error = Some("Suggestion rejected".into());
-                }
-            }
-            "review.comment" => {
-                self.session.review.visible = true;
-                self.session.surface.activate_tab(CommandBarTab::Review);
+            other => {
                 self.session.last_error =
-                    Some("Comments: use Suggestions for review notes (P3)".into());
+                    Some(format!("Unknown action id (not on product surface): {other}"));
             }
-            "view.ruler" => {
-                self.session.toggle_rulers();
-                self.session.last_error = Some(if self.session.surface.show_rulers {
-                    "Rulers shown".into()
-                } else {
-                    "Rulers hidden".into()
-                });
-            }
-            "layout.header" | "layout.footer" => {
-                self.session.chrome.panel_visible = true;
-                self.session.surface.activate_tab(CommandBarTab::Layout);
-            }
-            "insert.image" => match self.session.insert_image_placeholder() {
-                Ok(_) => {
-                    self.textures.clear();
-                    self.session.last_error =
-                        Some("Product mark image inserted (Quillforge brand)".into());
-                }
-                Err(e) => self.session.last_error = Some(e.to_string()),
-            },
-            "insert.logo" => match self.session.insert_product_mark() {
-                Ok(_) => {
-                    self.textures.clear();
-                    self.session.last_error = Some("Quillforge logo inserted".into());
-                }
-                Err(e) => self.session.last_error = Some(e.to_string()),
-            },
-            "search.open" => {
-                self.session.search_panel.visible = true;
-                self.session.surface.activate_tab(CommandBarTab::Home);
-            },
-            "layout.margins" | "layout.orientation" | "layout.size" => {
-                self.session.chrome.panel_visible = true;
-                self.session.surface.activate_tab(CommandBarTab::Layout);
-                self.session.last_error =
-                    Some("Page setup: US Letter · 1\" margins (layout engine)".into());
-            }
-            _ => self.session.toggle_bold_hint(),
         }
     }
 
@@ -466,7 +619,7 @@ impl QuillShellApp {
     fn paint_review_panel(&mut self, ui: &mut egui::Ui, ink: Color32, ember: Color32) {
         ui.heading(RichText::new("Suggestions").color(ember).size(16.0));
         ui.label(
-            RichText::new("Accept applies via journal · Reject is status-only")
+            RichText::new("Accept applies ops · Reject journals status (text unchanged)")
                 .small()
                 .color(Color32::from_gray(100)),
         );

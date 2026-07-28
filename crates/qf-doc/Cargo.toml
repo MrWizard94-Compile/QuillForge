@@ -11,6 +11,8 @@ qf-core = { workspace = true }
 qf-blocks = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
+uuid = { workspace = true }
+ciborium = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

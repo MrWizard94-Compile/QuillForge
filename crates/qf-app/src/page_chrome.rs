@@ -1,4 +1,4 @@
-//! Word-class page chrome: rulers, headers/footers, image insert (P5).
+//! Word-class page chrome: rulers, headers/footers, image insert.
 //!
 //! Header/footer text is durable via `DocumentMeta.custom` keys (journaled
 //! `SetDocumentMeta`). Images are `Image` blocks + package assets.

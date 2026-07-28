@@ -114,13 +114,144 @@ pub fn expand_command(
         Command::SetDocumentMeta { patch } => Ok(vec![Operation::SetDocumentMeta {
             patch: patch.clone(),
         }]),
+        Command::ApplyMark {
+            range,
+            mark_payload,
+        } => {
+            if range.start.block_id != range.end.block_id {
+                return Err(CommandError::Invalid(
+                    "cross-block marks not supported".into(),
+                ));
+            }
+            let block_id = range.start.block_id;
+            if !document.contains_block(block_id) {
+                return Err(CommandError::InvalidTarget);
+            }
+            let block = document
+                .blocks
+                .get(&block_id)
+                .ok_or(CommandError::InvalidTarget)?;
+            let span_id = first_span_id(block);
+            let mut marks = current_marks(block);
+            // mark_payload is CBOR of a single Mark or Vec<Mark>
+            if let Ok(one) = ciborium::from_reader::<qf_blocks::Mark, _>(mark_payload.as_slice()) {
+                if !marks.iter().any(|m| mark_eq(m, &one)) {
+                    marks.push(one);
+                }
+            } else if let Ok(many) =
+                ciborium::from_reader::<Vec<qf_blocks::Mark>, _>(mark_payload.as_slice())
+            {
+                for m in many {
+                    if !marks.iter().any(|x| mark_eq(x, &m)) {
+                        marks.push(m);
+                    }
+                }
+            } else {
+                return Err(CommandError::Invalid("mark_payload decode failed".into()));
+            }
+            let mut buf = Vec::new();
+            ciborium::into_writer(&marks, &mut buf)
+                .map_err(|e| CommandError::Invalid(e.to_string()))?;
+            Ok(vec![Operation::SetMarks {
+                span_id,
+                marks_payload: buf,
+            }])
+        }
+        Command::RemoveMark { range, mark_kind } => {
+            if range.start.block_id != range.end.block_id {
+                return Err(CommandError::Invalid(
+                    "cross-block marks not supported".into(),
+                ));
+            }
+            let block_id = range.start.block_id;
+            if !document.contains_block(block_id) {
+                return Err(CommandError::InvalidTarget);
+            }
+            let block = document
+                .blocks
+                .get(&block_id)
+                .ok_or(CommandError::InvalidTarget)?;
+            let span_id = first_span_id(block);
+            let marks: Vec<qf_blocks::Mark> = current_marks(block)
+                .into_iter()
+                .filter(|m| mark_kind_name(m) != mark_kind.as_str())
+                .collect();
+            let mut buf = Vec::new();
+            ciborium::into_writer(&marks, &mut buf)
+                .map_err(|e| CommandError::Invalid(e.to_string()))?;
+            Ok(vec![Operation::SetMarks {
+                span_id,
+                marks_payload: buf,
+            }])
+        }
+        Command::AddComment { .. }
+        | Command::SplitBlock { .. }
+        | Command::MergeBlocks { .. }
+        | Command::ResolveComment { .. }
+        | Command::CreateSuggestion { .. }
+        | Command::AcceptSuggestion { .. }
+        | Command::RejectSuggestion { .. }
+        | Command::AcceptAiSuggestion { .. }
+        | Command::PluginCommand { .. }
+        | Command::ApplyRemoteBatch { .. } => Err(CommandError::Handler(
+            "handled by DocumentSession / specialized paths".into(),
+        )),
         Command::Undo { .. } | Command::Redo { .. } => Err(CommandError::Handler(
             "undo/redo must be handled by DocumentSession".into(),
         )),
-        other => Err(CommandError::Handler(format!(
-            "command not implemented in editing expander: {other:?}"
-        ))),
     }
+}
+
+fn first_span_id(block: &crate::Block) -> qf_core::SpanId {
+    use qf_blocks::BlockBody;
+    match &block.body {
+        BlockBody::Paragraph(p) => p
+            .spans
+            .first()
+            .map(|s| s.id)
+            .unwrap_or(qf_core::SpanId(uuid::Uuid::nil())),
+        BlockBody::Heading(h) => h
+            .spans
+            .first()
+            .map(|s| s.id)
+            .unwrap_or(qf_core::SpanId(uuid::Uuid::nil())),
+        BlockBody::Quote(q) => q
+            .spans
+            .first()
+            .map(|s| s.id)
+            .unwrap_or(qf_core::SpanId(uuid::Uuid::nil())),
+        _ => qf_core::SpanId(uuid::Uuid::nil()),
+    }
+}
+
+fn current_marks(block: &crate::Block) -> Vec<qf_blocks::Mark> {
+    use qf_blocks::BlockBody;
+    match &block.body {
+        BlockBody::Paragraph(p) => p.spans.first().map(|s| s.marks.clone()).unwrap_or_default(),
+        BlockBody::Heading(h) => h.spans.first().map(|s| s.marks.clone()).unwrap_or_default(),
+        BlockBody::Quote(q) => q.spans.first().map(|s| s.marks.clone()).unwrap_or_default(),
+        _ => Vec::new(),
+    }
+}
+
+fn mark_kind_name(m: &qf_blocks::Mark) -> &'static str {
+    use qf_blocks::Mark;
+    match m {
+        Mark::Bold => "bold",
+        Mark::Italic => "italic",
+        Mark::Underline => "underline",
+        Mark::Strike => "strike",
+        Mark::Code => "code",
+        Mark::Link { .. } => "link",
+        Mark::Highlight { .. } => "highlight",
+        Mark::CommentRef { .. } => "comment",
+        Mark::CitationRef { .. } => "citation",
+        Mark::Unknown { .. } => "unknown",
+    }
+}
+
+fn mark_eq(a: &qf_blocks::Mark, b: &qf_blocks::Mark) -> bool {
+    mark_kind_name(a) == mark_kind_name(b)
 }
 
 fn validate_parent(document: &Document, parent: &ParentRef) -> Result<(), CommandError> {

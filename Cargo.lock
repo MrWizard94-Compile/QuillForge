@@ -1937,6 +1937,7 @@ dependencies = [
 name = "qf-app"
 version = "0.0.0"
 dependencies = [
+ "ciborium",
  "eframe",
  "egui",
  "image",
@@ -2001,11 +2002,13 @@ dependencies = [
 name = "qf-doc"
 version = "0.0.0"
 dependencies = [
+ "ciborium",
  "qf-blocks",
  "qf-core",
  "serde",
  "tempfile",
  "thiserror 2.0.19",
+ "uuid",
 ]
 
 [[package]]

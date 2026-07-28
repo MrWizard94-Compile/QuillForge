@@ -34,6 +34,7 @@ qf-theme = { workspace = true }
 qf-search = { workspace = true }
 rustls = { workspace = true }
 image = { workspace = true }
+ciborium = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

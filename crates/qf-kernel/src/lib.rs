@@ -309,12 +309,61 @@ fn invert_one(state: &CanonicalState, op: &Operation) -> Result<Operation, Apply
         Operation::Noop { .. } => Ok(Operation::Noop {
             reason: qf_core::NoopReason::Other("undo noop".into()),
         }),
-        Operation::SetMarks { .. }
-        | Operation::UpdateBlockMeta { .. }
-        | Operation::ApplySuggestionOps { .. } => Ok(Operation::Noop {
+        Operation::SetMarks { span_id, .. } => {
+            let prev = current_marks_for_span(state, *span_id).unwrap_or_default();
+            let mut buf = Vec::new();
+            ciborium::into_writer(&prev, &mut buf)
+                .map_err(|e| ApplyError::Schema(format!("SetMarks invert encode: {e}")))?;
+            Ok(Operation::SetMarks {
+                span_id: *span_id,
+                marks_payload: buf,
+            })
+        }
+        Operation::UpdateBlockMeta { block_id, .. } => {
+            let block = state
+                .document
+                .blocks
+                .get(block_id)
+                .ok_or(ApplyError::MissingEntity)?;
+            let mut buf = Vec::new();
+            ciborium::into_writer(&block.meta, &mut buf)
+                .map_err(|e| ApplyError::Schema(format!("UpdateBlockMeta invert encode: {e}")))?;
+            Ok(Operation::UpdateBlockMeta {
+                block_id: *block_id,
+                meta_payload: buf,
+            })
+        }
+        Operation::ApplySuggestionOps { .. } => Ok(Operation::Noop {
             reason: qf_core::NoopReason::Other("inverse not modeled; use snapshot revision".into()),
         }),
     }
+}
+
+fn current_marks_for_span(
+    state: &CanonicalState,
+    span_id: qf_core::SpanId,
+) -> Option<Vec<qf_blocks::Mark>> {
+    let nil = qf_core::SpanId(uuid::Uuid::nil());
+    for block in state.document.blocks.values() {
+        let spans = match &block.body {
+            BlockBody::Paragraph(p) => &p.spans,
+            BlockBody::Heading(h) => &h.spans,
+            BlockBody::Quote(q) => &q.spans,
+            _ => continue,
+        };
+        if spans.is_empty() {
+            continue;
+        }
+        if span_id == nil {
+            return Some(spans[0].marks.clone());
+        }
+        if let Some(sp) = spans.iter().find(|s| s.id == span_id) {
+            return Some(sp.marks.clone());
+        }
+        // When span ids were not tracked, set_marks_on_block targets the first span.
+        return Some(spans[0].marks.clone());
+    }
+    None
 }
 
 fn find_block_location(
@@ -485,10 +534,87 @@ fn apply_to(state: &mut CanonicalState, op: &Operation) -> Result<Vec<KernelEven
         Operation::ApplySuggestionOps { .. } => Err(ApplyError::Schema(
             "ApplySuggestionOps must be expanded before apply".into(),
         )),
-        Operation::SetMarks { .. } | Operation::UpdateBlockMeta { .. } => {
-            Ok(vec![KernelEvent::Noop])
+        Operation::SetMarks {
+            span_id,
+            marks_payload,
+        } => {
+            let marks: Vec<qf_blocks::Mark> = if marks_payload.is_empty() {
+                Vec::new()
+            } else {
+                ciborium::from_reader(marks_payload.as_slice())
+                    .map_err(|e| ApplyError::Schema(format!("SetMarks payload: {e}")))?
+            };
+            let mut changed = None;
+            for (bid, block) in state.document.blocks.iter_mut() {
+                if set_marks_on_block(block, *span_id, &marks) {
+                    changed = Some(*bid);
+                    break;
+                }
+            }
+            let bid = changed.ok_or(ApplyError::MissingEntity)?;
+            Ok(vec![KernelEvent::TextChanged { block: bid }])
+        }
+        Operation::UpdateBlockMeta {
+            block_id,
+            meta_payload,
+        } => {
+            let meta: BlockMetadata = if meta_payload.is_empty() {
+                BlockMetadata {
+                    created_by: qf_core::ActorId(uuid::Uuid::nil()),
+                    created_at_seq: state.op_seq,
+                    attrs: Default::default(),
+                }
+            } else {
+                ciborium::from_reader(meta_payload.as_slice())
+                    .map_err(|e| ApplyError::Schema(format!("UpdateBlockMeta payload: {e}")))?
+            };
+            let block = state
+                .document
+                .blocks
+                .get_mut(block_id)
+                .ok_or(ApplyError::MissingEntity)?;
+            block.meta = meta;
+            Ok(vec![KernelEvent::TextChanged { block: *block_id }])
         }
     }
+}
+
+fn set_marks_on_block(
+    block: &mut Block,
+    span_id: qf_core::SpanId,
+    marks: &[qf_blocks::Mark],
+) -> bool {
+    let spans = match &mut block.body {
+        BlockBody::Paragraph(p) => &mut p.spans,
+        BlockBody::Heading(h) => &mut h.spans,
+        BlockBody::Quote(q) => &mut q.spans,
+        _ => return false,
+    };
+    if spans.is_empty() {
+        spans.push(Span {
+            id: span_id,
+            text: String::new(),
+            marks: marks.to_vec(),
+        });
+        return true;
+    }
+    // Match by span id, or apply to first span when nil id (whole-block formatting).
+    let nil = qf_core::SpanId(uuid::Uuid::nil());
+    if span_id == nil || spans.iter().any(|s| s.id == span_id) {
+        for sp in spans.iter_mut() {
+            if span_id == nil || sp.id == span_id {
+                sp.marks = marks.to_vec();
+                if sp.id == nil {
+                    sp.id = span_id;
+                }
+                return true;
+            }
+        }
+    }
+    // First span fallback when ids were not tracked.
+    spans[0].marks = marks.to_vec();
+    spans[0].id = span_id;
+    true
 }
 
 /// Encode a typed block body into transport bytes for ops.

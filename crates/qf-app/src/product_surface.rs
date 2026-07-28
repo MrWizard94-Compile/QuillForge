@@ -377,4 +377,70 @@ mod tests {
         assert!(ids.contains(&"export.pdf"));
         assert!(ids.contains(&"export.docx"));
     }
+
+    /// CONST-COMPLETE-001: every command-bar action id is known and must have a
+    /// real GUI handler (see `gui::QuillShellApp::handle_action`).
+    #[test]
+    fn every_command_bar_action_is_catalogued() {
+        const KNOWN: &[&str] = &[
+            "file.new",
+            "file.open",
+            "file.import_docx",
+            "file.save",
+            "file.save_as",
+            "file.export",
+            "search.open",
+            "edit.cut",
+            "edit.copy",
+            "edit.paste",
+            "mark.bold",
+            "mark.italic",
+            "mark.underline",
+            "block.heading",
+            "block.bullet",
+            "insert.table",
+            "insert.image",
+            "insert.page_break",
+            "insert.citation",
+            "layout.margins",
+            "layout.orientation",
+            "layout.size",
+            "layout.header",
+            "layout.footer",
+            "review.suggest",
+            "review.comment",
+            "review.accept",
+            "review.reject",
+            "view.page",
+            "view.draft",
+            "view.focus",
+            "view.ruler",
+            "export.pdf",
+            "export.docx",
+            "export.md",
+            "export.html",
+            "export.txt",
+            "export.all",
+        ];
+        let mut seen = std::collections::BTreeSet::new();
+        for tab in CommandBarTab::all() {
+            for g in groups_for_tab(*tab) {
+                for a in g.actions {
+                    assert!(
+                        KNOWN.contains(&a.id.as_str()),
+                        "unregistered product action id {} — wire handle_action before shipping",
+                        a.id
+                    );
+                    seen.insert(a.id);
+                }
+            }
+        }
+        assert_eq!(
+            seen.len(),
+            KNOWN.len(),
+            "KNOWN catalog out of sync with command bar ({}/{})",
+            seen.len(),
+            KNOWN.len()
+        );
+    }
 }

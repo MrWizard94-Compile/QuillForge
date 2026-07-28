@@ -235,6 +235,73 @@ impl EditorController {
         self.session.state().document.project_text(id)
     }
 
+    /// Plain text of the document (paragraphs/headings joined by newlines).
+    pub fn document_plain(&self) -> String {
+        let mut lines = Vec::new();
+        let doc = &self.session.state().document;
+        for sid in &doc.section_order {
+            let Some(sec) = doc.sections.get(sid) else {
+                continue;
+            };
+            for bid in &sec.blocks {
+                if let Some(t) = doc.project_text(*bid) {
+                    lines.push(t);
+                }
+            }
+        }
+        lines.join("\n")
+    }
+
+    /// Word count for status bar (Unicode whitespace split).
+    pub fn word_count(&self) -> u32 {
+        self.document_plain()
+            .split_whitespace()
+            .filter(|w| !w.is_empty())
+            .count() as u32
+    }
+
+    pub fn page_count(&self) -> u32 {
+        self.layout_tree.pages.len().max(1) as u32
+    }
+
+    /// Replace focused block text via journaled ReplaceRange (Word-class typing path).
+    pub fn set_focused_plain(&mut self, text: &str) -> Result<EditResult, EditorError> {
+        let block_id = self.input.selection.block_id.ok_or(EditorError::NoFocus)?;
+        let current = self
+            .session
+            .state()
+            .document
+            .project_text(block_id)
+            .unwrap_or_default();
+        if current == text {
+            return Ok(EditResult {
+                committed: false,
+                outcome: None,
+                layout_changed: false,
+            });
+        }
+        let end_off = TextOffset(current.chars().count() as u32);
+        let target = |offset: TextOffset| qf_core::TextTarget {
+            block_id,
+            span_id: None,
+            offset,
+        };
+        let outcome = self.session.commit_command(Command::ReplaceRange {
+            range: qf_core::DocRange {
+                start: target(TextOffset(0)),
+                end: target(end_off),
+            },
+            text: text.to_string(),
+        })?;
+        self.input.selection.offset = TextOffset(text.chars().count() as u32);
+        self.reflow();
+        Ok(EditResult {
+            committed: true,
+            outcome: Some(outcome),
+            layout_changed: true,
+        })
+    }
+
     pub fn save(&mut self, path: &Path) -> Result<(), EditorError> {
         self.session.save(path)?;
         Ok(())

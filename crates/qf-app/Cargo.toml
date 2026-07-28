@@ -24,6 +24,9 @@ qf-layout = { workspace = true }
 qf-sync = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
+eframe = { workspace = true }
+egui = { workspace = true }
+qf-theme = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

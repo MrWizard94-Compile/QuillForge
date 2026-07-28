@@ -1,6 +1,6 @@
 //! Quillforge CLI (WPAI Software) — editor controller and demos.
 
-use qf_app::{EditorController, ProductSurface};
+use qf_app::{run_gui, EditorController, ProductSurface};
 use qf_blocks::BlockBody;
 use qf_core::{
     cli_banner, ActorId, DocumentId, Hash256, Operation, ParentRef, SeqIdGen, SessionId, Version,
@@ -63,6 +63,17 @@ fn main() -> ExitCode {
             print_product_surface();
             ExitCode::SUCCESS
         }
+        "edit" | "gui" => {
+            let work = PathBuf::from("target/quill-gui");
+            let name = args.next().unwrap_or_else(|| "Document".into());
+            match run_gui(work, &name) {
+                Ok(()) => ExitCode::SUCCESS,
+                Err(e) => {
+                    eprintln!("error: {e}");
+                    ExitCode::FAILURE
+                }
+            }
+        }
         "help" | "-h" | "--help" => {
             print_help();
             ExitCode::SUCCESS
@@ -108,6 +119,7 @@ fn print_help() {
     println!("Usage:");
     println!("  quillforge demo [path.qfdoc]   Run editor + package demo");
     println!("  quillforge surface             Show Word-class product chrome model");
+    println!("  quillforge edit [name]         Open Word-class GUI shell");
     println!("  quillforge sync-demo           Localhost TCP multi-client sync demo");
     println!("  quillforge tls-sync-demo       Localhost TLS (rustls) sync demo");
     println!("  quillforge version             Print version and WPAI identity");

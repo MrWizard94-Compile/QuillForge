@@ -3,7 +3,7 @@
 This file is **Level 4 project law entry only**. It points at the universal AGENTS Constitution pack. It does not duplicate the constitution.
 
 **Pack path (relative):** [`AGENTS Constitution/`](AGENTS%20Constitution/)  
-**Pack version:** **5.0.0** — see [`AGENTS Constitution/VERSION`](AGENTS%20Constitution/VERSION)
+**Pack version:** **5.0.1** — see [`AGENTS Constitution/VERSION`](AGENTS%20Constitution/VERSION)
 
 ---
 
@@ -14,6 +14,7 @@ This file is **Level 4 project law entry only**. It points at the universal AGEN
 | **Constitution (SOUL)** | [AGENTS Constitution/AGENTS.md](AGENTS%20Constitution/AGENTS.md) |
 | **Process (SOP)** | [AGENTS Constitution/SOP.md](AGENTS%20Constitution/SOP.md) |
 | **Pack identity / portability** | [AGENTS Constitution/PACK.md](AGENTS%20Constitution/PACK.md) |
+| **Lock** | [AGENTS Constitution/LOCK.md](AGENTS%20Constitution/LOCK.md) |
 | **Adopt / move** | [AGENTS Constitution/ADOPT.md](AGENTS%20Constitution/ADOPT.md) |
 | **Rule registry** | [AGENTS Constitution/RULE-REGISTRY.md](AGENTS%20Constitution/RULE-REGISTRY.md) |
 | **Module index** | [AGENTS Constitution/MODULE-INDEX.md](AGENTS%20Constitution/MODULE-INDEX.md) |
@@ -38,7 +39,7 @@ Then load pack modules per the applicability matrix in pack `AGENTS.md`.
 
 ```
 AGENTS Constitution/
-├── VERSION · PACK.md · ADOPT.md · README.md
+├── VERSION · PACK.md · ADOPT.md · README.md · LOCK.md
 ├── AGENTS.md · SOP.md
 ├── RULE-REGISTRY.md · MODULE-INDEX.md · INTEGRITY.md
 ├── constitution/ · standards/ · operations/
@@ -63,6 +64,7 @@ Must exit `0` after pack install, move, or update (`GOV-INT-001`).
 
 * Product specs / research: `docs/` (and related project docs)  
 * Architecture / ADRs: project-local as maintained  
+* Product surface priority: `docs/28-product-surface.md` (Word-class editor, WPAI brand only)  
 * Overrides: pack `templates/PROJECT-OVERRIDE.template.md` (store under this project if used)  
 * **New Python projects:** bootstrap with sibling [RepoForge](../RepoForge/) using  
   `--constitution "AGENTS Constitution"` (or absolute pack path) so Level-4 `AGENTS.md` is attached  

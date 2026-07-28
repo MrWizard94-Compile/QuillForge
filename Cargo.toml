@@ -82,6 +82,14 @@ rustls-pki-types = "1"
 rcgen = "0.13"
 # Pinned for rustc 1.85 (workspace MSRV); newer time requires 1.88+.
 time = "=0.3.36"
+# Glow-only eframe keeps MSRV 1.85 (wgpu/image stack needs newer rustc).
+eframe = { version = "0.27", default-features = false, features = [
+    "default_fonts",
+    "glow",
+] }
+egui = "0.27"
+# webbrowser (via egui-winit) pulls url; url ≥2.5.3 → idna 1.1 → icu 2.2 needs rustc 1.86.
+# Keep lock at url 2.5.2 / idna 0.5 (cargo update -p url --precise 2.5.2).
 
 [profile.release]
 lto = "thin"

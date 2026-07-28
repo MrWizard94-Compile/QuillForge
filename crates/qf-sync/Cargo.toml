@@ -13,6 +13,9 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 ciborium = { workspace = true }
 uuid = { workspace = true }
+rustls = { workspace = true }
+rustls-pki-types = { workspace = true }
+rcgen = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

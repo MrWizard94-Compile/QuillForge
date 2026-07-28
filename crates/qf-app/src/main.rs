@@ -11,7 +11,8 @@ use qf_export::{CoreExporter, ExportFormat, ExportRequest, Exporter};
 use qf_input::KeyEvent;
 use qf_storage::DocumentSession;
 use qf_sync::{
-    Hello, PullRequest, PushRequest, SyncHub, TcpSyncClient, TcpSyncServer,
+    Hello, PullRequest, PushRequest, SyncHub, TcpSyncClient, TcpSyncServer, TlsIdentity,
+    TlsSyncClient, TlsSyncServer,
 };
 use std::env;
 use std::path::PathBuf;
@@ -30,6 +31,13 @@ fn main() -> ExitCode {
             }
         },
         "sync-demo" => match run_sync_demo() {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(e) => {
+                eprintln!("error: {e}");
+                ExitCode::FAILURE
+            }
+        },
+        "tls-sync-demo" => match run_tls_sync_demo() {
             Ok(()) => ExitCode::SUCCESS,
             Err(e) => {
                 eprintln!("error: {e}");
@@ -72,6 +80,7 @@ fn print_help() {
     println!("Usage:");
     println!("  quillforge demo [path.qfdoc]   Run editor + package demo");
     println!("  quillforge sync-demo           Localhost TCP multi-client sync demo");
+    println!("  quillforge tls-sync-demo       Localhost TLS (rustls) sync demo");
     println!("  quillforge version             Print version and WPAI identity");
     println!("  quillforge help                Show this help");
     println!();
@@ -80,6 +89,63 @@ fn print_help() {
     println!("Brand: brand/ (WPAI forge visual + voice)");
     println!();
     println!("{STUDIO_DISCLOSURE}");
+}
+
+fn run_tls_sync_demo() -> Result<(), String> {
+    let identity = TlsIdentity::generate_dev().map_err(|e| e.to_string())?;
+    let server =
+        TlsSyncServer::start(SyncHub::new(), identity.clone()).map_err(|e| e.to_string())?;
+    let addr = server.addr();
+    println!("TLS sync hub (QFSNC1 over rustls) listening on {addr}");
+
+    let mut gen = SeqIdGen::default();
+    let doc = DocumentId::new(&mut gen);
+    let client = TlsSyncClient::connect(addr, &identity).map_err(|e| e.to_string())?;
+    let ack = client
+        .hello(Hello {
+            client_id: ActorId::new(&mut gen),
+            session_id: SessionId::new(&mut gen),
+            document_id: doc,
+            have_seq: 0,
+        })
+        .map_err(|e| e.to_string())?;
+    let ops = vec![Operation::Noop {
+        reason: qf_core::NoopReason::Other("tls-sync-demo".into()),
+    }];
+    let payload_hash = {
+        let mut buf = Vec::new();
+        for op in &ops {
+            let s = format!("{op:?}");
+            buf.extend_from_slice(&(s.len() as u32).to_le_bytes());
+            buf.extend_from_slice(s.as_bytes());
+        }
+        Hash256::sha256(&buf)
+    };
+    let push = client
+        .push(PushRequest {
+            token: ack.token.clone(),
+            first_seq: 1,
+            last_seq: 1,
+            ops,
+            crdt: None,
+            payload_hash,
+        })
+        .map_err(|e| e.to_string())?;
+    println!("TLS client pushed; head={}", push.accepted_head_seq);
+    let pull = client
+        .pull(PullRequest {
+            token: ack.token,
+            have_seq: 0,
+        })
+        .map_err(|e| e.to_string())?;
+    println!(
+        "TLS client pulled; head={} ops={}",
+        pull.server_head_seq,
+        pull.ops.len()
+    );
+    server.stop();
+    println!("tls-sync-demo complete — QFSNC1 over TLS 1.3 verified");
+    Ok(())
 }
 
 fn run_sync_demo() -> Result<(), String> {

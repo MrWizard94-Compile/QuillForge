@@ -1,24 +1,29 @@
-//! Offline-first sync queue, merge ingress, and in-process sync hub.
+//! Offline-first sync queue, merge ingress, and network transports.
 //!
 //! Remote content enters canonical state only via command/journal/kernel.
 //! Presence uses a separate non-durable stream and never becomes Operations.
 //!
-//! # Foundation network residual
+//! # Transports
 //!
-//! [`SyncHub`] is a complete multi-replica logical server (Hello/Pull/Push +
-//! presence) usable in-process or behind a future TLS/WebSocket adapter.
-//! [`DurableSyncQueue`] persists the offline queue with fsync.
+//! - [`SyncHub`] — in-process multi-replica logical server
+//! - [`TcpSyncServer`] / [`TcpSyncClient`] — plain TCP QFSNC1 frames
+//! - [`TlsSyncServer`] / [`TlsSyncClient`] — same protocol over rustls TLS 1.3
+//! - [`DurableSyncQueue`] — fsync offline queue
 
 mod durable_queue;
 mod hub;
 mod tcp;
+mod tls;
+mod wire;
 
 pub use durable_queue::{make_sync_item, DurableSyncQueue};
 pub use hub::{
     flush_queue_to_hub, Hello, HelloAck, PullRequest, PullResponse, PushAck, PushRequest,
     SessionToken, SyncClient, SyncHub,
 };
-pub use tcp::{TcpSyncClient, TcpSyncServer, WireRequest, WireResponse};
+pub use tcp::{TcpSyncClient, TcpSyncServer};
+pub use tls::{TlsIdentity, TlsSyncClient, TlsSyncServer};
+pub use wire::{WireRequest, WireResponse, PROTOCOL_ID};
 
 use qf_collab::{merge_crdt, PresenceBroker, PresenceEvent, TextCrdt};
 use qf_core::{BlockId, DocumentId, Hash256, Operation};

@@ -190,3 +190,11 @@ Living record of decisions that bind implementers. Complements `docs/` specs.
 **Status:** Accepted  
 **Decision:** Quillforge is branded as a **WPAI** (Wizard Productions AI Studio / **W.P.A.I**) Software product. Product name stays Quillforge. Studio voice, thesis, and forge palette are codified in `qf_core::brand`, default UI theme `Theme::wpai_forge_dark`, and repository `brand/`. Package metadata and CLI display studio attribution.  
 **Why:** Portfolio consistency with Wizard Productions AI Studio; transparent AI-assisted, human-directed positioning.
+
+---
+
+## ADR-023 — TLS 1.3 adapter for QFSNC1 (rustls)
+
+**Status:** Accepted  
+**Decision:** Encrypted sync uses the same QFSNC1 framed CBOR protocol over rustls TLS 1.3 (`TlsSyncServer` / `TlsSyncClient`). Wire codec is shared (`wire.rs`). Dev/tests use self-signed SAN localhost material (`TlsIdentity::generate_dev`); production loads PKCS#8 + cert chain DER. Plain TCP remains for local tooling.  
+**Why:** Closes the TLS residual with a real crypto stack without WebSocket/browser complexity; protocol version stays `QFSNC1` (NET-PROTO-001).

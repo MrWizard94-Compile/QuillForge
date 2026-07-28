@@ -45,7 +45,7 @@ Use this checklist before tagging a v1 release. Evidence points to automated tes
 | D18 | Export | MD/HTML/TXT + PDF 1.4 + minimal OOXML DOCX | Met |
 | D19 | Search | rebuild_equivalence | Met (token; semantic optional) |
 | D20 | Collab | presence + CRDT + suggestions | Met (foundation) |
-| D21 | Sync | durable queue + SyncHub + TCP transport + presence | Met (TLS WAN adapter later) |
+| D21 | Sync | durable queue + SyncHub + TCP + TLS (rustls) + presence | Met |
 | D22 | Plugins | capability host + Wasmtime guest + command_path | Met |
 | D23 | AI suggestions | accept_path + permission tests | Met |
 | D24 | Security | ACL, audit, tokens, budgets, QFENC1 encrypt | Met |
@@ -66,7 +66,7 @@ Use this checklist before tagging a v1 release. Evidence points to automated tes
 1. ~~Process-kill matrix~~ **Closed (synthetic)** — handle-forget, partial frames, LKG, encrypted open, durable sync queue reopen; OS process spawn harness optional.  
 2. ~~PDF/DOCX text stand-ins~~ **Closed** — minimal deterministic PDF 1.4 and OOXML DOCX.  
 3. ~~Wasmtime not wired~~ **Closed** — Wasmtime guest runtime with fuel + hostcalls (`qf-plugin::wasm_runtime`).  
-4. ~~Network sync server~~ **Closed** — SyncHub + localhost TCP CBOR frames (`QFSNC1`); TLS/WebSocket adapter still deferred for production WAN.  
+4. ~~Network sync server~~ **Closed** — SyncHub + TCP + **TLS (rustls)** QFSNC1; WebSocket WAN optional later.  
 5. ~~Argon2id package encryption~~ **Closed** — QFENC1 (Argon2id + XChaCha20-Poly1305) save/open productized.
 
 ---

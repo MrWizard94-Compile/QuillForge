@@ -1,50 +1,19 @@
-//! Localhost TCP framed transport for [`SyncHub`].
+//! Plain TCP transport for QFSNC1 framed protocol over [`SyncHub`].
 //!
-//! Foundation network residual: real sockets over loopback with a fixed binary
-//! frame + CBOR body. CBOR is required so CRDT maps with structured keys round-trip
-//! (JSON object keys must be strings). TLS/WebSocket remain a thin adapter later.
-//!
-//! # Frame format
-//! ```text
-//! magic:  b"QFSNC1\0\0"   (8 bytes)
-//! length: u32 LE          (payload bytes)
-//! payload: CBOR WireRequest / WireResponse
-//! ```
-//!
-//! One request/response per connection (short-lived) to keep the server simple
-//! and deterministic under tests.
+//! See [`crate::wire`] for frame layout. TLS wraps the same protocol in [`crate::tls`].
 
 use crate::hub::{
     Hello, HelloAck, PullRequest, PullResponse, PushAck, PushRequest, SyncHub,
 };
+use crate::wire::{
+    map_wire_err, serve_one, write_frame, read_frame, WireRequest, WireResponse,
+};
 use crate::SyncError;
-use serde::{Deserialize, Serialize};
-use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
-
-const MAGIC: &[u8; 8] = b"QFSNC1\0\0";
-const MAX_FRAME: u32 = 16 * 1024 * 1024; // 16 MiB untrusted input budget
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(tag = "type", rename_all = "snake_case")]
-pub enum WireRequest {
-    Hello(Hello),
-    Pull(PullRequest),
-    Push(PushRequest),
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(tag = "type", rename_all = "snake_case")]
-pub enum WireResponse {
-    HelloAck(HelloAck),
-    Pull(PullResponse),
-    PushAck(PushAck),
-    Error { kind: String, message: String },
-}
 
 /// Background TCP server wrapping a shared [`SyncHub`].
 pub struct TcpSyncServer {
@@ -59,9 +28,6 @@ impl TcpSyncServer {
     pub fn start(hub: SyncHub) -> Result<Self, SyncError> {
         let listener = TcpListener::bind("127.0.0.1:0")
             .map_err(|e| SyncError::Network(e.to_string()))?;
-        listener
-            .set_nonblocking(false)
-            .map_err(|e| SyncError::Network(e.to_string()))?;
         let addr = listener
             .local_addr()
             .map_err(|e| SyncError::Network(e.to_string()))?;
@@ -69,12 +35,10 @@ impl TcpSyncServer {
         let stop = Arc::new(AtomicBool::new(false));
         let hub_t = hub.clone();
         let stop_t = stop.clone();
-        // Accept with timeout so stop can be observed.
         listener
             .set_nonblocking(true)
             .map_err(|e| SyncError::Network(e.to_string()))?;
         let join = thread::spawn(move || accept_loop(listener, hub_t, stop_t));
-        // Brief settle so accept loop is polling before clients connect (Windows).
         thread::sleep(Duration::from_millis(20));
         Ok(Self {
             addr,
@@ -94,7 +58,6 @@ impl TcpSyncServer {
 
     pub fn stop(mut self) {
         self.stop.store(true, Ordering::SeqCst);
-        // Wake accept by connecting once.
         let _ = TcpStream::connect_timeout(&self.addr, Duration::from_millis(200));
         if let Some(j) = self.join.take() {
             let _ = j.join();
@@ -119,9 +82,6 @@ fn accept_loop(listener: TcpListener, hub: Arc<Mutex<SyncHub>>, stop: Arc<Atomic
                 if stop.load(Ordering::SeqCst) {
                     break;
                 }
-                let hub = hub.clone();
-                // Handle request on the accept thread (tests are low concurrency).
-                // Production adapter may spawn; keep foundation deterministic.
                 let _ = handle_connection(stream, &hub);
             }
             Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
@@ -134,59 +94,18 @@ fn accept_loop(listener: TcpListener, hub: Arc<Mutex<SyncHub>>, stop: Arc<Atomic
 
 fn handle_connection(mut stream: TcpStream, hub: &Arc<Mutex<SyncHub>>) -> Result<(), SyncError> {
     stream
+        .set_nonblocking(false)
+        .map_err(|e| SyncError::Network(e.to_string()))?;
+    stream
         .set_read_timeout(Some(Duration::from_secs(5)))
         .map_err(|e| SyncError::Network(e.to_string()))?;
     stream
         .set_write_timeout(Some(Duration::from_secs(5)))
         .map_err(|e| SyncError::Network(e.to_string()))?;
-    let resp = match read_frame::<WireRequest>(&mut stream) {
-        Ok(req) => dispatch(hub, req),
-        Err(e) => err_resp(e),
-    };
-    write_frame(&mut stream, &resp)?;
-    Ok(())
+    serve_one(&mut stream, hub)
 }
 
-fn dispatch(hub: &Arc<Mutex<SyncHub>>, req: WireRequest) -> WireResponse {
-    let mut hub = match hub.lock() {
-        Ok(h) => h,
-        Err(e) => {
-            return WireResponse::Error {
-                kind: "internal".into(),
-                message: e.to_string(),
-            }
-        }
-    };
-    match req {
-        WireRequest::Hello(h) => match hub.hello(h) {
-            Ok(ack) => WireResponse::HelloAck(ack),
-            Err(e) => err_resp(e),
-        },
-        WireRequest::Pull(p) => match hub.pull(p) {
-            Ok(r) => WireResponse::Pull(r),
-            Err(e) => err_resp(e),
-        },
-        WireRequest::Push(p) => match hub.push(p) {
-            Ok(a) => WireResponse::PushAck(a),
-            Err(e) => err_resp(e),
-        },
-    }
-}
-
-fn err_resp(e: SyncError) -> WireResponse {
-    let (kind, message) = match e {
-        SyncError::Rejected(s) => ("rejected", s),
-        SyncError::Network(s) => ("network", s),
-        SyncError::Auth(s) => ("auth", s),
-        SyncError::StreamMismatch(s) => ("stream_mismatch", s),
-    };
-    WireResponse::Error {
-        kind: kind.into(),
-        message,
-    }
-}
-
-/// Client that speaks the framed protocol over TCP.
+/// Client that speaks the framed protocol over plain TCP.
 pub struct TcpSyncClient {
     addr: SocketAddr,
 }
@@ -234,67 +153,13 @@ impl TcpSyncClient {
     }
 }
 
-fn map_wire_err(kind: String, message: String) -> SyncError {
-    match kind.as_str() {
-        "auth" => SyncError::Auth(message),
-        "rejected" => SyncError::Rejected(message),
-        "stream_mismatch" => SyncError::StreamMismatch(message),
-        _ => SyncError::Network(format!("{kind}: {message}")),
-    }
-}
-
-fn write_frame<T: Serialize>(stream: &mut TcpStream, value: &T) -> Result<(), SyncError> {
-    let mut payload = Vec::new();
-    ciborium::into_writer(value, &mut payload)
-        .map_err(|e| SyncError::Network(e.to_string()))?;
-    if payload.len() > MAX_FRAME as usize {
-        return Err(SyncError::Rejected("frame too large".into()));
-    }
-    let len = (payload.len() as u32).to_le_bytes();
-    stream
-        .write_all(MAGIC)
-        .map_err(|e| SyncError::Network(e.to_string()))?;
-    stream
-        .write_all(&len)
-        .map_err(|e| SyncError::Network(e.to_string()))?;
-    stream
-        .write_all(&payload)
-        .map_err(|e| SyncError::Network(e.to_string()))?;
-    stream
-        .flush()
-        .map_err(|e| SyncError::Network(e.to_string()))?;
-    Ok(())
-}
-
-fn read_frame<T: for<'de> Deserialize<'de>>(stream: &mut TcpStream) -> Result<T, SyncError> {
-    let mut magic = [0u8; 8];
-    stream
-        .read_exact(&mut magic)
-        .map_err(|e| SyncError::Network(e.to_string()))?;
-    if &magic != MAGIC {
-        return Err(SyncError::Rejected("bad frame magic".into()));
-    }
-    let mut len_buf = [0u8; 4];
-    stream
-        .read_exact(&mut len_buf)
-        .map_err(|e| SyncError::Network(e.to_string()))?;
-    let len = u32::from_le_bytes(len_buf);
-    if len == 0 || len > MAX_FRAME {
-        return Err(SyncError::Rejected(format!("invalid frame length {len}")));
-    }
-    let mut payload = vec![0u8; len as usize];
-    stream
-        .read_exact(&mut payload)
-        .map_err(|e| SyncError::Network(e.to_string()))?;
-    ciborium::from_reader(payload.as_slice()).map_err(|e| SyncError::Rejected(e.to_string()))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::hub::SyncHub;
     use qf_collab::TextCrdt;
     use qf_core::{ActorId, DocumentId, Hash256, Operation, SeqIdGen, SessionId};
+    use std::io::{Read, Write};
     use std::time::Instant;
 
     fn hash_ops(ops: &[Operation]) -> Hash256 {
@@ -342,7 +207,6 @@ mod tests {
             .unwrap();
         assert_eq!(push.accepted_head_seq, 1);
 
-        // Second client
         let client_b = TcpSyncClient::connect(addr);
         let ack_b = client_b
             .hello(Hello {
@@ -404,7 +268,6 @@ mod tests {
         panic!("tcp_crdt_push_over_socket failed after retries: {last_err:?}");
     }
 
-    /// PB-SYNC-001 — 50 TCP Hello/Push/Pull round-trips under CI budget.
     #[test]
     fn budget_tcp_50_roundtrips_under_limit() {
         let server = TcpSyncServer::start(SyncHub::new()).unwrap();
@@ -472,14 +335,12 @@ mod tests {
         {
             let mut stream =
                 TcpStream::connect_timeout(&addr, Duration::from_secs(2)).unwrap();
-            // Best-effort bad frame; host may abort mid-write after server rejects.
             let _ = stream.write_all(b"BADMAGIC");
             let _ = stream.write_all(&4u32.to_le_bytes());
             let _ = stream.write_all(b"xxxx");
             let mut buf = [0u8; 64];
             let _ = stream.read(&mut buf);
         }
-        // Server still serves well-formed traffic after a bad peer.
         let client = TcpSyncClient::connect(addr);
         let mut gen = SeqIdGen::default();
         let ack = client

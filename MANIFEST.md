@@ -1,29 +1,24 @@
-# Delivery MANIFEST — AGENTS Constitution pack v5.0.0
+# Delivery MANIFEST — TLS QFSNC1 transport
 
-**Title:** Finalize and commit portable AGENTS Constitution pack  
+**Title:** rustls TLS 1.3 adapter for SyncHub / QFSNC1  
 **Date:** 2026-07-28  
-**Law:** Pack v5.0.0 (`GOV-INT-001`, `CONST-GATE-001`)
+**Law:** AGENTS Constitution v5.0.0 · `specialist/NETWORKING.md` · SEC-INPUT-001
 
 ## Summary
 
-Director finalized AGENTS Constitution as universal portable pack **5.0.0**. Project root `AGENTS.md` is Level 4 pointer only.
+1. Shared `wire.rs` frame codec (QFSNC1 CBOR).  
+2. `TlsIdentity` + `TlsSyncServer` / `TlsSyncClient` (rustls, ring provider).  
+3. Dev self-signed certs; tests + `quillforge tls-sync-demo`.  
+4. ADR-023; ship checklist D21 TLS closed.
 
 ## Verify
 
-```powershell
-pwsh -File "AGENTS Constitution/tools/verify-pack.ps1"
-pwsh -File "AGENTS Constitution/tools/self-audit.ps1"
+```bash
+cargo clippy --workspace --all-targets -- -D warnings
+cargo test --workspace
+cargo run -p qf-app -- tls-sync-demo
 ```
-
-**RESULT:** PASS (GOV-INT-001) — VERSION 5.0.0, 130 active rule IDs, self-audit OVERALL PASS.
-
-## Package contents
-
-- Pack SOUL/SOP/modules/tools/templates/docs/reports  
-- `PACK.md`, `ADOPT.md`, `VERSION`  
-- Optional `_archive_pre_v4/` historical monolith  
-- Root `AGENTS.md` project pointer  
 
 ## Self-audit
 
-Section 0 pass for governance delivery. No product code changes in this commit.
+CONST-GATE-001 pass: complete, tested, documented, zero warnings.

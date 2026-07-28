@@ -77,6 +77,11 @@ wasmtime = { version = "31", default-features = false, features = [
     "std",
 ] }
 wat = "1"
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+rustls-pki-types = "1"
+rcgen = "0.13"
+# Pinned for rustc 1.85 (workspace MSRV); newer time requires 1.88+.
+time = "=0.3.36"
 
 [profile.release]
 lto = "thin"

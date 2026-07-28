@@ -140,3 +140,58 @@ pub fn serve_one<S: Read + Write>(
     };
     write_frame(stream, &resp)
 }
+
+#[cfg(test)]
+mod cbor_shape_tests {
+    use super::*;
+    use crate::hub::Hello;
+    use qf_core::{ActorId, DocumentId, SessionId, SeqIdGen};
+
+    #[test]
+    fn hello_cbor_is_tagged_map() {
+        let mut gen = SeqIdGen::default();
+        // Fixed-looking ids from seq gen for deterministic inspection.
+        let req = WireRequest::Hello(Hello {
+            client_id: ActorId::new(&mut gen),
+            session_id: SessionId::new(&mut gen),
+            document_id: DocumentId::new(&mut gen),
+            have_seq: 0,
+        });
+        let mut payload = Vec::new();
+        ciborium::into_writer(&req, &mut payload).unwrap();
+        // Externally tagged enum: map with one key "hello" (or type field with rename)
+        // serde tag = "type", rename_all = snake_case → {"type":"hello", ...fields}
+        assert!(!payload.is_empty());
+        // First byte should be a map major type (0xA0-0xBF) or indefinite map 0xBF
+        let major = payload[0] >> 5;
+        assert_eq!(major, 5, "expected CBOR map, first byte {:02x}", payload[0]);
+        // Keep a golden prefix check for browser encoder compatibility.
+        // Must start with map containing text key "type".
+        let as_str = String::from_utf8_lossy(&payload);
+        assert!(
+            as_str.contains("type") && as_str.contains("hello"),
+            "payload missing type/hello: {as_str:?}"
+        );
+    }
+
+    #[test]
+    fn hello_fixed_ids_matches_browser_golden() {
+        use uuid::Uuid;
+        let req = WireRequest::Hello(Hello {
+            client_id: ActorId(Uuid::from_u128(1)),
+            session_id: SessionId(Uuid::from_u128(2)),
+            document_id: DocumentId(Uuid::from_u128(3)),
+            have_seq: 0,
+        });
+        let mut p = Vec::new();
+        ciborium::into_writer(&req, &mut p).unwrap();
+        let mut hex = String::with_capacity(p.len() * 2);
+        for b in &p {
+            use std::fmt::Write as _;
+            let _ = write!(hex, "{b:02x}");
+        }
+        // Kept in sync with web/qfsnc1-client/qfsnc1.js selfTest().
+        let expected = "a564747970656568656c6c6f69636c69656e745f696450000000000000000000000000000000016a73657373696f6e5f696450000000000000000000000000000000026b646f63756d656e745f6964500000000000000000000000000000000368686176655f73657100";
+        assert_eq!(hex, expected);
+    }
+}

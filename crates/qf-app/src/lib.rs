@@ -6,6 +6,7 @@
 //! Product priority: Word-class document editor UX without Microsoft branding
 //! (`docs/28-product-surface.md`, [`product_surface`]).
 
+mod browser_demo;
 mod editor;
 mod gui;
 mod page_chrome;
@@ -13,6 +14,7 @@ mod product_surface;
 mod review;
 mod shell_session;
 
+pub use browser_demo::run_browser_sync_demo;
 pub use editor::{EditResult, EditorController, EditorError};
 pub use gui::run_gui;
 pub use page_chrome::PageChrome;

@@ -42,8 +42,16 @@ cargo run -p qf-app -- wss-sync-demo
 
 ---
 
+## Browser reference client
+
+See **`docs/31-browser-sync-client.md`** and `web/qfsnc1-client/`.
+
+```bash
+cargo run -p qf-app -- browser-sync-demo
+```
+
 ## Out of scope (next)
 
 - Long-lived multiplexed sessions (current client opens a connection per request)  
-- Browser JS reference client  
 - Production CA / ALPN packaging  
+- Hosted HTTPS + `wss://` browser demo  

@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Quillforge QFSNC1 · Browser client</title>
+    <style>
+      :root {
+        --ink: #1a1a1a;
+        --rail: #f3f2f1;
+        --ember: #ff7a26;
+        --paper: #ffffff;
+        --muted: #666;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        font-family: system-ui, Segoe UI, sans-serif;
+        margin: 0;
+        background: var(--rail);
+        color: var(--ink);
+      }
+      header {
+        background: var(--paper);
+        border-bottom: 2px solid var(--ember);
+        padding: 1rem 1.25rem;
+      }
+      header h1 {
+        margin: 0;
+        font-size: 1.25rem;
+      }
+      header p {
+        margin: 0.35rem 0 0;
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+      main {
+        max-width: 42rem;
+        margin: 1.25rem auto;
+        padding: 0 1rem 2rem;
+      }
+      label {
+        display: block;
+        font-size: 0.85rem;
+        margin-bottom: 0.25rem;
+        color: var(--muted);
+      }
+      input {
+        width: 100%;
+        padding: 0.55rem 0.65rem;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font: inherit;
+        margin-bottom: 0.85rem;
+      }
+      button {
+        background: var(--ember);
+        color: #111;
+        border: none;
+        border-radius: 4px;
+        padding: 0.55rem 1rem;
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+        margin-right: 0.5rem;
+        margin-bottom: 0.5rem;
+      }
+      button.secondary {
+        background: #ddd;
+      }
+      #log {
+        background: #1a1a1a;
+        color: #d8d8d8;
+        font-family: ui-monospace, Consolas, monospace;
+        font-size: 0.8rem;
+        padding: 0.85rem;
+        border-radius: 6px;
+        min-height: 12rem;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      .ok {
+        color: #7dcea0;
+      }
+      .err {
+        color: #f1948a;
+      }
+      footer {
+        text-align: center;
+        color: var(--muted);
+        font-size: 0.8rem;
+        padding: 1rem;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Quillforge · QFSNC1 browser client</h1>
+      <p>WPAI Software · Word-class document OS sync reference · WPAI branding only</p>
+    </header>
+    <main>
+      <label for="url">WebSocket URL</label>
+      <input id="url" spellcheck="false" />
+      <div>
+        <button id="btnSelf" type="button" class="secondary">Self-test CBOR</button>
+        <button id="btnRun" type="button">Hello · Push · Pull</button>
+        <button id="btnClear" type="button" class="secondary">Clear log</button>
+      </div>
+      <p style="color: var(--muted); font-size: 0.85rem">
+        Expects a Quillforge hub at <code>/qfsnc1</code> (see
+        <code>cargo run -p qf-app -- browser-sync-demo</code>).
+      </p>
+      <div id="log"></div>
+    </main>
+    <footer>Protocol QFSNC1 · docs/30-websocket-sync.md · docs/31-browser-sync-client.md</footer>
+    <script src="qfsnc1.js"></script>
+    <script>
+      (function () {
+        const params = new URLSearchParams(location.search);
+        const defaultUrl =
+          params.get("ws") ||
+          "ws://" + location.hostname + ":" + (params.get("ws_port") || "7878") + "/qfsnc1";
+        const urlInput = document.getElementById("url");
+        urlInput.value = defaultUrl;
+        const logEl = document.getElementById("log");
+        function log(msg, cls) {
+          const line = document.createElement("div");
+          if (cls) line.className = cls;
+          line.textContent = msg;
+          logEl.appendChild(line);
+          logEl.scrollTop = logEl.scrollHeight;
+        }
+        document.getElementById("btnClear").onclick = function () {
+          logEl.textContent = "";
+        };
+        document.getElementById("btnSelf").onclick = function () {
+          try {
+            Qfsnc1.selfTest();
+            log("CBOR golden hello: OK", "ok");
+          } catch (e) {
+            log(String(e), "err");
+          }
+        };
+        document.getElementById("btnRun").onclick = async function () {
+          const url = urlInput.value.trim();
+          try {
+            await Qfsnc1.demoFlow(url, function (m) {
+              log(m, "ok");
+            });
+            log("demo complete", "ok");
+          } catch (e) {
+            log(String(e && e.message ? e.message : e), "err");
+          }
+        };
+      })();
+    </script>
+  </body>
+</html>

@@ -366,7 +366,8 @@ impl EditorController {
     /// Replaces current document body: existing blocks are removed, then import
     /// blocks are inserted in order. Layout reflows after commit.
     pub fn import_docx_bytes(&mut self, bytes: &[u8]) -> Result<usize, EditorError> {
-        use qf_blocks::{BlockBody, CodeBlock};
+        use qf_blocks::{BlockBody, CodeBlock, ImageBlock};
+        use qf_core::AssetId;
         use qf_export::{import_docx_blocks, DocxImportBlock};
         use qf_kernel::encode_body;
 
@@ -404,6 +405,26 @@ impl EditorController {
                     (bb.type_name, bb.payload)
                 }
                 DocxImportBlock::PageBreak => ("page_break".into(), Vec::new()),
+                DocxImportBlock::Image {
+                    alt,
+                    bytes: img_bytes,
+                    width_px,
+                    height_px,
+                } => {
+                    let asset_id = AssetId::new(self.session.ids.as_mut());
+                    self.session
+                        .assets
+                        .insert(asset_id.as_uuid().to_string(), img_bytes.clone());
+                    let bb = encode_body(&BlockBody::Image(ImageBlock {
+                        asset_id,
+                        alt: alt.clone(),
+                        caption: vec![],
+                        width_px: *width_px,
+                        height_px: *height_px,
+                    }))
+                    .map_err(|e| EditorError::Other(e.to_string()))?;
+                    (bb.type_name, bb.payload)
+                }
             };
             self.session.commit_command(Command::InsertBlock {
                 parent: ParentRef::DocumentRoot,

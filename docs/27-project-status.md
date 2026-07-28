@@ -25,9 +25,9 @@
 
 ## What remains (ordered)
 
-1. DOCX import of DrawingML → package assets / custom fonts  
-2. Server-push notify without client poll  
-3. Optional neural/ONNX embedding pack  
+1. Server-push notify without client poll  
+2. Optional neural/ONNX embedding pack  
+3. Custom font embedding  
 4. Browser e2e (optional)  
 
 ---

@@ -435,6 +435,28 @@ mod tests {
     }
 
     #[test]
+    fn docx_image_drawingml_round_trip() {
+        let dir = tempdir().unwrap();
+        let mut s = ShellSession::open_or_create(dir.path(), "img-exp").unwrap();
+        s.draft = "Caption host".into();
+        s.apply_draft().unwrap();
+        s.insert_image_placeholder().unwrap();
+        assert_eq!(s.editor.image_block_count(), 1);
+        let docx = s.export_docx().unwrap();
+        let mut s2 = ShellSession::open_or_create(dir.path(), "img-imp").unwrap();
+        let n = s2.import_docx(&docx).unwrap();
+        assert!(n >= 1, "expected imported blocks");
+        assert!(
+            s2.editor.image_block_count() >= 1,
+            "expected image block after DrawingML import"
+        );
+        assert!(
+            !s2.editor.session.assets.is_empty(),
+            "expected package assets from imported media"
+        );
+    }
+
+    #[test]
     fn open_from_docx_writes_qfdoc() {
         let dir = tempdir().unwrap();
         let mut seed = ShellSession::open_or_create(dir.path(), "seed").unwrap();

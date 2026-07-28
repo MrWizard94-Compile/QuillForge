@@ -34,5 +34,5 @@ cargo run -p qf-app -- polish-demo
 ## Out of scope (next)
 
 - JPEG/WebP feature surface beyond sniff+embed  
-- DOCX import of DrawingML → package assets  
 - TrueType font embedding  
+- Floating DOCX anchors / wrap layouts  

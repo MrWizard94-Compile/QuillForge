@@ -110,16 +110,18 @@ fn handle_connection(mut stream: TcpStream, hub: &Arc<Mutex<SyncHub>>) -> Result
         .set_nonblocking(false)
         .map_err(|e| SyncError::Network(e.to_string()))?;
     stream
-        .set_read_timeout(Some(Duration::from_secs(5)))
+        .set_read_timeout(Some(Duration::from_secs(30)))
         .map_err(|e| SyncError::Network(e.to_string()))?;
     stream
-        .set_write_timeout(Some(Duration::from_secs(5)))
+        .set_write_timeout(Some(Duration::from_secs(30)))
         .map_err(|e| SyncError::Network(e.to_string()))?;
     server_handshake(&mut stream)?;
-    serve_one_ws(&mut stream, hub, false)
+    // Long-lived session: many QFSNC1 request/response pairs on one WS connection.
+    serve_session_ws(&mut stream, hub, false)
 }
 
-/// Client speaking QFSNC1 over WebSocket binary frames.
+/// One-shot client (opens a new WebSocket per request). Prefer [`WsSyncSession`] for
+/// multi-message conversations.
 pub struct WsSyncClient {
     addr: SocketAddr,
 }
@@ -129,7 +131,48 @@ impl WsSyncClient {
         Self { addr }
     }
 
+    /// Open a long-lived session (handshake once; reuse for hello/push/pull).
+    pub fn open_session(&self) -> Result<WsSyncSession, SyncError> {
+        WsSyncSession::open(self.addr)
+    }
+
     pub fn hello(&self, req: Hello) -> Result<HelloAck, SyncError> {
+        let mut s = self.open_session()?;
+        s.hello(req)
+    }
+
+    pub fn pull(&self, req: PullRequest) -> Result<PullResponse, SyncError> {
+        let mut s = self.open_session()?;
+        s.pull(req)
+    }
+
+    pub fn push(&self, req: PushRequest) -> Result<PushAck, SyncError> {
+        let mut s = self.open_session()?;
+        s.push(req)
+    }
+}
+
+/// Persistent WebSocket connection carrying multiple QFSNC1 messages.
+pub struct WsSyncSession {
+    stream: TcpStream,
+}
+
+impl WsSyncSession {
+    pub fn open(addr: SocketAddr) -> Result<Self, SyncError> {
+        let mut stream = TcpStream::connect_timeout(&addr, Duration::from_secs(2))
+            .map_err(|e| SyncError::Network(e.to_string()))?;
+        stream
+            .set_read_timeout(Some(Duration::from_secs(30)))
+            .map_err(|e| SyncError::Network(e.to_string()))?;
+        stream
+            .set_write_timeout(Some(Duration::from_secs(30)))
+            .map_err(|e| SyncError::Network(e.to_string()))?;
+        let host = format!("{addr}");
+        client_handshake(&mut stream, &host)?;
+        Ok(Self { stream })
+    }
+
+    pub fn hello(&mut self, req: Hello) -> Result<HelloAck, SyncError> {
         match self.round_trip(WireRequest::Hello(req))? {
             WireResponse::HelloAck(a) => Ok(a),
             WireResponse::Error { kind, message } => Err(map_wire_err(kind, message)),
@@ -137,7 +180,7 @@ impl WsSyncClient {
         }
     }
 
-    pub fn pull(&self, req: PullRequest) -> Result<PullResponse, SyncError> {
+    pub fn pull(&mut self, req: PullRequest) -> Result<PullResponse, SyncError> {
         match self.round_trip(WireRequest::Pull(req))? {
             WireResponse::Pull(p) => Ok(p),
             WireResponse::Error { kind, message } => Err(map_wire_err(kind, message)),
@@ -145,7 +188,7 @@ impl WsSyncClient {
         }
     }
 
-    pub fn push(&self, req: PushRequest) -> Result<PushAck, SyncError> {
+    pub fn push(&mut self, req: PushRequest) -> Result<PushAck, SyncError> {
         match self.round_trip(WireRequest::Push(req))? {
             WireResponse::PushAck(a) => Ok(a),
             WireResponse::Error { kind, message } => Err(map_wire_err(kind, message)),
@@ -153,32 +196,45 @@ impl WsSyncClient {
         }
     }
 
-    fn round_trip(&self, req: WireRequest) -> Result<WireResponse, SyncError> {
-        let mut stream = TcpStream::connect_timeout(&self.addr, Duration::from_secs(2))
-            .map_err(|e| SyncError::Network(e.to_string()))?;
-        stream
-            .set_read_timeout(Some(Duration::from_secs(5)))
-            .map_err(|e| SyncError::Network(e.to_string()))?;
-        stream
-            .set_write_timeout(Some(Duration::from_secs(5)))
-            .map_err(|e| SyncError::Network(e.to_string()))?;
-        let host = format!("{}", self.addr);
-        client_handshake(&mut stream, &host)?;
-        write_qfsnc1_ws(&mut stream, &req, true)?;
-        read_qfsnc1_ws(&mut stream)
+    fn round_trip(&mut self, req: WireRequest) -> Result<WireResponse, SyncError> {
+        write_qfsnc1_ws(&mut self.stream, &req, true)?;
+        read_qfsnc1_ws(&mut self.stream)
     }
 }
 
-pub(crate) fn serve_one_ws<S: Read + Write>(
+/// Serve many request/response pairs until the peer closes or an I/O error ends the session.
+pub(crate) fn serve_session_ws<S: Read + Write>(
     stream: &mut S,
     hub: &Arc<Mutex<SyncHub>>,
     client_masking: bool,
 ) -> Result<(), SyncError> {
-    let resp = match read_qfsnc1_ws::<_, WireRequest>(stream) {
-        Ok(req) => dispatch(hub, req),
-        Err(e) => err_resp(e),
-    };
-    write_qfsnc1_ws(stream, &resp, client_masking)
+    loop {
+        match read_qfsnc1_ws::<_, WireRequest>(stream) {
+            Ok(req) => {
+                let resp = dispatch(hub, req);
+                write_qfsnc1_ws(stream, &resp, client_masking)?;
+            }
+            Err(e) if is_peer_gone(&e) => return Ok(()),
+            Err(e) => {
+                // Protocol error: try to surface once, then end session.
+                let _ = write_qfsnc1_ws(stream, &err_resp(e), client_masking);
+                return Ok(());
+            }
+        }
+    }
+}
+
+fn is_peer_gone(e: &SyncError) -> bool {
+    let msg = e.to_string().to_ascii_lowercase();
+    msg.contains("eof")
+        || msg.contains("failed to fill whole buffer")
+        || msg.contains("connection reset")
+        || msg.contains("forcibly closed")
+        || msg.contains("broken pipe")
+        || msg.contains("websocket closed")
+        || msg.contains("ws closed")
+        || msg.contains("10054")
+        || msg.contains("os error 104")
 }
 
 pub(crate) fn write_qfsnc1_ws<W: Write, T: serde::Serialize>(
@@ -552,6 +608,99 @@ mod tests {
         assert_eq!(pull.server_head_seq, 1);
         assert_eq!(pull.ops.len(), 1);
 
+        server.stop();
+    }
+
+    #[test]
+    fn ws_session_multi_message_same_connection() {
+        let server = WsSyncServer::start(SyncHub::new()).unwrap();
+        let mut session = WsSyncSession::open(server.addr()).unwrap();
+        let mut gen = SeqIdGen::default();
+        let doc = DocumentId::new(&mut gen);
+        let ack = session
+            .hello(Hello {
+                client_id: ActorId::new(&mut gen),
+                session_id: SessionId::new(&mut gen),
+                document_id: doc,
+                have_seq: 0,
+            })
+            .unwrap();
+        let mut head = 0u64;
+        for i in 1..=5u64 {
+            let ops = vec![Operation::Noop {
+                reason: qf_core::NoopReason::Other(format!("sess{i}")),
+            }];
+            let push = session
+                .push(PushRequest {
+                    token: ack.token.clone(),
+                    first_seq: i,
+                    last_seq: i,
+                    ops: ops.clone(),
+                    crdt: None,
+                    payload_hash: hash_ops(&ops),
+                })
+                .unwrap();
+            head = push.accepted_head_seq;
+            let pull = session
+                .pull(PullRequest {
+                    token: ack.token.clone(),
+                    have_seq: head.saturating_sub(1),
+                })
+                .unwrap();
+            assert!(pull.server_head_seq >= head);
+        }
+        assert_eq!(head, 5);
+        // Drop session closes TCP; server loop exits cleanly.
+        drop(session);
+        server.stop();
+    }
+
+    #[test]
+    fn budget_ws_session_50_roundtrips_under_limit() {
+        use std::time::Instant;
+        let server = WsSyncServer::start(SyncHub::new()).unwrap();
+        let mut session = WsSyncSession::open(server.addr()).unwrap();
+        let mut gen = SeqIdGen::default();
+        let doc = DocumentId::new(&mut gen);
+        let ack = session
+            .hello(Hello {
+                client_id: ActorId::new(&mut gen),
+                session_id: SessionId::new(&mut gen),
+                document_id: doc,
+                have_seq: 0,
+            })
+            .unwrap();
+        let start = Instant::now();
+        let mut head = 0u64;
+        for i in 1..=50u64 {
+            let ops = vec![Operation::Noop {
+                reason: qf_core::NoopReason::Other(format!("wsrt{i}")),
+            }];
+            let push = session
+                .push(PushRequest {
+                    token: ack.token.clone(),
+                    first_seq: i,
+                    last_seq: i,
+                    ops: ops.clone(),
+                    crdt: None,
+                    payload_hash: hash_ops(&ops),
+                })
+                .unwrap();
+            head = push.accepted_head_seq;
+            let _ = session
+                .pull(PullRequest {
+                    token: ack.token.clone(),
+                    have_seq: head.saturating_sub(1),
+                })
+                .unwrap();
+        }
+        let elapsed = start.elapsed();
+        assert_eq!(head, 50);
+        assert!(
+            elapsed < Duration::from_secs(15),
+            "PB-WS-SESSION-001 exceeded: {elapsed:?}"
+        );
+        drop(session);
         server.stop();
     }
 

@@ -9,7 +9,7 @@ use crate::hub::{
 use crate::tls::{ensure_crypto_provider, TlsIdentity};
 use crate::wire::{map_wire_err, WireRequest, WireResponse, PROTOCOL_ID};
 use crate::ws::{
-    client_handshake, read_qfsnc1_ws, serve_one_ws, server_handshake, write_qfsnc1_ws,
+    client_handshake, read_qfsnc1_ws, serve_session_ws, server_handshake, write_qfsnc1_ws,
 };
 use crate::SyncError;
 use rustls::pki_types::ServerName;
@@ -127,19 +127,19 @@ fn handle_wss_connection(
         .set_nonblocking(false)
         .map_err(|e| SyncError::Network(e.to_string()))?;
     stream
-        .set_read_timeout(Some(Duration::from_secs(5)))
+        .set_read_timeout(Some(Duration::from_secs(30)))
         .map_err(|e| SyncError::Network(e.to_string()))?;
     stream
-        .set_write_timeout(Some(Duration::from_secs(5)))
+        .set_write_timeout(Some(Duration::from_secs(30)))
         .map_err(|e| SyncError::Network(e.to_string()))?;
     let conn = rustls::ServerConnection::new(cfg.clone())
         .map_err(|e| SyncError::Auth(e.to_string()))?;
     let mut tls = rustls::StreamOwned::new(conn, stream);
     server_handshake(&mut tls)?;
-    serve_one_ws(&mut tls, hub, false)
+    serve_session_ws(&mut tls, hub, false)
 }
 
-/// Client for QFSNC1 over `wss://` (TLS + WebSocket binary frames).
+/// One-shot client for QFSNC1 over `wss://`. Prefer [`WssSyncSession`] for multi-message use.
 pub struct WssSyncClient {
     addr: SocketAddr,
     config: Arc<ClientConfig>,
@@ -161,7 +161,55 @@ impl WssSyncClient {
         })
     }
 
+    /// Open a long-lived WSS session (TLS + WS handshake once).
+    pub fn open_session(&self) -> Result<WssSyncSession, SyncError> {
+        WssSyncSession::open(self.addr, self.config.clone(), self.server_name.clone())
+    }
+
     pub fn hello(&self, req: Hello) -> Result<HelloAck, SyncError> {
+        let mut s = self.open_session()?;
+        s.hello(req)
+    }
+
+    pub fn pull(&self, req: PullRequest) -> Result<PullResponse, SyncError> {
+        let mut s = self.open_session()?;
+        s.pull(req)
+    }
+
+    pub fn push(&self, req: PushRequest) -> Result<PushAck, SyncError> {
+        let mut s = self.open_session()?;
+        s.push(req)
+    }
+}
+
+/// Persistent `wss://` connection for multiple QFSNC1 messages.
+pub struct WssSyncSession {
+    tls: rustls::StreamOwned<rustls::ClientConnection, TcpStream>,
+}
+
+impl WssSyncSession {
+    pub fn open(
+        addr: SocketAddr,
+        config: Arc<ClientConfig>,
+        server_name: ServerName<'static>,
+    ) -> Result<Self, SyncError> {
+        let stream = TcpStream::connect_timeout(&addr, Duration::from_secs(3))
+            .map_err(|e| SyncError::Network(e.to_string()))?;
+        stream
+            .set_read_timeout(Some(Duration::from_secs(30)))
+            .map_err(|e| SyncError::Network(e.to_string()))?;
+        stream
+            .set_write_timeout(Some(Duration::from_secs(30)))
+            .map_err(|e| SyncError::Network(e.to_string()))?;
+        let conn = rustls::ClientConnection::new(config, server_name)
+            .map_err(|e| SyncError::Auth(e.to_string()))?;
+        let mut tls = rustls::StreamOwned::new(conn, stream);
+        let host = format!("{addr}");
+        client_handshake(&mut tls, &host)?;
+        Ok(Self { tls })
+    }
+
+    pub fn hello(&mut self, req: Hello) -> Result<HelloAck, SyncError> {
         match self.round_trip(WireRequest::Hello(req))? {
             WireResponse::HelloAck(a) => Ok(a),
             WireResponse::Error { kind, message } => Err(map_wire_err(kind, message)),
@@ -169,7 +217,7 @@ impl WssSyncClient {
         }
     }
 
-    pub fn pull(&self, req: PullRequest) -> Result<PullResponse, SyncError> {
+    pub fn pull(&mut self, req: PullRequest) -> Result<PullResponse, SyncError> {
         match self.round_trip(WireRequest::Pull(req))? {
             WireResponse::Pull(p) => Ok(p),
             WireResponse::Error { kind, message } => Err(map_wire_err(kind, message)),
@@ -177,7 +225,7 @@ impl WssSyncClient {
         }
     }
 
-    pub fn push(&self, req: PushRequest) -> Result<PushAck, SyncError> {
+    pub fn push(&mut self, req: PushRequest) -> Result<PushAck, SyncError> {
         match self.round_trip(WireRequest::Push(req))? {
             WireResponse::PushAck(a) => Ok(a),
             WireResponse::Error { kind, message } => Err(map_wire_err(kind, message)),
@@ -185,22 +233,9 @@ impl WssSyncClient {
         }
     }
 
-    fn round_trip(&self, req: WireRequest) -> Result<WireResponse, SyncError> {
-        let stream = TcpStream::connect_timeout(&self.addr, Duration::from_secs(3))
-            .map_err(|e| SyncError::Network(e.to_string()))?;
-        stream
-            .set_read_timeout(Some(Duration::from_secs(5)))
-            .map_err(|e| SyncError::Network(e.to_string()))?;
-        stream
-            .set_write_timeout(Some(Duration::from_secs(5)))
-            .map_err(|e| SyncError::Network(e.to_string()))?;
-        let conn = rustls::ClientConnection::new(self.config.clone(), self.server_name.clone())
-            .map_err(|e| SyncError::Auth(e.to_string()))?;
-        let mut tls = rustls::StreamOwned::new(conn, stream);
-        let host = format!("{}", self.addr);
-        client_handshake(&mut tls, &host)?;
-        write_qfsnc1_ws(&mut tls, &req, true)?;
-        read_qfsnc1_ws(&mut tls)
+    fn round_trip(&mut self, req: WireRequest) -> Result<WireResponse, SyncError> {
+        write_qfsnc1_ws(&mut self.tls, &req, true)?;
+        read_qfsnc1_ws(&mut self.tls)
     }
 }
 
@@ -282,6 +317,60 @@ mod tests {
             }
         }
         panic!("wss_hello_push_pull failed: {last_err:?}");
+    }
+
+    #[test]
+    fn wss_session_multi_message_same_connection() {
+        let identity = TlsIdentity::generate_dev().unwrap();
+        let server = WssSyncServer::start(SyncHub::new(), identity.clone()).unwrap();
+        let client = WssSyncClient::connect(server.addr(), &identity).unwrap();
+        let mut session = client.open_session().unwrap();
+        let mut gen = SeqIdGen::default();
+        let doc = DocumentId::new(&mut gen);
+        let mut last_err = None;
+        for _ in 0..8 {
+            match session.hello(Hello {
+                client_id: ActorId::new(&mut gen),
+                session_id: SessionId::new(&mut gen),
+                document_id: doc,
+                have_seq: 0,
+            }) {
+                Ok(ack) => {
+                    for i in 1..=3u64 {
+                        let ops = vec![Operation::Noop {
+                            reason: qf_core::NoopReason::Other(format!("wsss{i}")),
+                        }];
+                        let push = session
+                            .push(PushRequest {
+                                token: ack.token.clone(),
+                                first_seq: i,
+                                last_seq: i,
+                                ops: ops.clone(),
+                                crdt: None,
+                                payload_hash: hash_ops(&ops),
+                            })
+                            .unwrap();
+                        assert_eq!(push.accepted_head_seq, i);
+                    }
+                    let pull = session
+                        .pull(PullRequest {
+                            token: ack.token,
+                            have_seq: 0,
+                        })
+                        .unwrap();
+                    assert_eq!(pull.server_head_seq, 3);
+                    drop(session);
+                    server.stop();
+                    return;
+                }
+                Err(e) => {
+                    last_err = Some(e);
+                    session = client.open_session().unwrap();
+                    thread::sleep(Duration::from_millis(40));
+                }
+            }
+        }
+        panic!("wss session failed: {last_err:?}");
     }
 
     #[test]

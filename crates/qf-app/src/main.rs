@@ -498,10 +498,11 @@ fn run_ws_sync_demo() -> Result<(), String> {
 
     let mut gen = SeqIdGen::default();
     let doc = DocumentId::new(&mut gen);
-    let client_a = WsSyncClient::connect(addr);
-    let client_b = WsSyncClient::connect(addr);
-
-    let ack_a = client_a
+    // Long-lived session: one handshake, many messages.
+    let mut session = WsSyncClient::connect(addr)
+        .open_session()
+        .map_err(|e| e.to_string())?;
+    let ack_a = session
         .hello(Hello {
             client_id: ActorId::new(&mut gen),
             session_id: SessionId::new(&mut gen),
@@ -521,9 +522,9 @@ fn run_ws_sync_demo() -> Result<(), String> {
         }
         Hash256::sha256(&buf)
     };
-    let push = client_a
+    let push = session
         .push(PushRequest {
-            token: ack_a.token,
+            token: ack_a.token.clone(),
             first_seq: 1,
             last_seq: 1,
             ops,
@@ -531,9 +532,24 @@ fn run_ws_sync_demo() -> Result<(), String> {
             payload_hash,
         })
         .map_err(|e| e.to_string())?;
-    println!("WS client A pushed; head={}", push.accepted_head_seq);
+    println!("WS session pushed; head={}", push.accepted_head_seq);
+    let pull_same = session
+        .pull(PullRequest {
+            token: ack_a.token,
+            have_seq: 0,
+        })
+        .map_err(|e| e.to_string())?;
+    println!(
+        "WS session pulled on same socket; head={} ops={}",
+        pull_same.server_head_seq,
+        pull_same.ops.len()
+    );
+    drop(session);
 
-    let ack_b = client_b
+    let mut session_b = WsSyncClient::connect(addr)
+        .open_session()
+        .map_err(|e| e.to_string())?;
+    let ack_b = session_b
         .hello(Hello {
             client_id: ActorId::new(&mut gen),
             session_id: SessionId::new(&mut gen),
@@ -541,7 +557,7 @@ fn run_ws_sync_demo() -> Result<(), String> {
             have_seq: 0,
         })
         .map_err(|e| e.to_string())?;
-    let pull = client_b
+    let pull = session_b
         .pull(PullRequest {
             token: ack_b.token,
             have_seq: 0,
@@ -552,8 +568,9 @@ fn run_ws_sync_demo() -> Result<(), String> {
         pull.server_head_seq,
         pull.ops.len()
     );
+    drop(session_b);
     server.stop();
-    println!("ws-sync-demo complete — QFSNC1 over WebSocket binary frames verified");
+    println!("ws-sync-demo complete — long-lived WS session + QFSNC1 verified");
     Ok(())
 }
 

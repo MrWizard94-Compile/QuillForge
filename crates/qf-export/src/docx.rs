@@ -5,7 +5,9 @@
 //!
 //! Image blocks embed as DrawingML inline pictures when package asset bytes are
 //! supplied (`export_docx_with_assets`); otherwise a caption line is emitted.
+//! Optional [`FontPack`] embeds TrueType under `word/fonts/` + `fontTable.xml`.
 
+use crate::fonts::FontPack;
 use crate::ExportConfig;
 use qf_blocks::{BlockBody, Mark, Span};
 use qf_citation::{format_source_marker, SourceTable};
@@ -33,11 +35,22 @@ pub(crate) fn export_docx(
 pub fn export_docx_with_assets(
     state: &CanonicalState,
     sources: &SourceTable,
-    _cfg: &ExportConfig,
+    cfg: &ExportConfig,
     assets: Option<&BTreeMap<String, Vec<u8>>>,
 ) -> Result<Vec<u8>, String> {
+    export_docx_with_assets_and_font(state, sources, cfg, assets, None)
+}
+
+/// DOCX export with optional images and optional embedded TrueType [`FontPack`].
+pub fn export_docx_with_assets_and_font(
+    state: &CanonicalState,
+    sources: &SourceTable,
+    _cfg: &ExportConfig,
+    assets: Option<&BTreeMap<String, Vec<u8>>>,
+    font: Option<&FontPack>,
+) -> Result<Vec<u8>, String> {
     let paragraphs = collect_paragraphs(state, sources);
-    build_docx_paragraphs(&paragraphs, assets)
+    build_docx_paragraphs(&paragraphs, assets, font)
 }
 
 #[derive(Clone, Debug)]
@@ -264,17 +277,29 @@ fn spans_plain(spans: &[Span], sources: &SourceTable) -> String {
 fn build_docx_paragraphs(
     paras: &[DocxPara],
     assets: Option<&BTreeMap<String, Vec<u8>>>,
+    font: Option<&FontPack>,
 ) -> Result<Vec<u8>, String> {
-    let media = collect_media(paras, assets);
+    let embed_font = font.filter(|f| !f.ttf_bytes.is_empty());
+    // rId1 = styles; optional rId2 = fontTable; then images.
+    let font_table_rid = if embed_font.is_some() {
+        Some("rId2")
+    } else {
+        None
+    };
+    let image_rid_base = if embed_font.is_some() { 3u32 } else { 2u32 };
+    let media = collect_media(paras, assets, image_rid_base);
+    let family = embed_font
+        .map(|f| f.family.as_str())
+        .unwrap_or("Calibri");
     let document_xml = document_xml(paras, &media);
-    let styles_xml = styles_xml();
-    let content_types = content_types_xml(&media);
+    let styles_xml = styles_xml_with_font(family);
+    let content_types = content_types_xml(&media, embed_font.is_some());
     let rels = r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
   <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
 </Relationships>
 "#;
-    let doc_rels = document_rels_xml(&media);
+    let doc_rels = document_rels_xml(&media, font_table_rid);
 
     let fixed_time = DateTime::from_date_and_time(2020, 1, 1, 0, 0, 0)
         .map_err(|e| format!("docx datetime: {e}"))?;
@@ -300,6 +325,29 @@ fn build_docx_paragraphs(
             doc_rels.as_bytes(),
             opts,
         )?;
+        if let Some(pack) = embed_font {
+            let font_file = font_file_name(pack);
+            let font_table = font_table_xml(&pack.family);
+            let font_table_rels = font_table_rels_xml(&font_file);
+            write_entry(
+                &mut zip,
+                "word/fontTable.xml",
+                font_table.as_bytes(),
+                opts,
+            )?;
+            write_entry(
+                &mut zip,
+                "word/_rels/fontTable.xml.rels",
+                font_table_rels.as_bytes(),
+                opts,
+            )?;
+            write_entry(
+                &mut zip,
+                &format!("word/fonts/{font_file}"),
+                &pack.ttf_bytes,
+                opts,
+            )?;
+        }
         for m in &media {
             write_entry(&mut zip, &m.part_path, &m.bytes, opts)?;
         }
@@ -309,9 +357,57 @@ fn build_docx_paragraphs(
     Ok(cursor.into_inner())
 }
 
+fn font_file_name(pack: &FontPack) -> String {
+    let base: String = pack
+        .postscript_name
+        .chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect();
+    let base = if base.is_empty() {
+        "EmbeddedFont".into()
+    } else {
+        base
+    };
+    format!("{base}.ttf")
+}
+
+fn font_table_xml(family: &str) -> String {
+    let fam = xml_escape(family);
+    format!(
+        r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:fonts xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <w:font w:name="{fam}">
+    <w:panose1 w:val="020B0604020202020204"/>
+    <w:charset w:val="00"/>
+    <w:family w:val="modern"/>
+    <w:pitch w:val="variable"/>
+    <w:embedRegular r:id="rId1"/>
+  </w:font>
+</w:fonts>
+"#
+    )
+}
+
+fn font_table_rels_xml(font_file: &str) -> String {
+    format!(
+        r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/font" Target="fonts/{font_file}"/>
+</Relationships>
+"#
+    )
+}
+
 fn collect_media(
     paras: &[DocxPara],
     assets: Option<&BTreeMap<String, Vec<u8>>>,
+    image_rid_base: u32,
 ) -> Vec<DocxMedia> {
     let Some(assets) = assets else {
         return Vec::new();
@@ -338,8 +434,8 @@ fn collect_media(
         let w = if *width_px > 0 { *width_px } else { nat_w };
         let h = if *height_px > 0 { *height_px } else { nat_h };
         let file = format!("image{img_n}.{ext}");
-        // rId1 = styles; images start at rId2
-        let rel_id = format!("rId{}", img_n + 1);
+        // rId base: 2 (styles only) or 3 (styles + fontTable).
+        let rel_id = format!("rId{}", image_rid_base + img_n - 1);
         out.push(DocxMedia {
             asset_key: asset_key.clone(),
             rel_id,
@@ -379,7 +475,7 @@ fn sniff_image(bytes: &[u8]) -> Option<(&'static str, u32, u32)> {
     None
 }
 
-fn content_types_xml(media: &[DocxMedia]) -> String {
+fn content_types_xml(media: &[DocxMedia], has_font: bool) -> String {
     let mut s = String::from(
         r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
@@ -408,22 +504,40 @@ fn content_types_xml(media: &[DocxMedia]) -> String {
 "#,
         );
     }
+    if has_font {
+        s.push_str(
+            r#"  <Default Extension="ttf" ContentType="application/x-font-ttf"/>
+"#,
+        );
+    }
     s.push_str(
         r#"  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
   <Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
-</Types>
 "#,
     );
+    if has_font {
+        s.push_str(
+            r#"  <Override PartName="/word/fontTable.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.fontTable+xml"/>
+"#,
+        );
+    }
+    s.push_str("</Types>\n");
     s
 }
 
-fn document_rels_xml(media: &[DocxMedia]) -> String {
+fn document_rels_xml(media: &[DocxMedia], font_table_rid: Option<&str>) -> String {
     let mut s = String::from(
         r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
   <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
 "#,
     );
+    if let Some(rid) = font_table_rid {
+        s.push_str(&format!(
+            r#"  <Relationship Id="{rid}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/fontTable" Target="fontTable.xml"/>
+"#
+        ));
+    }
     for m in media {
         s.push_str(&format!(
             r#"  <Relationship Id="{}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="{}"/>
@@ -448,12 +562,7 @@ fn write_entry(
     Ok(())
 }
 
-fn styles_xml() -> String {
-    styles_xml_with_font("Calibri")
-}
-
-/// Styles with an explicit body font family (DOCX does not embed TTF in foundation;
-/// PDF path embeds TrueType — see `docs/40-font-packs.md`).
+/// Styles with an explicit body font family (embedded via fontTable when pack supplied).
 fn styles_xml_with_font(family: &str) -> String {
     let fam = xml_escape(family);
     format!(
@@ -910,6 +1019,69 @@ mod tests {
             rels_xml.contains("relationships/image") && rels_xml.contains("media/image1.png"),
             "{rels_xml}"
         );
+    }
+
+    #[test]
+    fn docx_embeds_truetype_font_table() {
+        use crate::fonts::quill_mono_v1;
+        let mut gen = SeqIdGen::default();
+        let mut state = empty_state(&mut gen);
+        push(
+            &mut state,
+            &mut gen,
+            BlockBody::Paragraph(ParagraphBlock {
+                spans: vec![span("Font embed body")],
+            }),
+        );
+        let pack = quill_mono_v1();
+        let a = export_docx_with_assets_and_font(
+            &state,
+            &SourceTable::default(),
+            &ExportConfig::default(),
+            None,
+            Some(&pack),
+        )
+        .unwrap();
+        let b = export_docx_with_assets_and_font(
+            &state,
+            &SourceTable::default(),
+            &ExportConfig::default(),
+            None,
+            Some(&pack),
+        )
+        .unwrap();
+        assert_eq!(a, b, "docx+font must be deterministic");
+
+        let mut archive = ZipArchive::new(Cursor::new(a)).unwrap();
+        assert!(
+            archive.by_name("word/fontTable.xml").is_ok(),
+            "missing fontTable"
+        );
+        assert!(
+            archive.by_name("word/fonts/QuillForgeMono.ttf").is_ok()
+                || archive
+                    .file_names()
+                    .any(|n| n.starts_with("word/fonts/") && n.ends_with(".ttf")),
+            "missing word/fonts/*.ttf"
+        );
+        let mut styles = String::new();
+        archive
+            .by_name("word/styles.xml")
+            .unwrap()
+            .read_to_string(&mut styles)
+            .unwrap();
+        assert!(
+            styles.contains("QuillForge Mono") || styles.contains("QuillForge"),
+            "styles should name embedded family: {styles}"
+        );
+        let mut ft = String::new();
+        archive
+            .by_name("word/fontTable.xml")
+            .unwrap()
+            .read_to_string(&mut ft)
+            .unwrap();
+        assert!(ft.contains("embedRegular"), "{ft}");
+        assert!(ft.contains("r:id=\"rId1\""), "{ft}");
     }
 
     #[test]

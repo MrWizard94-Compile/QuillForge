@@ -42,8 +42,18 @@ let pack = FontPack::from_ttf_bytes("My Face", bytes)?;
 |---------|----------|
 | PDF | `export_pdf_with_assets_and_font(..., Some(&pack))` → `/Subtype /TrueType` + `/FontFile2` |
 | Editor PDF | Uses `FontPack::pin_default()` so export is self-contained |
-| DOCX | Styles declare body font family name (embed deferred) |
+| DOCX | `export_docx_with_assets_and_font` → `word/fonts/*.ttf` + `fontTable.xml` + styles family |
+| Editor DOCX | Embeds pin font (`quill_mono_v1`) with DrawingML assets |
 | API | `qf_export::{FontPack, quill_mono_v1, build_mono_ttf}` |
+
+### DOCX package parts (when font supplied)
+
+| Part | Role |
+|------|------|
+| `word/fonts/{PostScript}.ttf` | TrueType payload |
+| `word/fontTable.xml` | `w:embedRegular` → font rel |
+| `word/_rels/fontTable.xml.rels` | Relationship to font file |
+| `word/styles.xml` | Normal style `w:rFonts` = pack family |
 
 ---
 
@@ -52,6 +62,7 @@ let pack = FontPack::from_ttf_bytes("My Face", bytes)?;
 ```bash
 cargo test -p qf-export fonts -- --nocapture
 cargo test -p qf-export pdf_embeds_truetype -- --nocapture
+cargo test -p qf-export docx_embeds_truetype -- --nocapture
 cargo test -p qf-app print_layout_pdf -- --nocapture
 ```
 
@@ -61,5 +72,5 @@ cargo test -p qf-app print_layout_pdf -- --nocapture
 
 - Full OpenType CFF / variable fonts  
 - Glyph subsetting for large CJK fonts  
-- DOCX `word/fonts` binary embed  
 - System font enumeration / fallback chains  
+- Bold/italic face embedding (regular only)  

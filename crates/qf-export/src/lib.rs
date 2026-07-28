@@ -14,8 +14,8 @@ pub use fonts::{
 };
 /// Layout-aligned PDF helpers (print fidelity with `qf_layout`).
 pub use pdf::{export_pdf_with_assets, export_pdf_with_assets_and_font, pdf_layout_page_count};
-/// DOCX with optional DrawingML image embeds from package assets.
-pub use docx::export_docx_with_assets;
+/// DOCX with optional DrawingML images and optional TrueType font embed.
+pub use docx::{export_docx_with_assets, export_docx_with_assets_and_font};
 /// DOCX import intermediate blocks (apply via journal in app/storage).
 pub use docx_import::{import_docx_blocks, import_docx_path, DocxImportBlock};
 

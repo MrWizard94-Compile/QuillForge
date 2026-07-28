@@ -16,17 +16,17 @@
 | **Foundation DoD** | Ship checklist D1–D28 | **~98%** | All criteria **Met** |
 | **Local-first core product** | Offline edit, package, recovery, export, plugins, AI, sync, search | **~99%** | + DrawingML DOCX images |
 | **Marketing / “v1 product”** | Polish, multi-OS CI, browser UX | **~98%** | Search + rich export fidelity |
-| **Long-term vision** | Full document OS, multiplayer UX, neural packs, rich GPU | **~89%** | PDF TrueType font packs |
+| **Long-term vision** | Full document OS, multiplayer UX, neural packs, rich GPU | **~90%** | PDF + DOCX TrueType packs |
 
 **Headline for directors:**  
-**Foundation shippable. Product surface + product mark chrome + CI + search packs + media + live sync + fonts. Overall vision ~89%.**
+**Foundation shippable. Product surface + mark + CI + search + media + live sync + PDF/DOCX fonts. Overall vision ~90%.**
 
 ---
 
 ## What remains (ordered)
 
 1. ONNX graph runtime (optional feature)  
-2. DOCX binary font embed / full OT features  
+2. Full OT / bold-italic face embedding  
 3. Browser e2e (optional)  
 4. Presence fan-out / notify coalescing polish  
 

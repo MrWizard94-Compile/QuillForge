@@ -463,10 +463,10 @@ impl EditorController {
         self.import_docx_bytes(&bytes)
     }
 
-    /// Export current document as DOCX bytes (DrawingML images from package assets).
+    /// Export current document as DOCX bytes (DrawingML images + pin TrueType font).
     pub fn export_docx_bytes(&self) -> Result<Vec<u8>, EditorError> {
-        use qf_export::{export_docx_with_assets, ExportConfig};
-        export_docx_with_assets(
+        use qf_export::{export_docx_with_assets_and_font, FontPack, ExportConfig};
+        export_docx_with_assets_and_font(
             self.session.state(),
             &qf_export::sources_from_state(self.session.state()),
             &ExportConfig {
@@ -474,6 +474,7 @@ impl EditorController {
                 include_timestamps: false,
             },
             Some(&self.session.assets),
+            Some(&FontPack::pin_default()),
         )
         .map_err(EditorError::Other)
     }

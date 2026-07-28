@@ -181,10 +181,15 @@ fn run_search_demo() -> Result<(), String> {
         .map_err(|e| e.to_string())?;
     session.editor.reflow();
 
+    println!(
+        "embedding pack: {}",
+        session.editor.search.embedding_pack().to_json()
+    );
     for (mode, q) in [
         (SearchMode::Token, "neural"),
         (SearchMode::Phrase, "deep learning"),
         (SearchMode::Semantic, "neural network learning"),
+        (SearchMode::Dense, "neural network deep learning"),
         (SearchMode::Hybrid, "learning models"),
     ] {
         let hits = session.editor.search_with_mode(q, mode);

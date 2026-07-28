@@ -213,7 +213,7 @@ impl QuillShellApp {
     fn paint_search_panel(&mut self, ui: &mut egui::Ui, ink: Color32, ember: Color32) {
         ui.heading(RichText::new("Search").color(ember).size(16.0));
         ui.label(
-            RichText::new("Hybrid: token · phrase · TF–IDF semantic (local)")
+            RichText::new("Hybrid: token · phrase · TF–IDF · dense hash-ngram (local)")
                 .small()
                 .color(Color32::from_gray(100)),
         );
@@ -234,6 +234,7 @@ impl QuillShellApp {
                 ("Token", SearchMode::Token),
                 ("Phrase", SearchMode::Phrase),
                 ("Semantic", SearchMode::Semantic),
+                ("Dense", SearchMode::Dense),
             ] {
                 let selected = self.session.search_panel.mode == mode;
                 if ui.selectable_label(selected, label).clicked() {
@@ -255,6 +256,7 @@ impl QuillShellApp {
                         HitPath::Token => "token",
                         HitPath::Phrase => "phrase",
                         HitPath::Semantic => "semantic",
+                        HitPath::Dense => "dense",
                     };
                     let label = format!(
                         "{:.2} · {} · {}",

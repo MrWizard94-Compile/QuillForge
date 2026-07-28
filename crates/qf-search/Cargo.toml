@@ -11,3 +11,4 @@ qf-core = { workspace = true }
 qf-doc = { workspace = true }
 qf-kernel = { workspace = true }
 qf-blocks = { workspace = true }
+serde = { workspace = true }

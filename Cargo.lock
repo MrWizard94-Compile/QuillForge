@@ -2116,6 +2116,7 @@ dependencies = [
  "qf-core",
  "qf-doc",
  "qf-kernel",
+ "serde",
 ]
 
 [[package]]

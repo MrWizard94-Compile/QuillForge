@@ -7,9 +7,16 @@
 //! | **Token** | Exact token inverted index (case-folded whitespace split) |
 //! | **Phrase** | Contiguous substring match (case-insensitive) |
 //! | **Semantic** | Cosine similarity over TF–IDF bag-of-words vectors (local, no network) |
-//! | **Hybrid** | Union of token + phrase + semantic with score merge |
+//! | **Dense** | Cosine over offline hash-ngram dense vectors ([`embeddings`]) |
+//! | **Hybrid** | Union of token + phrase + semantic + dense with score merge |
 //!
 //! No cloud embedding API. Suitable offline-first / local-first product law.
+
+mod embeddings;
+
+pub use embeddings::{
+    dense_cosine, embed_text, EmbeddingPack, DEFAULT_DENSE_DIM, EMBED_ALGO_HASH_NGRAM_V1,
+};
 
 use qf_core::{BlockId, OpSeq, SourceId};
 use qf_kernel::{CanonicalState, KernelEvent};
@@ -29,7 +36,9 @@ pub enum SearchMode {
     Phrase,
     /// TF–IDF cosine (bag-of-words "semantic" without external models).
     Semantic,
-    /// Token ∪ phrase ∪ semantic, best score wins per block.
+    /// Dense hash-ngram embedding cosine ([`EmbeddingPack`]).
+    Dense,
+    /// Token ∪ phrase ∪ semantic ∪ dense, best score wins per block.
     #[default]
     Hybrid,
 }
@@ -58,6 +67,14 @@ impl SearchQuery {
             limit: 50,
         }
     }
+
+    pub fn dense(text: impl Into<String>) -> Self {
+        Self {
+            text: text.into(),
+            mode: SearchMode::Dense,
+            limit: 50,
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -74,6 +91,7 @@ pub enum HitPath {
     Token,
     Phrase,
     Semantic,
+    Dense,
 }
 
 #[derive(Clone, Debug)]
@@ -98,9 +116,10 @@ struct BlockDoc {
     text: String,
     /// term → raw count
     tf: HashMap<String, u32>,
+    /// dense embedding under current pack
+    dense: Vec<f32>,
 }
 
-#[derive(Default)]
 pub struct SearchEngine {
     pub state_gen: OpSeq,
     /// token → block ids
@@ -110,11 +129,45 @@ pub struct SearchEngine {
     df: HashMap<String, u32>,
     /// term → blocks that mention citation type names etc.
     n_docs: u32,
+    /// Offline dense embedding pack (model metadata).
+    pack: EmbeddingPack,
+}
+
+impl Default for SearchEngine {
+    fn default() -> Self {
+        Self {
+            state_gen: OpSeq::ZERO,
+            index: HashMap::new(),
+            docs: Vec::new(),
+            df: HashMap::new(),
+            n_docs: 0,
+            pack: EmbeddingPack::default(),
+        }
+    }
 }
 
 impl SearchEngine {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    pub fn with_pack(pack: EmbeddingPack) -> Self {
+        Self {
+            pack,
+            ..Self::default()
+        }
+    }
+
+    pub fn embedding_pack(&self) -> &EmbeddingPack {
+        &self.pack
+    }
+
+    pub fn set_embedding_pack(&mut self, pack: EmbeddingPack) {
+        self.pack = pack;
+        // Vectors invalid until rebuild.
+        for d in &mut self.docs {
+            d.dense.clear();
+        }
     }
 
     pub fn block_count(&self) -> usize {
@@ -123,6 +176,10 @@ impl SearchEngine {
 
     pub fn token_count(&self) -> usize {
         self.index.len()
+    }
+
+    pub fn dense_dim(&self) -> usize {
+        self.pack.dim()
     }
 
     pub fn query_token(&self, q: &TokenQuery) -> Vec<SearchHit> {
@@ -139,6 +196,7 @@ impl SearchEngine {
             SearchMode::Token => self.query_token_and(&q.text),
             SearchMode::Phrase => self.query_phrase(&q.text),
             SearchMode::Semantic => self.query_semantic(&q.text),
+            SearchMode::Dense => self.query_dense(&q.text),
             SearchMode::Hybrid => {
                 let mut m = HashMap::<BlockId, SearchHit>::new();
                 for h in self
@@ -146,6 +204,7 @@ impl SearchEngine {
                     .into_iter()
                     .chain(self.query_phrase(&q.text))
                     .chain(self.query_semantic(&q.text))
+                    .chain(self.query_dense(&q.text))
                 {
                     m.entry(h.block_id)
                         .and_modify(|e| {
@@ -289,6 +348,43 @@ impl SearchEngine {
         out
     }
 
+    fn query_dense(&self, text: &str) -> Vec<SearchHit> {
+        let q = embed_text(text, &self.pack);
+        if q.iter().all(|x| *x == 0.0) {
+            return vec![];
+        }
+        let mut hits = Vec::new();
+        for doc in &self.docs {
+            if doc.dense.is_empty() {
+                continue;
+            }
+            let sim = dense_cosine(&q, &doc.dense);
+            if sim >= 0.12 {
+                hits.push(SearchHit {
+                    block_id: doc.block_id,
+                    score: sim,
+                    snippet: snippet_around(
+                        &doc.text,
+                        tokenize(text).first().map(|s| s.as_str()).unwrap_or(""),
+                        48,
+                    ),
+                    path: HitPath::Dense,
+                });
+            }
+        }
+        hits.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+        hits
+    }
+
+    /// Embed arbitrary text with the engine's pack (for demos / external callers).
+    pub fn embed(&self, text: &str) -> Vec<f32> {
+        embed_text(text, &self.pack)
+    }
+
     pub fn query_graph(&self, _q: &GraphQuery) -> Vec<GraphHit> {
         // Citation graph filled when entity wiring is productized.
         vec![]
@@ -331,10 +427,12 @@ impl SearchIngestor for SearchEngine {
                 *self.df.entry(term.clone()).or_insert(0) += 1;
                 self.index.entry(term.clone()).or_default().push(*id);
             }
+            let dense = embed_text(&text, &self.pack);
             self.docs.push(BlockDoc {
                 block_id: *id,
                 text,
                 tf,
+                dense,
             });
             self.n_docs += 1;
         }
@@ -517,11 +615,31 @@ mod tests {
         let hits = eng.query(&SearchQuery::hybrid("local first"));
         let hit_ids: HashSet<_> = hits.iter().map(|h| h.block_id).collect();
         assert!(hit_ids.contains(&ids[0]));
-        // Semantic should also surface the third block.
+        // Semantic/dense should also surface the third block.
         assert!(
-            hit_ids.contains(&ids[2]) || hits.iter().any(|h| h.path == HitPath::Semantic),
+            hit_ids.contains(&ids[2])
+                || hits
+                    .iter()
+                    .any(|h| h.path == HitPath::Semantic || h.path == HitPath::Dense),
             "expected related offline/local block among {hits:?}"
         );
+    }
+
+    #[test]
+    fn dense_ranks_related_higher() {
+        let (k, ids) = kernel_with_docs(&[
+            "machine learning models and neural networks for classification",
+            "baking recipes with flour and sugar",
+            "deep learning transformers attention mechanisms",
+        ]);
+        let mut eng = SearchEngine::new();
+        eng.rebuild(k.state());
+        assert_eq!(eng.dense_dim(), DEFAULT_DENSE_DIM);
+        let hits = eng.query(&SearchQuery::dense("neural network deep learning"));
+        assert!(!hits.is_empty());
+        assert_ne!(hits[0].block_id, ids[1]);
+        assert_eq!(hits[0].path, HitPath::Dense);
+        assert!(hits[0].score >= 0.12);
     }
 
     #[test]
@@ -534,5 +652,6 @@ mod tests {
         assert_eq!(a.token_count(), b.token_count());
         assert_eq!(a.block_count(), b.block_count());
         assert_eq!(a.state_gen, b.state_gen);
+        assert_eq!(a.docs[0].dense, b.docs[0].dense);
     }
 }

@@ -13,7 +13,8 @@
 | **Token** | Inverted index; multi-word = AND of tokens |
 | **Phrase** | Case-insensitive contiguous substring |
 | **Semantic** | TF–IDF bag-of-words cosine (local, offline) |
-| **Hybrid** | Merge paths; best score per block |
+| **Dense** | Hash-ngram dense vectors (`docs/36-dense-embeddings.md`) |
+| **Hybrid** | Merge paths (incl. dense); best score per block |
 
 No cloud embeddings. Suitable for local-first / offline product law.
 

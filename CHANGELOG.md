@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Offline dense embeddings:** signed feature hashing pack `hash_ngram_v1` (tokens + char 3-grams, dim 64), `SearchMode::Dense`, hybrid chain, GUI Dense mode, `search-demo` pack JSON (`docs/36-dense-embeddings.md`).
+- **PDF image XObjects + TLS PEM:** DeviceRGB image embedding in PDF export; production `TlsIdentity` PEM load (`docs/35-pdf-images-and-tls-pem.md`).
+- **Long-lived WS/WSS sessions:** durable WebSocket and WSS sync session loops (`docs/30-websocket-sync.md`).
 - **Multi-OS CI matrix:** Linux / Windows / macOS test + budgets, Ubuntu lint + constitution verify-pack, `ci-ok` aggregate (`docs/34-ci-matrix.md`).
 - **Hybrid / semantic search:** token AND, phrase, TF–IDF cosine, hybrid merge; GUI search panel; `search-demo` (`docs/33-semantic-search.md`).
 - **Rich media fidelity:** PNG decode/GUI paint, DOCX `w:tbl`, image lines in PDF export (`docs/32-rich-media.md`).

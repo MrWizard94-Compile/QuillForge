@@ -11,12 +11,15 @@ use qf_layout::{fixed_to_pt, PAGE_HEIGHT_PT, PAGE_WIDTH_PT};
 use qf_theme::Theme;
 use std::path::PathBuf;
 
-/// Snapshot of one laid-out text run for painting (screen ≈ layout coords).
+/// Snapshot of one laid-out run for painting (screen ≈ layout coords).
 struct PagePaintLine {
     x: f32,
     y: f32,
+    w: f32,
+    h: f32,
     text: String,
     font_size: f32,
+    is_media: bool,
 }
 
 struct PagePaint {
@@ -146,7 +149,129 @@ impl QuillShellApp {
                 self.session.last_error =
                     Some("Comments: use Suggestions for review notes (P3)".into());
             }
+            "view.ruler" => {
+                self.session.toggle_rulers();
+                self.session.last_error = Some(if self.session.surface.show_rulers {
+                    "Rulers shown".into()
+                } else {
+                    "Rulers hidden".into()
+                });
+            }
+            "layout.header" | "layout.footer" => {
+                self.session.chrome.panel_visible = true;
+                self.session.surface.activate_tab(CommandBarTab::Layout);
+            }
+            "insert.image" => match self.session.insert_image_placeholder() {
+                Ok(_) => {
+                    self.session.last_error = Some("Image block inserted".into());
+                }
+                Err(e) => self.session.last_error = Some(e.to_string()),
+            },
+            "layout.margins" | "layout.orientation" | "layout.size" => {
+                self.session.chrome.panel_visible = true;
+                self.session.surface.activate_tab(CommandBarTab::Layout);
+                self.session.last_error =
+                    Some("Page setup: US Letter · 1\" margins (layout engine)".into());
+            }
             _ => self.session.toggle_bold_hint(),
+        }
+    }
+
+    fn paint_layout_panel(&mut self, ui: &mut egui::Ui, ink: Color32, ember: Color32) {
+        ui.heading(RichText::new("Page chrome").color(ember).size(16.0));
+        ui.label(
+            RichText::new("Headers & footers are journaled document meta")
+                .small()
+                .color(Color32::from_gray(100)),
+        );
+        ui.separator();
+        ui.label(RichText::new("Header").color(ink));
+        ui.add(
+            egui::TextEdit::singleline(&mut self.session.chrome.header).desired_width(240.0),
+        );
+        ui.label(RichText::new("Footer").color(ink));
+        ui.add(
+            egui::TextEdit::singleline(&mut self.session.chrome.footer).desired_width(240.0),
+        );
+        ui.horizontal(|ui| {
+            if ui.button("Apply").clicked() {
+                if let Err(e) = self.session.apply_page_chrome() {
+                    self.session.last_error = Some(e.to_string());
+                } else {
+                    self.session.last_error = Some("Header/footer saved".into());
+                }
+            }
+            if ui
+                .selectable_label(self.session.surface.show_rulers, "Rulers")
+                .clicked()
+            {
+                self.session.toggle_rulers();
+            }
+            if ui.small_button("Close").clicked() {
+                self.session.chrome.panel_visible = false;
+            }
+        });
+        ui.separator();
+        ui.label(
+            RichText::new(format!(
+                "Images in document: {}",
+                self.session.editor.image_block_count()
+            ))
+            .small()
+            .color(ink),
+        );
+        if ui.button("Insert image").clicked() {
+            self.handle_action("insert.image");
+        }
+    }
+
+    fn paint_ruler_horizontal(&self, ui: &mut egui::Ui, page_w: f32, scale: f32) {
+        let (rect, _) = ui.allocate_exact_size(Vec2::new(page_w, 18.0), Sense::hover());
+        ui.painter()
+            .rect_filled(rect, 0.0, Color32::from_rgb(0xe8, 0xe6, 0xe4));
+        ui.painter()
+            .rect_stroke(rect, 0.0, egui::Stroke::new(1.0, Color32::from_gray(160)));
+        // Inch ticks (72 pt).
+        let mut inch = 0;
+        while {
+            let x = inch as f32 * 72.0 * scale;
+            x <= page_w
+        } {
+            let x = rect.left() + inch as f32 * 72.0 * scale;
+            ui.painter().line_segment(
+                [egui::pos2(x, rect.top() + 4.0), egui::pos2(x, rect.bottom() - 2.0)],
+                egui::Stroke::new(1.0, Color32::from_gray(90)),
+            );
+            ui.painter().text(
+                egui::pos2(x + 2.0, rect.top() + 2.0),
+                egui::Align2::LEFT_TOP,
+                format!("{inch}\""),
+                FontId::proportional(9.0),
+                Color32::from_gray(80),
+            );
+            inch += 1;
+        }
+    }
+
+    fn paint_ruler_vertical(&self, painter: &egui::Painter, page_rect: egui::Rect, scale: f32) {
+        let ruler_w = 18.0;
+        let rect = egui::Rect::from_min_size(
+            page_rect.left_top() - Vec2::new(ruler_w + 2.0, 0.0),
+            Vec2::new(ruler_w, page_rect.height()),
+        );
+        painter.rect_filled(rect, 0.0, Color32::from_rgb(0xe8, 0xe6, 0xe4));
+        painter.rect_stroke(rect, 0.0, egui::Stroke::new(1.0, Color32::from_gray(160)));
+        let mut inch = 0;
+        while {
+            let y = inch as f32 * 72.0 * scale;
+            y <= page_rect.height()
+        } {
+            let y = rect.top() + inch as f32 * 72.0 * scale;
+            painter.line_segment(
+                [egui::pos2(rect.left() + 2.0, y), egui::pos2(rect.right() - 2.0, y)],
+                egui::Stroke::new(1.0, Color32::from_gray(90)),
+            );
+            inch += 1;
         }
     }
 
@@ -205,6 +330,9 @@ impl QuillShellApp {
         let page_w = PAGE_WIDTH_PT * scale;
         let page_h = PAGE_HEIGHT_PT * scale;
         let current = self.session.surface.status.page_current;
+        let show_rulers = self.session.surface.show_rulers;
+        let header = self.session.editor.page_header();
+        let footer = self.session.editor.page_footer();
         // Snapshot page content so we can mutate session on click without borrow fights.
         let pages: Vec<PagePaint> = self
             .session
@@ -217,6 +345,35 @@ impl QuillShellApp {
                     .frames
                     .iter()
                     .filter_map(|frame| {
+                        let x = fixed_to_pt(frame.bounds.x) * scale;
+                        let y = fixed_to_pt(frame.bounds.y) * scale;
+                        let w = fixed_to_pt(frame.bounds.w) * scale;
+                        let h = fixed_to_pt(frame.bounds.h).max(12.0) * scale / 1.0;
+                        let is_media = matches!(frame.kind, qf_layout::FragmentKind::Media);
+                        if is_media {
+                            let alt = self
+                                .session
+                                .editor
+                                .session
+                                .state()
+                                .document
+                                .blocks
+                                .get(&frame.block_id)
+                                .and_then(|b| match &b.body {
+                                    qf_blocks::BlockBody::Image(img) => Some(img.alt.clone()),
+                                    _ => None,
+                                })
+                                .unwrap_or_else(|| "Image".into());
+                            return Some(PagePaintLine {
+                                x,
+                                y,
+                                w,
+                                h: h.max(40.0 * scale / 1.15),
+                                text: format!("[Image: {alt}]"),
+                                font_size: 11.0,
+                                is_media: true,
+                            });
+                        }
                         let text = self
                             .session
                             .editor
@@ -234,10 +391,13 @@ impl QuillShellApp {
                             _ => 12.0 * scale / 1.15,
                         };
                         Some(PagePaintLine {
-                            x: fixed_to_pt(frame.bounds.x) * scale,
-                            y: fixed_to_pt(frame.bounds.y) * scale,
+                            x,
+                            y,
+                            w,
+                            h,
                             text,
                             font_size: font_size.max(10.0),
+                            is_media: false,
                         })
                     })
                     .collect();
@@ -251,40 +411,102 @@ impl QuillShellApp {
         let mut clicked_page: Option<u32> = None;
 
         ui.vertical_centered(|ui| {
+            if show_rulers {
+                // Corner + horizontal ruler aligned to page width (with vertical gutter).
+                ui.horizontal(|ui| {
+                    ui.add_space(20.0);
+                    self.paint_ruler_horizontal(ui, page_w, scale);
+                });
+            }
             for page in &pages {
                 let is_current = page.page_num == current;
-                let (rect, resp) =
-                    ui.allocate_exact_size(Vec2::new(page_w, page_h), Sense::click());
-                ui.painter().rect_filled(rect, 2.0, paper);
-                let stroke = if is_current {
-                    egui::Stroke::new(2.0, Color32::from_rgb(0xff, 0x7a, 0x26))
-                } else {
-                    egui::Stroke::new(1.0, Color32::from_gray(180))
-                };
-                ui.painter().rect_stroke(rect, 2.0, stroke);
+                ui.horizontal(|ui| {
+                    if show_rulers {
+                        ui.add_space(20.0);
+                    }
+                    let (rect, resp) =
+                        ui.allocate_exact_size(Vec2::new(page_w, page_h), Sense::click());
+                    if show_rulers {
+                        self.paint_ruler_vertical(ui.painter(), rect, scale);
+                    }
+                    ui.painter().rect_filled(rect, 2.0, paper);
+                    let stroke = if is_current {
+                        egui::Stroke::new(2.0, Color32::from_rgb(0xff, 0x7a, 0x26))
+                    } else {
+                        egui::Stroke::new(1.0, Color32::from_gray(180))
+                    };
+                    ui.painter().rect_stroke(rect, 2.0, stroke);
 
-                for line in &page.lines {
-                    let pos = rect.min + Vec2::new(line.x, line.y);
+                    // Header band
+                    if !header.is_empty() {
+                        ui.painter().text(
+                            rect.left_top() + Vec2::new(48.0 * scale / 1.15, 28.0 * scale / 1.15),
+                            egui::Align2::LEFT_TOP,
+                            &header,
+                            FontId::proportional(10.0 * scale / 1.15),
+                            Color32::from_gray(100),
+                        );
+                    }
+
+                    for line in &page.lines {
+                        let pos = rect.min + Vec2::new(line.x, line.y);
+                        if line.is_media {
+                            let media_rect = egui::Rect::from_min_size(
+                                pos,
+                                Vec2::new(line.w.max(80.0), line.h.max(40.0)),
+                            );
+                            ui.painter().rect_filled(
+                                media_rect,
+                                2.0,
+                                Color32::from_rgb(0xf0, 0xee, 0xec),
+                            );
+                            ui.painter().rect_stroke(
+                                media_rect,
+                                2.0,
+                                egui::Stroke::new(1.0, Color32::from_gray(150)),
+                            );
+                            ui.painter().text(
+                                media_rect.center(),
+                                egui::Align2::CENTER_CENTER,
+                                &line.text,
+                                FontId::proportional(line.font_size),
+                                ink,
+                            );
+                        } else {
+                            ui.painter().text(
+                                pos,
+                                egui::Align2::LEFT_TOP,
+                                &line.text,
+                                FontId::proportional(line.font_size),
+                                ink,
+                            );
+                        }
+                    }
+
+                    // Footer band
+                    if !footer.is_empty() {
+                        ui.painter().text(
+                            rect.left_bottom()
+                                + Vec2::new(48.0 * scale / 1.15, -36.0 * scale / 1.15),
+                            egui::Align2::LEFT_BOTTOM,
+                            &footer,
+                            FontId::proportional(10.0 * scale / 1.15),
+                            Color32::from_gray(100),
+                        );
+                    }
+
                     ui.painter().text(
-                        pos,
-                        egui::Align2::LEFT_TOP,
-                        &line.text,
-                        FontId::proportional(line.font_size),
-                        ink,
+                        rect.right_bottom() - Vec2::new(24.0, 20.0),
+                        egui::Align2::RIGHT_BOTTOM,
+                        format!("{}", page.page_num),
+                        FontId::proportional(11.0),
+                        Color32::from_gray(120),
                     );
-                }
 
-                ui.painter().text(
-                    rect.right_bottom() - Vec2::new(24.0, 20.0),
-                    egui::Align2::RIGHT_BOTTOM,
-                    format!("{}", page.page_num),
-                    FontId::proportional(11.0),
-                    Color32::from_gray(120),
-                );
-
-                if resp.clicked() {
-                    clicked_page = Some(page.page_num);
-                }
+                    if resp.clicked() {
+                        clicked_page = Some(page.page_num);
+                    }
+                });
 
                 ui.add_space(16.0);
             }
@@ -331,6 +553,9 @@ impl eframe::App for QuillShellApp {
                             self.session.surface.activate_tab(*tab);
                             if *tab == CommandBarTab::Review {
                                 self.session.review.visible = true;
+                            }
+                            if *tab == CommandBarTab::Layout {
+                                self.session.chrome.panel_visible = true;
                             }
                         }
                     }
@@ -413,6 +638,16 @@ impl eframe::App for QuillShellApp {
                 .frame(egui::Frame::none().fill(rail).inner_margin(10.0))
                 .show(ctx, |ui| {
                     self.paint_review_panel(ui, ink, ember);
+                });
+        } else if self.session.chrome.panel_visible
+            || self.session.surface.active_tab == CommandBarTab::Layout
+        {
+            self.session.chrome.panel_visible = true;
+            egui::SidePanel::right("layout_panel")
+                .default_width(280.0)
+                .frame(egui::Frame::none().fill(rail).inner_margin(10.0))
+                .show(ctx, |ui| {
+                    self.paint_layout_panel(ui, ink, ember);
                 });
         }
 

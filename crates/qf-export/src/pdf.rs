@@ -6,11 +6,15 @@
 
 use crate::{export_plain, ExportConfig};
 use qf_citation::SourceTable;
+use qf_core::PreservedValue;
 use qf_kernel::CanonicalState;
 use qf_layout::{LayoutConfig, LayoutEngine};
 
 /// Max lines exported into a single PDF page content stream (safety cap).
 const MAX_LINES_PER_PAGE: usize = 80;
+/// Meta keys shared with the Word-class shell page chrome.
+const META_HEADER: &str = "qf.page.header";
+const META_FOOTER: &str = "qf.page.footer";
 
 /// Build a multi-page PDF from layout-tree pages (print fidelity).
 pub fn export_pdf(
@@ -46,13 +50,36 @@ pub fn export_pdf(
         page_lines.push(Vec::new());
     }
 
+    let header = meta_text(state, META_HEADER);
+    let footer = meta_text(state, META_FOOTER);
+
     // Cap lines drawn per page (layout already owns pagination — do not invent pages).
+    // Reserve room for header/footer chrome lines when present.
+    let reserve = usize::from(header.is_some()) + usize::from(footer.is_some());
+    let body_cap = MAX_LINES_PER_PAGE.saturating_sub(reserve).max(1);
     let capped: Vec<Vec<String>> = page_lines
         .into_iter()
-        .map(|page| page.into_iter().take(MAX_LINES_PER_PAGE).collect())
+        .map(|page| {
+            let mut lines: Vec<String> = Vec::new();
+            if let Some(h) = &header {
+                lines.push(h.clone());
+            }
+            lines.extend(page.into_iter().take(body_cap));
+            if let Some(f) = &footer {
+                lines.push(f.clone());
+            }
+            lines
+        })
         .collect();
 
     build_pdf_pages(&capped)
+}
+
+fn meta_text(state: &CanonicalState, key: &str) -> Option<String> {
+    match state.document.meta.custom.get(key)? {
+        PreservedValue::Text(s) if !s.is_empty() => Some(s.clone()),
+        _ => None,
+    }
 }
 
 /// PDF page count for a state using the same layout config as the editor.

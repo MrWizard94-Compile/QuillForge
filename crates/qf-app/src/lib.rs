@@ -8,12 +8,14 @@
 
 mod editor;
 mod gui;
+mod page_chrome;
 mod product_surface;
 mod review;
 mod shell_session;
 
 pub use editor::{EditResult, EditorController, EditorError};
 pub use gui::run_gui;
+pub use page_chrome::PageChrome;
 pub use product_surface::{
     CommandAction, CommandBarTab, CommandGroup, DocumentViewMode, ProductSurface, StatusBarModel,
 };

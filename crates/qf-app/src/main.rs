@@ -81,6 +81,13 @@ fn main() -> ExitCode {
                 }
             }
         },
+        "polish-demo" => match run_polish_demo() {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(e) => {
+                eprintln!("error: {e}");
+                ExitCode::FAILURE
+            }
+        },
         "edit" | "gui" => {
             let work = PathBuf::from("target/quill-gui");
             let name = args.next().unwrap_or_else(|| "Document".into());
@@ -102,6 +109,37 @@ fn main() -> ExitCode {
             ExitCode::FAILURE
         }
     }
+}
+
+fn run_polish_demo() -> Result<(), String> {
+    let work = PathBuf::from("target/quill-polish");
+    let mut session =
+        ShellSession::open_or_create(&work, "PolishDemo").map_err(|e| e.to_string())?;
+    session.draft = "P5 polish: rulers, headers/footers, images.".into();
+    session.apply_draft().map_err(|e| e.to_string())?;
+    session.chrome.header = "Quillforge · WPAI".into();
+    session.chrome.footer = "Confidential · local-first".into();
+    session.apply_page_chrome().map_err(|e| e.to_string())?;
+    session.insert_image_placeholder().map_err(|e| e.to_string())?;
+    assert!(session.surface.show_rulers);
+    session.toggle_rulers();
+    assert!(!session.surface.show_rulers);
+    session.toggle_rulers();
+    let pdf = session.export_pdf().map_err(|e| e.to_string())?;
+    let docx = session.export_docx().map_err(|e| e.to_string())?;
+    session.save().map_err(|e| e.to_string())?;
+    println!("header: {}", session.editor.page_header());
+    println!("footer: {}", session.editor.page_footer());
+    println!("images: {}", session.editor.image_block_count());
+    println!("rulers: {}", session.surface.show_rulers);
+    println!("pdf:    {}", pdf.display());
+    println!("docx:   {}", docx.display());
+    println!("package:{}", session.package_path.display());
+    let pdf_bytes = std::fs::read(&pdf).map_err(|e| e.to_string())?;
+    let s = String::from_utf8_lossy(&pdf_bytes);
+    assert!(s.contains("Quillforge") || s.contains("WPAI") || s.contains("Confidential"));
+    println!("polish-demo complete — P5 page chrome + image block verified");
+    Ok(())
 }
 
 fn run_import_docx(path: Option<String>, name: String) -> Result<(), String> {
@@ -189,6 +227,7 @@ fn print_help() {
     println!("  quillforge edit [name]         Open Word-class GUI shell");
     println!("  quillforge review-demo         Propose / accept / reject suggestions");
     println!("  quillforge import-docx <file> [name]  Import .docx → .qfdoc");
+    println!("  quillforge polish-demo         Rulers, headers/footers, images (P5)");
     println!("  quillforge sync-demo           Localhost TCP multi-client sync demo");
     println!("  quillforge tls-sync-demo       Localhost TLS (rustls) sync demo");
     println!("  quillforge version             Print version and WPAI identity");

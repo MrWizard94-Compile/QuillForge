@@ -244,15 +244,25 @@ fn groups_for_tab(tab: CommandBarTab) -> Vec<CommandGroup> {
                 action("insert.citation", "Citation", "InsertCitation"),
             ],
         }],
-        CommandBarTab::Layout => vec![CommandGroup {
-            id: "layout.page".into(),
-            label: "Page Setup".into(),
-            actions: vec![
-                action("layout.margins", "Margins", "PageMargins"),
-                action("layout.orientation", "Orientation", "PageOrientation"),
-                action("layout.size", "Size", "PageSize"),
-            ],
-        }],
+        CommandBarTab::Layout => vec![
+            CommandGroup {
+                id: "layout.page".into(),
+                label: "Page Setup".into(),
+                actions: vec![
+                    action("layout.margins", "Margins", "PageMargins"),
+                    action("layout.orientation", "Orientation", "PageOrientation"),
+                    action("layout.size", "Size", "PageSize"),
+                ],
+            },
+            CommandGroup {
+                id: "layout.chrome".into(),
+                label: "Headers & Footers".into(),
+                actions: vec![
+                    action("layout.header", "Header", "EditHeader"),
+                    action("layout.footer", "Footer", "EditFooter"),
+                ],
+            },
+        ],
         CommandBarTab::Review => vec![CommandGroup {
             id: "review.track".into(),
             label: "Review".into(),

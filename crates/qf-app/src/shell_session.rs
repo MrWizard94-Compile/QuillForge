@@ -1,9 +1,10 @@
 //! Word-class shell session: editor + product surface metrics.
 
+use crate::page_chrome::PageChrome;
 use crate::product_surface::{CommandBarTab, DocumentViewMode, ProductSurface};
 use crate::review::ReviewPanel;
 use crate::{EditorController, EditorError};
-use qf_core::SuggestionId;
+use qf_core::{AssetId, SuggestionId};
 use std::path::{Path, PathBuf};
 
 /// Desktop-shell state used by GUI and headless surface tests.
@@ -17,6 +18,7 @@ pub struct ShellSession {
     pub last_error: Option<String>,
     pub dirty: bool,
     pub review: ReviewPanel,
+    pub chrome: PageChrome,
 }
 
 impl ShellSession {
@@ -28,6 +30,7 @@ impl ShellSession {
         editor.ensure_editable_paragraph()?;
         let draft = editor.focused_text().unwrap_or_default();
         let surface = ProductSurface::word_class_default(name);
+        let chrome = PageChrome::from_meta(&editor.session.state().document.meta.custom);
         let mut session = Self {
             editor,
             surface,
@@ -37,6 +40,7 @@ impl ShellSession {
             last_error: None,
             dirty: false,
             review: ReviewPanel::word_class_default(),
+            chrome,
         };
         session.refresh_surface();
         Ok(session)
@@ -62,6 +66,11 @@ impl ShellSession {
                 self.review.selected = None;
             }
         }
+        // Keep chrome drafts aligned unless panel is actively editing.
+        if !self.chrome.panel_visible {
+            self.chrome.header = self.editor.page_header();
+            self.chrome.footer = self.editor.page_footer();
+        }
         if self.dirty {
             // keep name; mark title with *
             let base = self.surface.document_display_name.trim_end_matches('*').to_string();
@@ -69,6 +78,27 @@ impl ShellSession {
                 self.surface.set_document_name(&format!("{base}*"));
             }
         }
+    }
+
+    pub fn toggle_rulers(&mut self) {
+        self.surface.show_rulers = !self.surface.show_rulers;
+    }
+
+    pub fn apply_page_chrome(&mut self) -> Result<(), EditorError> {
+        self.editor.set_page_chrome(
+            Some(self.chrome.header.as_str()),
+            Some(self.chrome.footer.as_str()),
+        )?;
+        self.dirty = true;
+        self.refresh_surface();
+        Ok(())
+    }
+
+    pub fn insert_image_placeholder(&mut self) -> Result<AssetId, EditorError> {
+        let id = self.editor.insert_image("Image", 320, 180)?;
+        self.dirty = true;
+        self.refresh_surface();
+        Ok(id)
     }
 
     pub fn toggle_review_panel(&mut self) {
@@ -360,5 +390,23 @@ mod tests {
             ShellSession::open_from_docx(dir.path(), "opened", &docx).unwrap();
         assert!(opened.package_path.exists());
         assert!(opened.editor.document_plain().contains("From Word-class DOCX"));
+    }
+
+    #[test]
+    fn page_chrome_and_image_via_shell() {
+        let dir = tempdir().unwrap();
+        let mut s = ShellSession::open_or_create(dir.path(), "chrome").unwrap();
+        assert!(s.surface.show_rulers);
+        s.toggle_rulers();
+        assert!(!s.surface.show_rulers);
+        s.chrome.header = "Header A".into();
+        s.chrome.footer = "Footer B".into();
+        s.apply_page_chrome().unwrap();
+        assert_eq!(s.editor.page_header(), "Header A");
+        assert_eq!(s.editor.page_footer(), "Footer B");
+        s.insert_image_placeholder().unwrap();
+        assert_eq!(s.editor.image_block_count(), 1);
+        s.save().unwrap();
+        assert!(s.package_path.exists());
     }
 }

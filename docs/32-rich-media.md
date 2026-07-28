@@ -34,5 +34,5 @@ cargo run -p qf-app -- polish-demo
 ## Out of scope (next)
 
 - JPEG/WebP feature surface beyond sniff+embed  
-- TrueType font embedding  
 - Floating DOCX anchors / wrap layouts  
+- DOCX binary font embed (`word/fonts`) — PDF TrueType ships (`docs/40-font-packs.md`)  

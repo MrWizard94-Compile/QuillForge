@@ -5,10 +5,15 @@
 
 mod docx;
 mod docx_import;
+mod fonts;
 mod pdf;
 
+/// Local-first font packs (TrueType embed for PDF).
+pub use fonts::{
+    build_mono_ttf, quill_mono_v1, FontPack, FONT_ALGO_QUILL_MONO_V1, FONT_ALGO_TRUETYPE_V1,
+};
 /// Layout-aligned PDF helpers (print fidelity with `qf_layout`).
-pub use pdf::{export_pdf_with_assets, pdf_layout_page_count};
+pub use pdf::{export_pdf_with_assets, export_pdf_with_assets_and_font, pdf_layout_page_count};
 /// DOCX with optional DrawingML image embeds from package assets.
 pub use docx::export_docx_with_assets;
 /// DOCX import intermediate blocks (apply via journal in app/storage).

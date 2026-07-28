@@ -449,11 +449,20 @@ fn write_entry(
 }
 
 fn styles_xml() -> String {
-    r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+    styles_xml_with_font("Calibri")
+}
+
+/// Styles with an explicit body font family (DOCX does not embed TTF in foundation;
+/// PDF path embeds TrueType — see `docs/40-font-packs.md`).
+fn styles_xml_with_font(family: &str) -> String {
+    let fam = xml_escape(family);
+    format!(
+        r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
   <w:style w:type="paragraph" w:styleId="Normal" w:default="1">
     <w:name w:val="Normal"/>
     <w:qFormat/>
+    <w:rPr><w:rFonts w:ascii="{fam}" w:hAnsi="{fam}" w:cs="{fam}"/></w:rPr>
   </w:style>
   <w:style w:type="paragraph" w:styleId="Heading1">
     <w:name w:val="heading 1"/>
@@ -489,7 +498,7 @@ fn styles_xml() -> String {
   </w:style>
 </w:styles>
 "#
-    .to_string()
+    )
 }
 
 fn document_xml(paras: &[DocxPara], media: &[DocxMedia]) -> String {

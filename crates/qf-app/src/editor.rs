@@ -309,9 +309,12 @@ impl EditorController {
     }
 
     /// Export PDF bytes using layout-aligned pagination (+ package images as XObjects).
+    ///
+    /// Embeds the local-first pin font [`qf_export::FontPack::pin_default`] so
+    /// PDF text does not depend on system fonts.
     pub fn export_pdf_bytes(&self) -> Result<Vec<u8>, EditorError> {
-        use qf_export::{export_pdf_with_assets, ExportConfig};
-        export_pdf_with_assets(
+        use qf_export::{export_pdf_with_assets_and_font, FontPack, ExportConfig};
+        export_pdf_with_assets_and_font(
             self.session.state(),
             &qf_export::sources_from_state(self.session.state()),
             &ExportConfig {
@@ -319,6 +322,7 @@ impl EditorController {
                 include_timestamps: false,
             },
             Some(&self.session.assets),
+            Some(&FontPack::pin_default()),
         )
         .map_err(EditorError::Other)
     }

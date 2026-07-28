@@ -1,9 +1,11 @@
 //! Deterministic multi-page PDF 1.4 writer aligned with the layout engine.
 //!
 //! Pagination follows [`qf_layout::LayoutEngine`] (US Letter, same config as the
-//! editor) so screen page count and PDF `/Count` match. Fixed Helvetica; optional
+//! editor) so screen page count and PDF `/Count` match. Fonts: Helvetica Type1 by
+//! default, or embedded TrueType via [`crate::FontPack`] (`/FontFile2`). Optional
 //! DeviceRGB image XObjects from package assets (PNG decode).
 
+use crate::fonts::FontPack;
 use crate::{export_plain, ExportConfig};
 use qf_blocks::BlockBody;
 use qf_citation::SourceTable;
@@ -35,6 +37,20 @@ pub fn export_pdf_with_assets(
     sources: &SourceTable,
     cfg: &ExportConfig,
     assets: Option<&BTreeMap<String, Vec<u8>>>,
+) -> Result<Vec<u8>, String> {
+    export_pdf_with_assets_and_font(state, sources, cfg, assets, None)
+}
+
+/// PDF export with optional images and optional embedded TrueType [`FontPack`].
+///
+/// When `font` is `None`, uses standard Helvetica (Type1). When `Some`, embeds
+/// the pack's TTF via `/FontFile2` (deterministic for fixed pack bytes).
+pub fn export_pdf_with_assets_and_font(
+    state: &CanonicalState,
+    sources: &SourceTable,
+    cfg: &ExportConfig,
+    assets: Option<&BTreeMap<String, Vec<u8>>>,
+    font: Option<&FontPack>,
 ) -> Result<Vec<u8>, String> {
     let layout_cfg = LayoutConfig::default();
     let tree = LayoutEngine::new().full_layout(state, &layout_cfg);
@@ -84,7 +100,7 @@ pub fn export_pdf_with_assets(
 
     // Per-page image draws from layout Media frames + asset RGB.
     let page_images = collect_page_images(state, &tree, assets);
-    build_pdf_pages(&capped, &page_images)
+    build_pdf_pages(&capped, &page_images, font)
 }
 
 fn meta_text(state: &CanonicalState, key: &str) -> Option<String> {
@@ -193,7 +209,11 @@ fn decode_rgb_capped(bytes: &[u8]) -> Option<(u32, u32, Vec<u8>)> {
     Some((w, h, rgb))
 }
 
-fn build_pdf_pages(pages: &[Vec<String>], page_images: &[Vec<PdfImage>]) -> Result<Vec<u8>, String> {
+fn build_pdf_pages(
+    pages: &[Vec<String>],
+    page_images: &[Vec<PdfImage>],
+    font: Option<&FontPack>,
+) -> Result<Vec<u8>, String> {
     let page_count = pages.len().max(1);
 
     // Flatten images for global XObject objects.
@@ -202,10 +222,12 @@ fn build_pdf_pages(pages: &[Vec<String>], page_images: &[Vec<PdfImage>]) -> Resu
 
     // Objects:
     // 1 Catalog, 2 Pages, 3 Font,
-    // 4 .. 3+n_img Image XObjects
-    // then for page i: Page, Content
-    let first_img_obj = 4usize;
-    let first_page_obj = 4 + n_img;
+    // [4 FontDescriptor, 5 FontFile2] when embedding TTF
+    // then Image XObjects, then for page i: Page, Content
+    let embed = font.filter(|f| !f.ttf_bytes.is_empty());
+    let font_extra = if embed.is_some() { 2usize } else { 0 };
+    let first_img_obj = 4 + font_extra;
+    let first_page_obj = first_img_obj + n_img;
 
     let mut numbered: Vec<(usize, Vec<u8>)> = Vec::new();
 
@@ -224,10 +246,15 @@ fn build_pdf_pages(pages: &[Vec<String>], page_images: &[Vec<PdfImage>]) -> Resu
         format!("2 0 obj\n<< /Type /Pages /Kids [{kids}] /Count {page_count} >>\nendobj\n")
             .into_bytes(),
     ));
-    numbered.push((
-        3,
-        b"3 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n".to_vec(),
-    ));
+
+    if let Some(pack) = embed {
+        push_embedded_font_objects(&mut numbered, pack)?;
+    } else {
+        numbered.push((
+            3,
+            b"3 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n".to_vec(),
+        ));
+    }
 
     for (i, img) in all_images.iter().enumerate() {
         let obj = first_img_obj + i;
@@ -303,6 +330,64 @@ fn build_pdf_pages(pages: &[Vec<String>], page_images: &[Vec<PdfImage>]) -> Resu
             .as_bytes(),
     );
     Ok(out)
+}
+
+/// Objects 3=Font, 4=FontDescriptor, 5=FontFile2 for an embedded TrueType pack.
+fn push_embedded_font_objects(
+    numbered: &mut Vec<(usize, Vec<u8>)>,
+    pack: &FontPack,
+) -> Result<(), String> {
+    if pack.ttf_bytes.is_empty() {
+        return Err("font pack has no TTF bytes".into());
+    }
+    let base = pdf_name_escape(&pack.postscript_name);
+    let widths = pack.pdf_widths_32_126();
+    let widths_s = widths
+        .iter()
+        .map(|w| w.to_string())
+        .collect::<Vec<_>>()
+        .join(" ");
+    let upem = pack.units_per_em() as i32;
+    let ascent = upem * 8 / 10;
+    let descent = -(upem / 5);
+    let cap = upem * 7 / 10;
+
+    // 3 Font
+    numbered.push((
+        3,
+        format!(
+            "3 0 obj\n<< /Type /Font /Subtype /TrueType /BaseFont /{base} /FirstChar 32 /LastChar 126 /Widths [{widths_s}] /FontDescriptor 4 0 R /Encoding /WinAnsiEncoding >>\nendobj\n"
+        )
+        .into_bytes(),
+    ));
+    // 4 FontDescriptor
+    numbered.push((
+        4,
+        format!(
+            "4 0 obj\n<< /Type /FontDescriptor /FontName /{base} /Flags 32 /FontBBox [0 {descent} {upem} {ascent}] /ItalicAngle 0 /Ascent {ascent} /Descent {descent} /CapHeight {cap} /StemV 80 /MissingWidth {} /FontFile2 5 0 R >>\nendobj\n",
+            pack.advance_width(32)
+        )
+        .into_bytes(),
+    ));
+    // 5 FontFile2 stream
+    let n = pack.ttf_bytes.len();
+    let mut body = format!("5 0 obj\n<< /Length {n} /Length1 {n} >>\nstream\n").into_bytes();
+    body.extend_from_slice(&pack.ttf_bytes);
+    body.extend_from_slice(b"\nendstream\nendobj\n");
+    numbered.push((5, body));
+    Ok(())
+}
+
+fn pdf_name_escape(s: &str) -> String {
+    s.chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '-' || c == '_' {
+                c
+            } else {
+                '-'
+            }
+        })
+        .collect()
 }
 
 fn page_content_stream(lines: &[&str], images: &[PdfImage]) -> Vec<u8> {
@@ -461,6 +546,72 @@ mod tests {
         let s = String::from_utf8_lossy(&pdf);
         assert!(s.contains("/Count 1"));
         assert_eq!(pdf_layout_page_count(&state), 1);
+    }
+
+    #[test]
+    fn pdf_embeds_truetype_fontfile2() {
+        let mut gen = SeqIdGen::default();
+        let doc_id = DocumentId::new(&mut gen);
+        let root = SectionId::new(&mut gen);
+        let actor = ActorId::new(&mut gen);
+        let mut state = CanonicalState {
+            document_id: doc_id,
+            package_format_version: Version::V1_0_0,
+            op_seq: OpSeq(1),
+            document: Document::empty(doc_id, root, actor, Timestamp { unix_ms: 0 }),
+            entities: EntityTables::default(),
+        };
+        let bid = BlockId::new(&mut gen);
+        state.document.blocks.insert(
+            bid,
+            Block {
+                id: bid,
+                meta: BlockMetadata {
+                    created_by: actor,
+                    created_at_seq: OpSeq(1),
+                    attrs: Default::default(),
+                },
+                body: BlockBody::Paragraph(ParagraphBlock {
+                    spans: vec![Span {
+                        id: qf_core::SpanId(uuid::Uuid::nil()),
+                        text: "Font embed check".into(),
+                        marks: vec![],
+                    }],
+                }),
+            },
+        );
+        state
+            .document
+            .sections
+            .get_mut(&root)
+            .unwrap()
+            .blocks
+            .push(bid);
+
+        let pack = crate::fonts::quill_mono_v1();
+        let a = export_pdf_with_assets_and_font(
+            &state,
+            &SourceTable::default(),
+            &ExportConfig::default(),
+            None,
+            Some(&pack),
+        )
+        .unwrap();
+        let b = export_pdf_with_assets_and_font(
+            &state,
+            &SourceTable::default(),
+            &ExportConfig::default(),
+            None,
+            Some(&pack),
+        )
+        .unwrap();
+        assert_eq!(a, b, "embedded font PDF must be deterministic");
+        let s = String::from_utf8_lossy(&a);
+        assert!(s.contains("/Subtype /TrueType"), "missing TrueType font: {s}");
+        assert!(s.contains("/FontFile2"), "missing FontFile2: {s}");
+        assert!(s.contains("QuillForgeMono") || s.contains("QuillForge"), "{s}");
+        // TTF magic inside stream
+        assert!(a.windows(4).any(|w| w == b"\x00\x01\x00\x00"));
     }
 
     #[test]

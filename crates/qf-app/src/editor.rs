@@ -308,22 +308,19 @@ impl EditorController {
         pages.get(idx).cloned().unwrap_or_default()
     }
 
-    /// Export PDF bytes using layout-aligned pagination.
+    /// Export PDF bytes using layout-aligned pagination (+ package images as XObjects).
     pub fn export_pdf_bytes(&self) -> Result<Vec<u8>, EditorError> {
-        use qf_export::{CoreExporter, ExportFormat, ExportRequest, Exporter};
-        let out = CoreExporter
-            .export(
-                self.session.state(),
-                &ExportRequest {
-                    format: ExportFormat::Pdf,
-                    config: qf_export::ExportConfig {
-                        include_bibliography: false,
-                        include_timestamps: false,
-                    },
-                },
-            )
-            .map_err(EditorError::Other)?;
-        Ok(out.bytes)
+        use qf_export::{export_pdf_with_assets, ExportConfig};
+        export_pdf_with_assets(
+            self.session.state(),
+            &qf_export::sources_from_state(self.session.state()),
+            &ExportConfig {
+                include_bibliography: false,
+                include_timestamps: false,
+            },
+            Some(&self.session.assets),
+        )
+        .map_err(EditorError::Other)
     }
 
     /// Replace focused block text via journaled ReplaceRange (Word-class typing path).

@@ -1,20 +1,24 @@
 //! Deterministic multi-page PDF 1.4 writer aligned with the layout engine.
 //!
 //! Pagination follows [`qf_layout::LayoutEngine`] (US Letter, same config as the
-//! editor) so screen page count and PDF `/Count` match. Fixed Helvetica, no
-//! external fonts — same inputs → same bytes.
+//! editor) so screen page count and PDF `/Count` match. Fixed Helvetica; optional
+//! DeviceRGB image XObjects from package assets (PNG decode).
 
 use crate::{export_plain, ExportConfig};
+use qf_blocks::BlockBody;
 use qf_citation::SourceTable;
 use qf_core::PreservedValue;
 use qf_kernel::CanonicalState;
-use qf_layout::{LayoutConfig, LayoutEngine};
+use qf_layout::{fixed_to_pt, LayoutConfig, LayoutEngine, PAGE_HEIGHT_PT, PAGE_WIDTH_PT};
+use std::collections::BTreeMap;
 
 /// Max lines exported into a single PDF page content stream (safety cap).
 const MAX_LINES_PER_PAGE: usize = 80;
 /// Meta keys shared with the Word-class shell page chrome.
 const META_HEADER: &str = "qf.page.header";
 const META_FOOTER: &str = "qf.page.footer";
+/// Cap decoded image edge for foundation export budget.
+const MAX_IMAGE_EDGE: u32 = 240;
 
 /// Build a multi-page PDF from layout-tree pages (print fidelity).
 pub fn export_pdf(
@@ -22,12 +26,20 @@ pub fn export_pdf(
     sources: &SourceTable,
     cfg: &ExportConfig,
 ) -> Result<Vec<u8>, String> {
+    export_pdf_with_assets(state, sources, cfg, None)
+}
+
+/// PDF export with optional package asset map (UUID string → bytes) for images.
+pub fn export_pdf_with_assets(
+    state: &CanonicalState,
+    sources: &SourceTable,
+    cfg: &ExportConfig,
+    assets: Option<&BTreeMap<String, Vec<u8>>>,
+) -> Result<Vec<u8>, String> {
     let layout_cfg = LayoutConfig::default();
     let tree = LayoutEngine::new().full_layout(state, &layout_cfg);
     let mut page_lines = tree.page_plain_lines(state);
 
-    // Bibliography (if any) appends to the last page as plain lines so export
-    // remains layout-primary without inventing phantom pages.
     if cfg.include_bibliography {
         let plain = export_plain(state, sources, cfg);
         if let Some(idx) = plain.find("\n## References\n") {
@@ -53,8 +65,6 @@ pub fn export_pdf(
     let header = meta_text(state, META_HEADER);
     let footer = meta_text(state, META_FOOTER);
 
-    // Cap lines drawn per page (layout already owns pagination — do not invent pages).
-    // Reserve room for header/footer chrome lines when present.
     let reserve = usize::from(header.is_some()) + usize::from(footer.is_some());
     let body_cap = MAX_LINES_PER_PAGE.saturating_sub(reserve).max(1);
     let capped: Vec<Vec<String>> = page_lines
@@ -72,7 +82,9 @@ pub fn export_pdf(
         })
         .collect();
 
-    build_pdf_pages(&capped)
+    // Per-page image draws from layout Media frames + asset RGB.
+    let page_images = collect_page_images(state, &tree, assets);
+    build_pdf_pages(&capped, &page_images)
 }
 
 fn meta_text(state: &CanonicalState, key: &str) -> Option<String> {
@@ -88,13 +100,114 @@ pub fn pdf_layout_page_count(state: &CanonicalState) -> u32 {
     tree.page_count()
 }
 
-fn build_pdf_pages(pages: &[Vec<String>]) -> Result<Vec<u8>, String> {
+#[derive(Clone, Debug)]
+struct PdfImage {
+    /// Resource name, e.g. Im0
+    name: String,
+    width: u32,
+    height: u32,
+    /// Raw RGB8 bytes length = w*h*3
+    rgb: Vec<u8>,
+    /// PDF user-space bottom-left placement (points).
+    x_pt: f32,
+    y_pt: f32,
+    draw_w_pt: f32,
+    draw_h_pt: f32,
+}
+
+fn collect_page_images(
+    state: &CanonicalState,
+    tree: &qf_layout::LayoutTree,
+    assets: Option<&BTreeMap<String, Vec<u8>>>,
+) -> Vec<Vec<PdfImage>> {
+    let Some(assets) = assets else {
+        return tree.pages.iter().map(|_| Vec::new()).collect();
+    };
+    let mut out = Vec::with_capacity(tree.pages.len());
+    let mut img_i = 0usize;
+    for page in &tree.pages {
+        let mut imgs = Vec::new();
+        for frame in &page.frames {
+            let Some(block) = state.document.blocks.get(&frame.block_id) else {
+                continue;
+            };
+            let BlockBody::Image(img) = &block.body else {
+                continue;
+            };
+            let key = img.asset_id.as_uuid().to_string();
+            let Some(bytes) = assets.get(&key) else {
+                continue;
+            };
+            let Some((w, h, rgb)) = decode_rgb_capped(bytes) else {
+                continue;
+            };
+            // Layout y is top-down in points; PDF y is bottom-up.
+            let x_pt = fixed_to_pt(frame.bounds.x);
+            let top_pt = fixed_to_pt(frame.bounds.y);
+            let frame_h = fixed_to_pt(frame.bounds.h).max(24.0);
+            let frame_w = fixed_to_pt(frame.bounds.w).max(24.0);
+            // Fit image into frame width, preserve aspect.
+            let aspect = h as f32 / w as f32;
+            let draw_w = frame_w.min(200.0);
+            let draw_h = (draw_w * aspect).min(frame_h).max(12.0);
+            let y_pt = (PAGE_HEIGHT_PT - top_pt - draw_h).max(0.0);
+            imgs.push(PdfImage {
+                name: format!("Im{img_i}"),
+                width: w,
+                height: h,
+                rgb,
+                x_pt,
+                y_pt,
+                draw_w_pt: draw_w,
+                draw_h_pt: draw_h,
+            });
+            img_i += 1;
+        }
+        out.push(imgs);
+    }
+    let _ = PAGE_WIDTH_PT;
+    out
+}
+
+fn decode_rgb_capped(bytes: &[u8]) -> Option<(u32, u32, Vec<u8>)> {
+    let img = image::load_from_memory(bytes).ok()?;
+    let mut rgba = img.to_rgba8();
+    let (mut w, mut h) = rgba.dimensions();
+    if w == 0 || h == 0 {
+        return None;
+    }
+    if w > MAX_IMAGE_EDGE || h > MAX_IMAGE_EDGE {
+        let scale = (MAX_IMAGE_EDGE as f32 / w.max(h) as f32).min(1.0);
+        let nw = ((w as f32) * scale).round().max(1.0) as u32;
+        let nh = ((h as f32) * scale).round().max(1.0) as u32;
+        rgba = image::imageops::resize(&rgba, nw, nh, image::imageops::FilterType::Triangle);
+        w = nw;
+        h = nh;
+    }
+    let mut rgb = Vec::with_capacity((w * h * 3) as usize);
+    for p in rgba.pixels() {
+        rgb.push(p[0]);
+        rgb.push(p[1]);
+        rgb.push(p[2]);
+    }
+    Some((w, h, rgb))
+}
+
+fn build_pdf_pages(pages: &[Vec<String>], page_images: &[Vec<PdfImage>]) -> Result<Vec<u8>, String> {
     let page_count = pages.len().max(1);
 
-    // Object layout:
+    // Flatten images for global XObject objects.
+    let all_images: Vec<&PdfImage> = page_images.iter().flatten().collect();
+    let n_img = all_images.len();
+
+    // Objects:
     // 1 Catalog, 2 Pages, 3 Font,
-    // then for page i: obj (4+2i) = Page, obj (5+2i) = Content stream
-    let mut numbered: Vec<(usize, Vec<u8>)> = Vec::with_capacity(3 + page_count * 2);
+    // 4 .. 3+n_img Image XObjects
+    // then for page i: Page, Content
+    let first_img_obj = 4usize;
+    let first_page_obj = 4 + n_img;
+
+    let mut numbered: Vec<(usize, Vec<u8>)> = Vec::new();
 
     numbered.push((
         1,
@@ -103,7 +216,7 @@ fn build_pdf_pages(pages: &[Vec<String>]) -> Result<Vec<u8>, String> {
 
     let mut kids = String::new();
     for i in 0..page_count {
-        let page_obj = 4 + i * 2;
+        let page_obj = first_page_obj + i * 2;
         kids.push_str(&format!("{page_obj} 0 R "));
     }
     numbered.push((
@@ -116,18 +229,51 @@ fn build_pdf_pages(pages: &[Vec<String>]) -> Result<Vec<u8>, String> {
         b"3 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n".to_vec(),
     ));
 
-    for (i, chunk) in pages.iter().enumerate() {
-        let page_obj = 4 + i * 2;
-        let content_obj = 5 + i * 2;
+    for (i, img) in all_images.iter().enumerate() {
+        let obj = first_img_obj + i;
+        let mut body = format!(
+            "{obj} 0 obj\n<< /Type /XObject /Subtype /Image /Width {} /Height {} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Length {} >>\nstream\n",
+            img.width,
+            img.height,
+            img.rgb.len()
+        )
+        .into_bytes();
+        body.extend_from_slice(&img.rgb);
+        body.extend_from_slice(b"\nendstream\nendobj\n");
+        numbered.push((obj, body));
+    }
+
+    for i in 0..page_count {
+        let page_obj = first_page_obj + i * 2;
+        let content_obj = page_obj + 1;
+        let imgs = page_images.get(i).map(|v| v.as_slice()).unwrap_or(&[]);
+
+        let mut xobjects = String::new();
+        for img in imgs {
+            // Resolve object number by name.
+            if let Some((idx, _)) = all_images.iter().enumerate().find(|(_, im)| im.name == img.name)
+            {
+                let obj = first_img_obj + idx;
+                xobjects.push_str(&format!("/{} {} 0 R ", img.name, obj));
+            }
+        }
+        let resources = if xobjects.is_empty() {
+            "<< /Font << /F1 3 0 R >> >>".to_string()
+        } else {
+            format!("<< /Font << /F1 3 0 R >> /XObject << {xobjects}>> >>")
+        };
+
         numbered.push((
             page_obj,
             format!(
-                "{page_obj} 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents {content_obj} 0 R /Resources << /Font << /F1 3 0 R >> >> >>\nendobj\n"
+                "{page_obj} 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents {content_obj} 0 R /Resources {resources} >>\nendobj\n"
             )
             .into_bytes(),
         ));
+
+        let chunk = pages.get(i).map(|c| c.as_slice()).unwrap_or(&[]);
         let line_refs: Vec<&str> = chunk.iter().map(|s| s.as_str()).collect();
-        let stream = page_content_stream(&line_refs);
+        let stream = page_content_stream(&line_refs, imgs);
         let mut content_obj_bytes =
             format!("{content_obj} 0 obj\n<< /Length {} >>\nstream\n", stream.len()).into_bytes();
         content_obj_bytes.extend_from_slice(&stream);
@@ -159,8 +305,19 @@ fn build_pdf_pages(pages: &[Vec<String>]) -> Result<Vec<u8>, String> {
     Ok(out)
 }
 
-fn page_content_stream(lines: &[&str]) -> Vec<u8> {
-    let mut content = String::from("BT\n/F1 12 Tf\n14 TL\n72 720 Td\n");
+fn page_content_stream(lines: &[&str], images: &[PdfImage]) -> Vec<u8> {
+    let mut content = String::new();
+    // Images first (under text).
+    for img in images {
+        content.push_str("q\n");
+        content.push_str(&format!(
+            "{} 0 0 {} {} {} cm\n",
+            img.draw_w_pt, img.draw_h_pt, img.x_pt, img.y_pt
+        ));
+        content.push_str(&format!("/{} Do\n", img.name));
+        content.push_str("Q\n");
+    }
+    content.push_str("BT\n/F1 12 Tf\n14 TL\n72 720 Td\n");
     for (i, line) in lines.iter().enumerate() {
         let escaped = escape_pdf_string(line);
         if i == 0 {
@@ -191,7 +348,7 @@ fn escape_pdf_string(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use qf_blocks::{BlockBody, BlockMetadata, ParagraphBlock, Span};
+    use qf_blocks::{BlockBody, BlockMetadata, ImageBlock, ParagraphBlock, Span};
     use qf_core::{
         ActorId, BlockId, DocumentId, OpSeq, SectionId, SeqIdGen, Timestamp, Version,
     };
@@ -242,6 +399,13 @@ mod tests {
         state
     }
 
+    fn tiny_png() -> Vec<u8> {
+        let img = image::RgbaImage::from_pixel(2, 2, image::Rgba([255, 32, 32, 255]));
+        let mut cur = std::io::Cursor::new(Vec::new());
+        img.write_to(&mut cur, image::ImageFormat::Png).unwrap();
+        cur.into_inner()
+    }
+
     #[test]
     fn pdf_starts_with_header_and_is_deterministic() {
         let state = state_with_paragraphs(1, "Hello PDF");
@@ -255,8 +419,6 @@ mod tests {
 
     #[test]
     fn pdf_page_count_matches_layout_engine() {
-        // ~30 short paragraphs fill one US Letter body with default line metrics;
-        // 50 forces a second layout page.
         let state = state_with_paragraphs(50, "Line");
         let layout_pages = LayoutEngine::new()
             .full_layout(&state, &LayoutConfig::default())
@@ -299,5 +461,65 @@ mod tests {
         let s = String::from_utf8_lossy(&pdf);
         assert!(s.contains("/Count 1"));
         assert_eq!(pdf_layout_page_count(&state), 1);
+    }
+
+    #[test]
+    fn pdf_embeds_image_xobject_from_assets() {
+        let mut gen = SeqIdGen::default();
+        let doc_id = DocumentId::new(&mut gen);
+        let root = SectionId::new(&mut gen);
+        let actor = ActorId::new(&mut gen);
+        let mut state = CanonicalState {
+            document_id: doc_id,
+            package_format_version: Version::V1_0_0,
+            op_seq: OpSeq(1),
+            document: Document::empty(doc_id, root, actor, Timestamp { unix_ms: 0 }),
+            entities: EntityTables::default(),
+        };
+        let asset_id = qf_core::AssetId::new(&mut gen);
+        let bid = BlockId::new(&mut gen);
+        state.document.blocks.insert(
+            bid,
+            Block {
+                id: bid,
+                meta: BlockMetadata {
+                    created_by: actor,
+                    created_at_seq: OpSeq(1),
+                    attrs: Default::default(),
+                },
+                body: BlockBody::Image(ImageBlock {
+                    asset_id,
+                    alt: "ember".into(),
+                    caption: vec![],
+                    width_px: Some(2),
+                    height_px: Some(2),
+                }),
+            },
+        );
+        state
+            .document
+            .sections
+            .get_mut(&root)
+            .unwrap()
+            .blocks
+            .push(bid);
+
+        let mut assets = BTreeMap::new();
+        assets.insert(asset_id.as_uuid().to_string(), tiny_png());
+        let pdf = export_pdf_with_assets(
+            &state,
+            &SourceTable::default(),
+            &ExportConfig {
+                include_bibliography: false,
+                ..Default::default()
+            },
+            Some(&assets),
+        )
+        .unwrap();
+        let s = String::from_utf8_lossy(&pdf);
+        assert!(s.contains("/Subtype /Image"), "missing Image XObject: {s}");
+        assert!(s.contains("/DeviceRGB"), "missing DeviceRGB");
+        assert!(s.contains("/Im0"), "missing image resource name");
+        assert!(pdf.starts_with(b"%PDF-1.4"));
     }
 }

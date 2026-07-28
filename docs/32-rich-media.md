@@ -14,6 +14,7 @@
 | **Insert** | `insert_image_bytes` / path / demo brand PNG (ember gradient) |
 | **GUI paint** | egui textures from decoded assets on Media layout frames |
 | **PDF lines** | Layout `page_plain_lines` includes `[image: alt W×H]` and table text |
+| **PDF images** | DeviceRGB XObjects from package assets (`export_pdf_with_assets`) |
 | **DOCX tables** | Real `w:tbl` markup with cell projected text |
 | **DOCX images** | Caption line with alt + pixel size (DrawingML embed later) |
 

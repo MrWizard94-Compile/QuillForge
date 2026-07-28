@@ -8,7 +8,7 @@ mod docx_import;
 mod pdf;
 
 /// Layout-aligned PDF helpers (print fidelity with `qf_layout`).
-pub use pdf::pdf_layout_page_count;
+pub use pdf::{export_pdf_with_assets, pdf_layout_page_count};
 /// DOCX import intermediate blocks (apply via journal in app/storage).
 pub use docx_import::{import_docx_blocks, import_docx_path, DocxImportBlock};
 

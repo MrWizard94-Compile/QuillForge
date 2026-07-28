@@ -2012,6 +2012,7 @@ dependencies = [
 name = "qf-export"
 version = "0.0.0"
 dependencies = [
+ "image",
  "qf-blocks",
  "qf-citation",
  "qf-core",

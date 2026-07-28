@@ -14,6 +14,7 @@ qf-kernel = { workspace = true }
 qf-citation = { workspace = true }
 qf-layout = { workspace = true }
 zip = { workspace = true }
+image = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

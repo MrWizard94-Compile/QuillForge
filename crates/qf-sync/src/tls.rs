@@ -112,6 +112,108 @@ impl TlsIdentity {
             .ok_or_else(|| SyncError::Auth("empty certificate chain".into()))?;
         Ok(pem_encode("CERTIFICATE", der.as_ref()))
     }
+
+    /// PEM-encoded PKCS#8 private key (`BEGIN PRIVATE KEY`).
+    pub fn private_key_pem(&self) -> String {
+        pem_encode("PRIVATE KEY", &self.key_pkcs8)
+    }
+
+    /// Load production/dev identity from PEM certificate (chain OK) + PKCS#8 key PEM.
+    pub fn from_pem(cert_pem: &str, key_pem: &str) -> Result<Self, SyncError> {
+        let certs = pem_decode_all(cert_pem, "CERTIFICATE")?;
+        if certs.is_empty() {
+            return Err(SyncError::Auth("no certificates in PEM".into()));
+        }
+        let keys = pem_decode_all(key_pem, "PRIVATE KEY")?;
+        let key_pkcs8 = keys
+            .into_iter()
+            .next()
+            .ok_or_else(|| SyncError::Auth("no PRIVATE KEY in PEM".into()))?;
+        Self::from_pkcs8(
+            certs.into_iter().map(CertificateDer::from).collect(),
+            key_pkcs8,
+        )
+    }
+
+    /// Load from PEM files on disk (certificate chain + PKCS#8 key).
+    pub fn from_pem_files(
+        cert_path: &std::path::Path,
+        key_path: &std::path::Path,
+    ) -> Result<Self, SyncError> {
+        let cert_pem = std::fs::read_to_string(cert_path)
+            .map_err(|e| SyncError::Network(format!("read cert {}: {e}", cert_path.display())))?;
+        let key_pem = std::fs::read_to_string(key_path)
+            .map_err(|e| SyncError::Network(format!("read key {}: {e}", key_path.display())))?;
+        Self::from_pem(&cert_pem, &key_pem)
+    }
+}
+
+fn pem_decode_all(pem: &str, label: &str) -> Result<Vec<Vec<u8>>, SyncError> {
+    let begin = format!("-----BEGIN {label}-----");
+    let end = format!("-----END {label}-----");
+    let mut out = Vec::new();
+    let mut rest = pem;
+    while let Some(start) = rest.find(&begin) {
+        let after = &rest[start + begin.len()..];
+        let Some(end_idx) = after.find(&end) else {
+            return Err(SyncError::Auth(format!("unclosed PEM block {label}")));
+        };
+        let b64: String = after[..end_idx]
+            .chars()
+            .filter(|c| !c.is_whitespace())
+            .collect();
+        out.push(b64_decode(&b64)?);
+        rest = &after[end_idx + end.len()..];
+    }
+    Ok(out)
+}
+
+fn b64_decode(s: &str) -> Result<Vec<u8>, SyncError> {
+    const T: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    fn val(c: u8) -> Result<u8, SyncError> {
+        T.iter()
+            .position(|&x| x == c)
+            .map(|i| i as u8)
+            .ok_or_else(|| SyncError::Auth("invalid base64".into()))
+    }
+    let clean: Vec<u8> = s
+        .bytes()
+        .filter(|b| !b.is_ascii_whitespace())
+        .collect();
+    if clean.is_empty() {
+        return Ok(Vec::new());
+    }
+    let mut out = Vec::with_capacity(clean.len() * 3 / 4);
+    let mut buf = [0u8; 4];
+    let mut nbuf = 0usize;
+    for &c in &clean {
+        if c == b'=' {
+            break;
+        }
+        buf[nbuf] = val(c)?;
+        nbuf += 1;
+        if nbuf == 4 {
+            let n = ((buf[0] as u32) << 18)
+                | ((buf[1] as u32) << 12)
+                | ((buf[2] as u32) << 6)
+                | (buf[3] as u32);
+            out.push(((n >> 16) & 0xff) as u8);
+            out.push(((n >> 8) & 0xff) as u8);
+            out.push((n & 0xff) as u8);
+            nbuf = 0;
+        }
+    }
+    if nbuf == 2 {
+        let n = ((buf[0] as u32) << 18) | ((buf[1] as u32) << 12);
+        out.push(((n >> 16) & 0xff) as u8);
+    } else if nbuf == 3 {
+        let n = ((buf[0] as u32) << 18) | ((buf[1] as u32) << 12) | ((buf[2] as u32) << 6);
+        out.push(((n >> 16) & 0xff) as u8);
+        out.push(((n >> 8) & 0xff) as u8);
+    } else if nbuf == 1 {
+        return Err(SyncError::Auth("invalid base64 remainder".into()));
+    }
+    Ok(out)
 }
 
 fn pem_encode(label: &str, der: &[u8]) -> String {
@@ -395,6 +497,35 @@ mod tests {
             }
         }
         panic!("tls_hello_push_pull failed: {last_err:?}");
+    }
+
+    #[test]
+    fn tls_identity_pem_round_trip() {
+        let id = TlsIdentity::generate_dev().unwrap();
+        let cert = id.certificate_pem().unwrap();
+        let key = id.private_key_pem();
+        let id2 = TlsIdentity::from_pem(&cert, &key).unwrap();
+        // Same material should build a working server config.
+        let _ = id2.server_config().unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        let cert_path = dir.path().join("c.pem");
+        let key_path = dir.path().join("k.pem");
+        std::fs::write(&cert_path, &cert).unwrap();
+        std::fs::write(&key_path, &key).unwrap();
+        let id3 = TlsIdentity::from_pem_files(&cert_path, &key_path).unwrap();
+        let server = TlsSyncServer::start(SyncHub::new(), id3.clone()).unwrap();
+        let client = TlsSyncClient::connect(server.addr(), &id3).unwrap();
+        let mut gen = SeqIdGen::default();
+        let ack = client
+            .hello(Hello {
+                client_id: ActorId::new(&mut gen),
+                session_id: SessionId::new(&mut gen),
+                document_id: DocumentId::new(&mut gen),
+                have_seq: 0,
+            })
+            .unwrap();
+        assert_eq!(ack.server_head_seq, 0);
+        server.stop();
     }
 
     #[test]

@@ -14,7 +14,7 @@
 | Workspace | Cargo virtual workspace | Modular crates |
 | Package | ZIP + CBOR + journal frames | Inspectable + durable |
 | Layout | Fixed-point pure engine | Typst-like determinism |
-| GPU | wgpu via `qf-gpu` | Cross-platform |
+| GPU | Software `qf-gpu` now; wgpu later | Headless complete |
 | Collab | CRDT-primary (later) | AFFiNE/Yjs lesson |
 | Plugins | WASM | Security |
 | Automation | `cargo xtask` | Reproducible checks |

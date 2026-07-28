@@ -41,7 +41,7 @@ Use this checklist before tagging a v1 release. Evidence points to automated tes
 |----|-----------|----------|--------|
 | D15 | Editing offline | EditorController e2e | Met |
 | D16 | Layout | Golden fixtures | Met |
-| D17 | Rendering | qf-render headless tests | Met (headless GPU abstraction) |
+| D17 | Rendering | qf-render + qf-gpu software framebuffer tests | Met (software GPU; wgpu roadmap) |
 | D18 | Export | MD/HTML/TXT + multi-page PDF + structured DOCX styles | Met |
 | D19 | Search | rebuild_equivalence | Met (token; semantic optional) |
 | D20 | Collab | presence + CRDT + suggestions | Met (foundation) |
@@ -57,7 +57,7 @@ Use this checklist before tagging a v1 release. Evidence points to automated tes
 | D25 | Automated tests | `cargo test --workspace` | Met |
 | D26 | Performance budgets | `docs/26-performance-budgets.md` + `budget_*` CI tests | Met |
 | D27 | Risk register | docs/23 + residual notes | Accepted residuals documented |
-| D28 | Docs match APIs | docs/ + DECISIONS + ship checklist | Met |
+| D28 | Docs match APIs | docs/15,13,20 aligned to software GPU + foundation collab | Met (post honesty remediation) |
 
 ---
 

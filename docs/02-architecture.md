@@ -269,7 +269,7 @@ qf-app
 | Plugins | WASM sandbox | Security over convenience |
 | Package | ZIP-like container `.qfdoc` with manifest | Atomic replace + inspectability |
 | Checkpoints | Periodic snapshot + op seq | Fast open without full replay |
-| GPU | Custom Rust toolkit over wgpu | Portability + control |
+| GPU | Software framebuffer (`qf-gpu`); wgpu roadmap | Headless complete; native surface later |
 | AI | Suggestion entities only | User ownership |
 
 ---

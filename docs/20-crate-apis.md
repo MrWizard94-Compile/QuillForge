@@ -220,44 +220,52 @@ impl LayoutEngine {
 
 ## 8. `qf-gpu`
 
-**Purpose:** Native GPU abstraction (wgpu-backed).
+**Purpose:** Document GPU abstraction — **software RGBA8 framebuffer** (headless). Native `wgpu` is roadmap, not shipped.
 
-**Dependencies:** `qf-core` (minimal colors/types only).
+**Dependencies:** `thiserror` (no `wgpu`).
 
 ```rust
-pub struct GpuContext { /* ... */ }
-pub struct FrameEncoder { /* ... */ }
-pub struct GlyphAtlas { /* ... */ }
+pub struct GpuContext { /* framebuffer + atlases */ }
+impl GpuContext {
+    pub fn headless(w: u32, h: u32) -> Result<Self, GpuError>;
+    pub fn begin_frame(&mut self) -> Result<FrameEncoder<'_>, GpuError>;
+    pub fn framebuffer_rgba(&self) -> &[u8];
+}
+pub struct FrameEncoder<'a> { /* writes pixels */ }
+pub struct GlyphAtlas { /* cell occupancy */ }
+pub struct ImageAtlas { /* id → RGBA upload */ }
 ```
 
-**Errors:** `GpuError::DeviceLost`, `Init`, `OutOfMemory`.
+**Errors:** `GpuError::{DeviceLost, Init, OutOfMemory, MissingTexture, Other}`.
 
 ---
 
 ## 9. `qf-render`
 
-**Purpose:** Render scheduler, tiles, composition.
+**Purpose:** Derived render scheduler — viewport cull, dirty tiles, compose into `qf-gpu`.
 
 **Dependencies:** `qf-layout`, `qf-gpu`, `qf-theme`, `qf-core`.
 
 ```rust
-pub struct RenderScheduler { /* ... */ }
+pub struct RenderScheduler { /* gpu, layout, dirty, stats */ }
 impl RenderScheduler {
     pub fn set_layout(&mut self, layout: Arc<LayoutTree>);
-    pub fn render_frame(&mut self, viewport: Viewport, target: &mut FrameTarget) -> Result<()>;
+    pub fn render_frame(&mut self, viewport: Viewport) -> Result<FrameStats, GpuError>;
 }
 ```
+
+Interactive shell (`qf-app`) uses egui; this crate is the pure composition path for tests/future surfaces.
 
 ---
 
 ## 10. `qf-input`
 
-**Purpose:** Translate OS input to commands.
+**Purpose:** Translate OS input to commands (basic keys/text/pointer). **IME not shipped.**
 
-**Dependencies:** `qf-core`, `qf-doc` (targets).
+**Dependencies:** `qf-core`.
 
 ```rust
-pub struct InputState { /* selection, IME */ }
+pub struct InputState { /* selection + caret */ }
 impl InputState {
     pub fn on_key(&mut self, ev: KeyEvent) -> Vec<Command>;
     pub fn on_text(&mut self, s: &str) -> Vec<Command>;
@@ -303,14 +311,15 @@ pub trait MergeEngine { /* ... */ }
 
 ## 13. `qf-collab`
 
-**Purpose:** Presence, comments helpers, suggestions, CRDT text integration.
+**Purpose:** Presence broker, suggestion types, RGA text CRDT. Foundation collab — not full multiplayer UX.
 
-**Dependencies:** `qf-core`, `qf-doc`, `qf-kernel`.
+**Dependencies:** `qf-core`.
 
 ```rust
 pub struct PresenceBroker { /* ... */ }
-pub struct CollabHandlers; // CommandHandler for comments/suggestions/remote batch
-pub struct TextCrdt { /* ... */ }
+// Suggestion / SuggestionStatus / SuggestionSource live here for wire + AI.
+pub struct TextCrdt { /* RGA; merge_crdt; to_replace_ops */ }
+// Note: Command expansion for comments/suggestions is session/AI paths, not a CollabHandlers type.
 ```
 
 ---
@@ -363,7 +372,7 @@ pub struct AiService {
 **Dependencies:** `qf-core`, `qf-doc`.
 
 ```rust
-pub struct CitationFormatter { /* CSL-like styles subset */ }
+pub struct CitationFormatter; // inline markers: (url; doi:…; isbn:…) — not full CSL
 ```
 
 ---

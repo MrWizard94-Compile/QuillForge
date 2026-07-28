@@ -13,22 +13,25 @@
 
 | Layer | Scope | Completion | Notes |
 |-------|--------|------------|--------|
-| **Foundation DoD** | Ship checklist D1–D28 | **~98%** | All criteria **Met** |
-| **Local-first core product** | Offline edit, package, recovery, export, plugins, AI, sync, search | **~99%** | + DrawingML DOCX images |
-| **Marketing / “v1 product”** | Polish, multi-OS CI, browser UX | **~99%** | Full open/export matrix (PDF export-only) |
-| **Long-term vision** | Full document OS, multiplayer UX, neural packs, rich GPU | **~91%** | Optional ONNX graph runtime (QFEMB1) |
+| **Foundation DoD** | Ship checklist D1–D28 | **~94%** | Core Met; docs/API honesty remediated; some command expanders still foundation-scoped |
+| **Local-first core product** | Offline edit, package, recovery, export, plugins, AI, sync, search | **~96%** | DrawingML DOCX images; open/export matrix |
+| **Marketing / “v1 product”** | Polish, multi-OS CI, browser UX | **~95%** | Word-class shell (egui); software GPU path for composition tests |
+| **Long-term vision** | Full document OS, multiplayer UX, neural packs, **native wgpu** | **~78%** | QFEMB1 ONNX pack; **wgpu not started**; collab foundation only |
 
 **Headline for directors:**  
-**Foundation shippable. Full open/export matrix + mark + CI + search + media + sync + fonts. Overall vision ~91%.**
+**Foundation shippable** (edit · journal · recovery · export · search · sync · plugins · AI accept).  
+**Not claimed:** native wgpu GPU, full multiplayer UX, every Command enum expander. Overall vision **~78%**.
 
 ---
 
 ## What remains (ordered)
 
-1. PDF import (optional; currently export-only)  
-2. Vendor ORT/tract full ONNX (optional, native)  
-3. Full OT / bold-italic face embedding  
-4. Browser e2e / presence fan-out polish  
+1. Complete dead `Command` expanders (split/merge/comment/remote batch) or remove from public enum  
+2. Native `wgpu` surface (optional; software GPU already complete for headless)  
+3. PDF import (optional; currently export-only)  
+4. Vendor ORT/tract full ONNX (optional, native)  
+5. Full OT / true range marks / face embedding  
+6. Browser e2e / presence fan-out polish  
 
 ---
 

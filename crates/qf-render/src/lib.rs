@@ -1,7 +1,8 @@
-//! Render scheduler: dirty tracking, virtualization, composition.
+//! Render scheduler: dirty tracking, viewport cull, composition into software GPU.
 //!
 //! **Derived only.** Never reads/writes journal or mutates kernel state.
-//! Consumes `LayoutTree` + theme + viewport → GPU draw schedule.
+//! Consumes `LayoutTree` + theme + viewport → `qf-gpu` software framebuffer.
+//! Native wgpu presentation is roadmap — not claimed here.
 
 use qf_gpu::{Color, FrameEncoder, GpuContext, GpuError, GpuRect};
 use qf_layout::{FragmentKind, LayoutTree};

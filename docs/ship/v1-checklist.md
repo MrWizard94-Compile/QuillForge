@@ -55,7 +55,7 @@ Use this checklist before tagging a v1 release. Evidence points to automated tes
 | ID | Criterion | Evidence | Status |
 |----|-----------|----------|--------|
 | D25 | Automated tests | `cargo test --workspace` | Met |
-| D26 | Performance budgets | Documented; not CI-gated yet | Accepted residual |
+| D26 | Performance budgets | `docs/26-performance-budgets.md` + `budget_*` CI tests | Met |
 | D27 | Risk register | docs/23 + residual notes | Accepted residuals documented |
 | D28 | Docs match APIs | docs/ + DECISIONS + ship checklist | Met |
 
@@ -76,11 +76,14 @@ Use this checklist before tagging a v1 release. Evidence points to automated tes
 ```bash
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
+cargo test --workspace budget_ -- --nocapture
 cargo run -p qf-app -- demo
+cargo run -p qf-app -- sync-demo
 cargo run -p qf-app -- version
+# or: cargo xtask check
 ```
 
-Optional tag: `v0.1.0-foundation` (not full marketing v1 until residuals closed).
+Optional tag: `v0.1.0-foundation` (foundation DoD met; marketing v1 may still add rich export styles / TLS WAN).
 
 ## Rollback
 

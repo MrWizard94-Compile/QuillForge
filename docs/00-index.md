@@ -81,6 +81,7 @@ When requirements conflict, resolve strictly in this order:
 | 23 | [risk-register.md](23-risk-register.md) | Risks, mitigations, validation |
 | 24 | [definition-of-done.md](24-definition-of-done.md) | v1 DoD checklist |
 | 25 | [telemetry.md](25-telemetry.md) | Telemetry policy (default off) |
+| 26 | [26-performance-budgets.md](26-performance-budgets.md) | CI-gated performance budgets |
 
 ---
 

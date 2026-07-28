@@ -166,3 +166,11 @@ Living record of decisions that bind implementers. Complements `docs/` specs.
 **Status:** Accepted  
 **Decision:** Real OS sockets speak length-prefixed CBOR frames (`QFSNC1`) for Hello/Pull/Push. Payload is CBOR (not JSON) so TextCrdt maps with structured keys serialize. Max frame 16 MiB. One request/response per connection. TLS/WebSocket is a future adapter over the same logical protocol.  
 **Why:** Closes the “network residual” with real concurrency over the network stack without enterprise TLS complexity in foundation.
+
+---
+
+## ADR-020 — CI-gated performance budgets (`budget_` tests)
+
+**Status:** Accepted  
+**Decision:** Performance budgets live in `docs/26-performance-budgets.md` and are enforced by tests named `budget_*` in layout, journal, export, sync, and security crates. CI and `cargo xtask check`/`perf` run `cargo test --workspace budget_`. Limits are generous debug-CI ceilings that still catch algorithmic regressions.  
+**Why:** Closes D26 without flaky micro-benchmarks; operational load under wall-clock caps.

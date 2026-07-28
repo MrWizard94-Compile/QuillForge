@@ -1,41 +1,41 @@
-# Delivery MANIFEST — Constitution v4.1 + TCP sync transport
+# Delivery MANIFEST — CI performance budgets (D26)
 
-**Title:** Modular AGENTS pack + localhost TCP framed SyncHub transport  
+**Title:** Performance budget tests + CI gate + xtask perf  
 **Date:** 2026-07-28  
-**Law:** `AGENTS Constitution/AGENTS.md` v4.1 + `SOP.md` + always-load modules
+**Law:** AGENTS Constitution v4.1 (`PERF-BUDGET-001`, `CONST-GATE-001`, `ENG-WARN-001`)
 
 ## Summary
 
-1. **AGENTS Constitution v4.1** modular pack committed; `verify-pack.ps1` PASS (GOV-INT-001).
-2. **TcpSyncServer / TcpSyncClient** — real loopback sockets, `QFSNC1` frames, CBOR body, 16 MiB budget.
-3. **CLI** — `quillforge sync-demo` exercises multi-client Hello/Push/Pull over TCP.
-4. **ADR-019** — wire format decision.
+1. **`docs/26-performance-budgets.md`** — binding budget table (PB-LAYOUT, JOURNAL, EXPORT, SYNC, CRYPTO).
+2. **`budget_*` tests** — layout, journal, export, TCP sync, crypto.
+3. **CI** — `.github/workflows/ci.yml` runs `cargo test --workspace budget_`.
+4. **xtask** — `cargo xtask perf` and `check` includes budgets.
+5. **ADR-020** — CI-gated budgets decision.
+6. Ship checklist **D26 → Met**.
 
 ## Verify
 
 ```bash
-pwsh -File "AGENTS Constitution/tools/verify-pack.ps1"
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
-cargo run -p qf-app -- demo
-cargo run -p qf-app -- sync-demo
+cargo test --workspace budget_ -- --nocapture
+cargo xtask perf
 ```
 
-## Self-audit (CONST-GATE-001)
+## Self-audit
 
-| # | Result |
-|---|--------|
-| Completeness | Pass — no stubs in new paths |
-| Zero warnings | Pass — clippy `-D warnings` |
-| Tests | Pass — qf-sync TCP + full workspace |
-| Docs | Pass — MANIFEST, ADR-019, checklist |
-| Security | Pass — max frame, magic check, loopback only in demos |
-| Review packaging | Pass — this MANIFEST |
+| CONST-GATE | Result |
+|------------|--------|
+| Completeness | Pass |
+| Zero warnings | Pass |
+| Tests | Pass (all budget_* + workspace) |
+| Docs sync | Pass |
+| Review packaging | Pass |
 
-## Deferred
+## Deferred (marketing / polish)
 
 | Item | Notes |
 |------|--------|
-| TLS/WebSocket WAN adapter | Protocol + TCP proven |
-| OS process-spawn kill harness | Synthetic matrix binding (ADR-018) |
+| TLS/WebSocket WAN | Protocol + TCP complete |
 | Rich PDF/DOCX styles | Minimal writers ship |
+| OS process-spawn kill | Synthetic matrix binding |

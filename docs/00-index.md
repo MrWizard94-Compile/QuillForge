@@ -83,6 +83,7 @@ When requirements conflict, resolve strictly in this order:
 | 25 | [telemetry.md](25-telemetry.md) | Telemetry policy (default off) |
 | 26 | [26-performance-budgets.md](26-performance-budgets.md) | CI-gated performance budgets |
 | 27 | [27-project-status.md](27-project-status.md) | Completion % and residual roadmap |
+| 28 | [28-product-surface.md](28-product-surface.md) | Word-class UX priority (no Microsoft marks) |
 
 ---
 

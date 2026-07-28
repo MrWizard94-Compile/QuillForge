@@ -1,6 +1,6 @@
 //! Quillforge CLI (WPAI Software) — editor controller and demos.
 
-use qf_app::EditorController;
+use qf_app::{EditorController, ProductSurface};
 use qf_blocks::BlockBody;
 use qf_core::{
     cli_banner, ActorId, DocumentId, Hash256, Operation, ParentRef, SeqIdGen, SessionId, Version,
@@ -59,6 +59,10 @@ fn main() -> ExitCode {
             println!("Founder: {FOUNDER_CREDIT}");
             ExitCode::SUCCESS
         }
+        "surface" => {
+            print_product_surface();
+            ExitCode::SUCCESS
+        }
         "help" | "-h" | "--help" => {
             print_help();
             ExitCode::SUCCESS
@@ -71,14 +75,39 @@ fn main() -> ExitCode {
     }
 }
 
+fn print_product_surface() {
+    println!("{}", ProductSurface::category_line());
+    let surface = ProductSurface::word_class_default("Untitled");
+    println!("Window: {}", surface.window_title);
+    println!("View:   {:?} (default page/print layout)", surface.view_mode);
+    println!("Tab:    {}", surface.active_tab.label());
+    println!("Status: {}", surface.status.summary_line());
+    println!();
+    println!("Command bar tabs:");
+    for tab in qf_app::CommandBarTab::all() {
+        println!("  · {}", tab.label());
+    }
+    println!();
+    println!("Active tab groups ({}):", surface.active_tab.label());
+    for g in surface.active_groups() {
+        let actions: Vec<_> = g.actions.iter().map(|a| a.label.as_str()).collect();
+        println!("  [{}] {}", g.label, actions.join(", "));
+    }
+    println!();
+    println!("UX law: docs/28-product-surface.md");
+    println!("No Microsoft trademarks in chrome.");
+}
+
 fn print_help() {
     println!("{}", cli_banner());
+    println!("{}", ProductSurface::category_line());
     println!("{STUDIO_LEGAL} — {STUDIO_TAGLINE}");
     println!("{STUDIO_THESIS}");
     println!("{HUMAN_DIRECTED_BADGE}");
     println!();
     println!("Usage:");
     println!("  quillforge demo [path.qfdoc]   Run editor + package demo");
+    println!("  quillforge surface             Show Word-class product chrome model");
     println!("  quillforge sync-demo           Localhost TCP multi-client sync demo");
     println!("  quillforge tls-sync-demo       Localhost TLS (rustls) sync demo");
     println!("  quillforge version             Print version and WPAI identity");
@@ -86,6 +115,7 @@ fn print_help() {
     println!();
     println!("Law: AGENTS Constitution/AGENTS.md + SOP.md");
     println!("Architecture: Input → Command → Journal → Kernel → Layout");
+    println!("Product surface: Word-class editor UX (no Microsoft branding)");
     println!("Brand: brand/ (WPAI forge visual + voice)");
     println!();
     println!("{STUDIO_DISCLOSURE}");

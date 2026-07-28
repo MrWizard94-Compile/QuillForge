@@ -1,32 +1,25 @@
-# Delivery MANIFEST — Status + process-kill harness
+# Delivery MANIFEST — Word-class product surface priority
 
-**Title:** Project status report; OS process-abort durability harness  
+**Title:** Prioritize Word-class editor UX without Microsoft branding  
 **Date:** 2026-07-28  
-**Law:** AGENTS Constitution v5.0.0
+**Law:** AGENTS Constitution v5.0.0 · ADR-026 · PRD 1.1.0
 
 ## Summary
 
-1. `docs/27-project-status.md` — layered completion percentages.  
-2. `qf-kill-harness` binary + `process_kill` integration tests (ADR-025).  
-3. Ship checklist D6 residual fully closed.
-
-## Completion (from status doc)
-
-| Layer | % |
-|-------|---|
-| Foundation DoD D1–D28 | ~98% |
-| Local-first core | ~92% |
-| Marketing v1 polish | ~75% |
-| Long-term vision | ~55% |
+1. `docs/28-product-surface.md` — binding product priority.  
+2. `qf_app::ProductSurface` — page view, command bar tabs/groups, status model.  
+3. `Theme::document_workspace_light` — paper chrome + WPAI ember (not Office blue).  
+4. PRD/README/status updated; `quillforge surface` demo.
 
 ## Verify
 
 ```bash
-cargo test -p qf-storage --test process_kill
+cargo test -p qf-app --lib
+cargo test -p qf-theme
+cargo run -p qf-app -- surface
 cargo clippy --workspace --all-targets -- -D warnings
-cargo test --workspace
 ```
 
 ## Self-audit
 
-CONST-GATE-001 pass.
+CONST-GATE-001 pass — complete law + tested model; GUI shell is next P1, not stubbed as fake UI.

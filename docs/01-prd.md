@@ -1,32 +1,38 @@
 # Quillforge — Formal Product Requirements Document (PRD)
 
 **Document ID:** QF-PRD-001  
-**Version:** 1.0.0  
+**Version:** 1.1.0  
 **Status:** Binding  
-**Product:** Quillforge  
+**Product:** Quillforge (WPAI Software)  
 
 ---
 
 ## 1. Product definition
 
-Quillforge is a **local-first document operating system** for:
+Quillforge is a **local-first document operating system** whose **primary product surface** MUST appear as:
 
-- Writing  
-- Publishing  
-- Research  
+> **A Word-class desktop document editor** — upgraded for durability, ownership, and honest AI — **without Microsoft branding or trademarks.**
+
+Category education may use the phrase “Word-class document editor” once; chrome, logos, and marketing titles never use Microsoft / Word / Office marks. Full UX law: `docs/28-product-surface.md`.
+
+Under that surface, Quillforge remains a systems product for:
+
+- Writing (page layout, formatting, styles)  
+- Publishing (deterministic PDF/DOCX/HTML/MD)  
+- Research (citations, search)  
 - Knowledge management  
-- Collaboration  
-- Enterprise review workflows  
+- Collaboration & review (suggestions, comments)  
+- Enterprise offline / encryption workflows  
 
-It MUST function as a durable, offline-first, **canonical-document platform** with optional synchronization and extensibility.
-
-Quillforge is **not** a loose collection of UI components. It is a systems product centered on a durable mutation pipeline and package integrity.
+It MUST function as a durable, offline-first, **canonical-document platform** with optional synchronization and extensibility — not a loose collection of UI widgets.
 
 ---
 
 ## 2. Vision
 
-A single local package (`.qfdoc`) is the user's durable unit of truth. The application can fully author, edit, review, export, and search without network access. When connectivity exists, changes synchronize under explicit security and permission models. Custom and future content is never silently discarded.
+Users open Quillforge and feel **immediately at home** in a print-layout document editor (pages, command bar, status, review), then discover upgrades: crash-proof journal, local `.qfdoc` ownership, encryption, sandboxed plugins, suggestion-only AI.
+
+A single local package (`.qfdoc`) is the durable unit of truth. The application can fully author, edit, review, export, and search without network access. When connectivity exists, changes synchronize under explicit security and permission models. Custom and future content is never silently discarded.
 
 ---
 
@@ -60,6 +66,16 @@ A single local package (`.qfdoc`) is the user's durable unit of truth. The appli
 | G9 | AI as suggestion-only | No silent content mutation path exists |
 | G10 | Collaboration + sync | Convergence under offline concurrent edit |
 
+### 4.1a Product surface goals (post-foundation)
+
+| ID | Goal | Success metric |
+|----|------|----------------|
+| G11 | Word-class default chrome | Page view + command bar + status bar default |
+| G12 | Familiar formatting loop | Bold/italic/styles/headings via Home tab actions |
+| G13 | Print-layout authoring | On-screen pages track layout engine pagination |
+| G14 | No Microsoft branding | Automated mark scan of chrome strings |
+| G15 | WPAI identity retained | Ember accent, About/splash forge brand |
+
 ### 4.2 Non-goals (v1)
 
 - Multi-tenant cloud-hosted document service as primary store (local-first is primary)
@@ -68,6 +84,7 @@ A single local package (`.qfdoc`) is the user's durable unit of truth. The appli
 - Automatic AI rewriting of user content
 - Unrestricted native plugin process with filesystem access
 - Supporting non-Rust application cores
+- Cloning Microsoft trademarks, Office Fluent blue-as-brand, or OneDrive lock-in
 
 ---
 

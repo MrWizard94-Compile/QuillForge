@@ -19,7 +19,16 @@
 | **Long-term vision** | Full document OS, multiplayer product UX, semantic search, rich GPU | **~55%** | Architecture in place; product surface still CLI/headless |
 
 **Headline for directors:**  
-**Foundation is shippable (~98% of binding DoD). Overall product vision ~55–60%. Recommended external message: foundation complete; productization continues.**
+**Foundation is shippable (~98% of binding DoD). Product priority is now a Word-class editor shell (no Microsoft branding) on that core. Overall vision ~55–60% until GUI ships.**
+
+### Product surface priority (director)
+
+| Priority | Target |
+|----------|--------|
+| **User appearance** | Upgraded Word-class document editor |
+| **Brand** | WPAI only — never Microsoft/Word/Office marks in chrome |
+| **Engine** | Unchanged: Command → Journal → Kernel, `.qfdoc` |
+| **Law** | `docs/28-product-surface.md` · ADR-026 |
 
 ---
 

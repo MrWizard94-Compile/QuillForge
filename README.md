@@ -2,9 +2,11 @@
 
 **WPAI Software** · Wizard Productions AI Studio (**W.P.A.I**)
 
-**Local-first document operating system** for writing, publishing, research, knowledge management, collaboration, and enterprise review workflows.
+**Word-class document editor** (upgraded, local-first) — without Microsoft branding — for writing, publishing, research, collaboration, and review.
 
-Quillforge is a durable, offline-first, canonical-document platform with optional synchronization and a capability-based plugin system. The entire codebase is Rust.
+Under the hood: a durable **document OS** (journaled mutations, `.qfdoc` packages, optional sync/plugins/AI). The entire codebase is Rust.
+
+**Product priority:** feel like an upgraded desktop Word-class app (page layout, command bar, status, export) powered by crash-proof local packages. See [`docs/28-product-surface.md`](docs/28-product-surface.md).
 
 **Studio tagline:** Forging the future of creative media.  
 **Thesis:** AI is in the name. The wizard is in the work.  

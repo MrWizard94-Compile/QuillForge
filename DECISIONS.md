@@ -214,3 +214,11 @@ Living record of decisions that bind implementers. Complements `docs/` specs.
 **Status:** Accepted  
 **Decision:** In addition to synthetic recovery tests, CI runs a child process (`qf-kill-harness`) that commits through `DocumentSession` then `process::abort()`. Parent reopens the journal and verifies chain + seq ≥ 1. Marker file proves abort occurred only after commit Ok.  
 **Why:** Closes residual “process-kill matrix optional” with real process death without flaky multi-OS SIGKILL orchestration.
+
+---
+
+## ADR-026 — Word-class product surface (no Microsoft branding)
+
+**Status:** Accepted  
+**Decision:** Post-foundation product priority is a **Word-class** desktop document editor UX (page view default, command bar, status bar, review, export) while forbidding Microsoft/Word/Office trademarks in chrome. Internal architecture remains document OS. Default shell theme is `document_workspace_light` (paper + WPAI ember accent); forge dark remains brand/about. Binding UX law: `docs/28-product-surface.md`; model: `qf_app::ProductSurface`.  
+**Why:** Director priority — familiar upgraded Word experience without Microsoft branding; differentiate on durability, ownership, AI honesty.

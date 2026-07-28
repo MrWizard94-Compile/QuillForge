@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Word-class product surface:** binding UX law (`docs/28-product-surface.md`), `ProductSurface` command-bar model, document-workspace theme, `quillforge surface` CLI (ADR-026).
 - **Process-kill harness:** `qf-kill-harness` aborts after fsync commit; parent reopens journal (ADR-025).
 - **Project status:** `docs/27-project-status.md` completion layers and residual roadmap.
 - **Structured DOCX:** AST-driven export with Heading/Quote/Code styles and `styles.xml` (ADR-024).

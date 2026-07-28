@@ -1948,6 +1948,7 @@ dependencies = [
  "qf-input",
  "qf-kernel",
  "qf-layout",
+ "qf-search",
  "qf-storage",
  "qf-sync",
  "qf-theme",

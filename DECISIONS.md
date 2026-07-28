@@ -158,3 +158,11 @@ Living record of decisions that bind implementers. Complements `docs/` specs.
 **Status:** Accepted  
 **Decision:** Durability evidence is synthetic: journal fsync + handle-forget reopen, torn/partial frames, incomplete staging, LKG recovery, encrypted open, durable queue reopen. Full OS process-kill spawn harness is optional, not release-blocking.  
 **Why:** Cross-OS process kill harnesses are flaky and expensive; fsync contracts + reopen tests prove the same invariants.
+
+---
+
+## ADR-019 — Localhost TCP framed transport (QFSNC1) over SyncHub
+
+**Status:** Accepted  
+**Decision:** Real OS sockets speak length-prefixed CBOR frames (`QFSNC1`) for Hello/Pull/Push. Payload is CBOR (not JSON) so TextCrdt maps with structured keys serialize. Max frame 16 MiB. One request/response per connection. TLS/WebSocket is a future adapter over the same logical protocol.  
+**Why:** Closes the “network residual” with real concurrency over the network stack without enterprise TLS complexity in foundation.

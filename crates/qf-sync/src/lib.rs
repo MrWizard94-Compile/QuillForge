@@ -11,12 +11,14 @@
 
 mod durable_queue;
 mod hub;
+mod tcp;
 
 pub use durable_queue::{make_sync_item, DurableSyncQueue};
 pub use hub::{
     flush_queue_to_hub, Hello, HelloAck, PullRequest, PullResponse, PushAck, PushRequest,
     SessionToken, SyncClient, SyncHub,
 };
+pub use tcp::{TcpSyncClient, TcpSyncServer, WireRequest, WireResponse};
 
 use qf_collab::{merge_crdt, PresenceBroker, PresenceEvent, TextCrdt};
 use qf_core::{BlockId, DocumentId, Hash256, Operation};

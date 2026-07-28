@@ -822,6 +822,7 @@ dependencies = [
  "qf-input",
  "qf-layout",
  "qf-storage",
+ "qf-sync",
  "tempfile",
  "thiserror 2.0.19",
 ]
@@ -1020,6 +1021,7 @@ dependencies = [
 name = "qf-sync"
 version = "0.0.0"
 dependencies = [
+ "ciborium",
  "qf-collab",
  "qf-core",
  "serde",

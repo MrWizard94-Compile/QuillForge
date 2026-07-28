@@ -21,6 +21,7 @@ qf-storage = { workspace = true }
 qf-export = { workspace = true }
 qf-input = { workspace = true }
 qf-layout = { workspace = true }
+qf-sync = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]

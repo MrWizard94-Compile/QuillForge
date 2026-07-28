@@ -2,10 +2,13 @@
 
 use qf_app::EditorController;
 use qf_blocks::BlockBody;
-use qf_core::{ParentRef, Version};
+use qf_core::{ActorId, DocumentId, Hash256, Operation, ParentRef, SeqIdGen, SessionId, Version};
 use qf_export::{CoreExporter, ExportFormat, ExportRequest, Exporter};
 use qf_input::KeyEvent;
 use qf_storage::DocumentSession;
+use qf_sync::{
+    Hello, PullRequest, PushRequest, SyncHub, TcpSyncClient, TcpSyncServer,
+};
 use std::env;
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -16,6 +19,13 @@ fn main() -> ExitCode {
 
     match cmd.as_str() {
         "demo" => match run_demo(args.next()) {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(e) => {
+                eprintln!("error: {e}");
+                ExitCode::FAILURE
+            }
+        },
+        "sync-demo" => match run_sync_demo() {
             Ok(()) => ExitCode::SUCCESS,
             Err(e) => {
                 eprintln!("error: {e}");
@@ -44,11 +54,78 @@ fn print_help() {
     println!();
     println!("Usage:");
     println!("  quillforge demo [path.qfdoc]   Run editor + package demo");
+    println!("  quillforge sync-demo           Localhost TCP multi-client sync demo");
     println!("  quillforge version             Print version");
     println!("  quillforge help                Show this help");
     println!();
     println!("Law: AGENTS Constitution/AGENTS.md + SOP.md");
     println!("Architecture: Input → Command → Journal → Kernel → Layout");
+}
+
+fn run_sync_demo() -> Result<(), String> {
+    let server = TcpSyncServer::start(SyncHub::new()).map_err(|e| e.to_string())?;
+    let addr = server.addr();
+    println!("sync hub listening on {addr}");
+
+    let mut gen = SeqIdGen::default();
+    let doc = DocumentId::new(&mut gen);
+    let client_a = TcpSyncClient::connect(addr);
+    let client_b = TcpSyncClient::connect(addr);
+
+    let ack_a = client_a
+        .hello(Hello {
+            client_id: ActorId::new(&mut gen),
+            session_id: SessionId::new(&mut gen),
+            document_id: doc,
+            have_seq: 0,
+        })
+        .map_err(|e| e.to_string())?;
+    let ops = vec![Operation::Noop {
+        reason: qf_core::NoopReason::Other("sync-demo".into()),
+    }];
+    let payload_hash = {
+        let mut buf = Vec::new();
+        for op in &ops {
+            let s = format!("{op:?}");
+            buf.extend_from_slice(&(s.len() as u32).to_le_bytes());
+            buf.extend_from_slice(s.as_bytes());
+        }
+        Hash256::sha256(&buf)
+    };
+    let push = client_a
+        .push(PushRequest {
+            token: ack_a.token,
+            first_seq: 1,
+            last_seq: 1,
+            ops,
+            crdt: None,
+            payload_hash,
+        })
+        .map_err(|e| e.to_string())?;
+    println!("client A pushed; head={}", push.accepted_head_seq);
+
+    let ack_b = client_b
+        .hello(Hello {
+            client_id: ActorId::new(&mut gen),
+            session_id: SessionId::new(&mut gen),
+            document_id: doc,
+            have_seq: 0,
+        })
+        .map_err(|e| e.to_string())?;
+    let pull = client_b
+        .pull(PullRequest {
+            token: ack_b.token,
+            have_seq: 0,
+        })
+        .map_err(|e| e.to_string())?;
+    println!(
+        "client B pulled; head={} ops={}",
+        pull.server_head_seq,
+        pull.ops.len()
+    );
+    server.stop();
+    println!("sync-demo complete — TCP framed protocol verified");
+    Ok(())
 }
 
 fn run_demo(path: Option<String>) -> Result<(), String> {

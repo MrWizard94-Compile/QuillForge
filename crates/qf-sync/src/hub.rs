@@ -9,14 +9,15 @@ use crate::{
 };
 use qf_collab::{PresenceEvent, TextCrdt};
 use qf_core::{ActorId, DocumentId, Hash256, Operation, SessionId};
+use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
 use uuid::Uuid;
 
 /// Opaque session token issued by HelloAck.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct SessionToken(pub Uuid);
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Hello {
     pub client_id: ActorId,
     pub session_id: SessionId,
@@ -25,20 +26,20 @@ pub struct Hello {
     pub have_seq: u64,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct HelloAck {
     pub token: SessionToken,
     pub server_head_seq: u64,
     pub acl_epoch: u64,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PullRequest {
     pub token: SessionToken,
     pub have_seq: u64,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PullResponse {
     pub ops: Vec<Operation>,
     pub crdt: Option<TextCrdt>,
@@ -47,7 +48,7 @@ pub struct PullResponse {
     pub payload_hash: Hash256,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PushRequest {
     pub token: SessionToken,
     pub first_seq: u64,
@@ -57,7 +58,7 @@ pub struct PushRequest {
     pub payload_hash: Hash256,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PushAck {
     pub accepted_head_seq: u64,
 }

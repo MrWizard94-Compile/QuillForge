@@ -14,18 +14,18 @@
 | Layer | Scope | Completion | Notes |
 |-------|--------|------------|--------|
 | **Foundation DoD** | Ship checklist D1–D28 | **~98%** | All criteria **Met** |
-| **Local-first core product** | Offline edit, package, recovery, export, plugins, AI, sync, search | **~99%** | + offline dense embeddings |
-| **Marketing / “v1 product”** | Polish, multi-OS CI, browser UX | **~98%** | Search: token/phrase/TF–IDF/dense/hybrid |
-| **Long-term vision** | Full document OS, multiplayer UX, neural packs, rich GPU | **~84%** | Hash-ngram dense pack; neural optional later |
+| **Local-first core product** | Offline edit, package, recovery, export, plugins, AI, sync, search | **~99%** | + DrawingML DOCX images |
+| **Marketing / “v1 product”** | Polish, multi-OS CI, browser UX | **~98%** | Search + rich export fidelity |
+| **Long-term vision** | Full document OS, multiplayer UX, neural packs, rich GPU | **~85%** | Hash-ngram dense; DrawingML export |
 
 **Headline for directors:**  
-**Foundation shippable. Full product surface + multi-OS CI + hybrid search with offline dense embeddings. Overall vision ~84%.**
+**Foundation shippable. Product surface + multi-OS CI + hybrid/dense search + PDF/DOCX image fidelity. Overall vision ~85%.**
 
 ---
 
 ## What remains (ordered)
 
-1. DOCX DrawingML embedded images / custom fonts  
+1. DOCX import of DrawingML → package assets / custom fonts  
 2. Server-push notify without client poll  
 3. Optional neural/ONNX embedding pack  
 4. Browser e2e (optional)  

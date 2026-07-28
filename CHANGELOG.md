@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **DOCX DrawingML images:** `export_docx_with_assets` embeds PNG/JPEG as `word/media/*` with inline DrawingML; caption fallback without assets (`docs/32-rich-media.md`).
 - **Offline dense embeddings:** signed feature hashing pack `hash_ngram_v1` (tokens + char 3-grams, dim 64), `SearchMode::Dense`, hybrid chain, GUI Dense mode, `search-demo` pack JSON (`docs/36-dense-embeddings.md`).
 - **PDF image XObjects + TLS PEM:** DeviceRGB image embedding in PDF export; production `TlsIdentity` PEM load (`docs/35-pdf-images-and-tls-pem.md`).
 - **Long-lived WS/WSS sessions:** durable WebSocket and WSS sync session loops (`docs/30-websocket-sync.md`).

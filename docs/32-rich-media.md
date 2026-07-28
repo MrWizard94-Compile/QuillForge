@@ -16,7 +16,7 @@
 | **PDF lines** | Layout `page_plain_lines` includes `[image: alt W×H]` and table text |
 | **PDF images** | DeviceRGB XObjects from package assets (`export_pdf_with_assets`) |
 | **DOCX tables** | Real `w:tbl` markup with cell projected text |
-| **DOCX images** | Caption line with alt + pixel size (DrawingML embed later) |
+| **DOCX images** | DrawingML inline pics + `word/media/*` (PNG/JPEG); caption fallback without assets |
 
 ---
 
@@ -24,6 +24,7 @@
 
 ```bash
 cargo test -p qf-app insert_demo_png -- --nocapture
+cargo test -p qf-export docx_embeds_drawingml -- --nocapture
 cargo test -p qf-export docx_emits_real_table -- --nocapture
 cargo run -p qf-app -- polish-demo
 ```
@@ -32,7 +33,6 @@ cargo run -p qf-app -- polish-demo
 
 ## Out of scope (next)
 
-- JPEG/WebP features (feature-gate later)  
-- DrawingML embedded images in DOCX  
-- DeviceRGB image XObjects in PDF  
+- JPEG/WebP feature surface beyond sniff+embed  
+- DOCX import of DrawingML → package assets  
 - TrueType font embedding  

@@ -438,22 +438,19 @@ impl EditorController {
         self.import_docx_bytes(&bytes)
     }
 
-    /// Export current document as DOCX bytes (round-trip partner for import).
+    /// Export current document as DOCX bytes (DrawingML images from package assets).
     pub fn export_docx_bytes(&self) -> Result<Vec<u8>, EditorError> {
-        use qf_export::{CoreExporter, ExportFormat, ExportRequest, Exporter};
-        let out = CoreExporter
-            .export(
-                self.session.state(),
-                &ExportRequest {
-                    format: ExportFormat::Docx,
-                    config: qf_export::ExportConfig {
-                        include_bibliography: false,
-                        include_timestamps: false,
-                    },
-                },
-            )
-            .map_err(EditorError::Other)?;
-        Ok(out.bytes)
+        use qf_export::{export_docx_with_assets, ExportConfig};
+        export_docx_with_assets(
+            self.session.state(),
+            &qf_export::sources_from_state(self.session.state()),
+            &ExportConfig {
+                include_bibliography: false,
+                include_timestamps: false,
+            },
+            Some(&self.session.assets),
+        )
+        .map_err(EditorError::Other)
     }
 
     pub fn save(&mut self, path: &Path) -> Result<(), EditorError> {

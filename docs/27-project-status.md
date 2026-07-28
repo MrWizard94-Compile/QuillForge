@@ -14,22 +14,22 @@
 | Layer | Scope | Completion | Notes |
 |-------|--------|------------|--------|
 | **Foundation DoD** | Ship checklist D1–D28 | **~98%** | All criteria **Met** |
-| **Local-first core product** | Offline edit, package, recovery, export, plugins, AI, sync, search | **~99%** | Hybrid/semantic search ships |
-| **Marketing / “v1 product”** | Polish, multi-OS CI, browser UX | **~96%** | Search UI + CLI; multi-OS CI open |
-| **Long-term vision** | Full document OS, multiplayer UX, dense vectors, rich GPU | **~80%** | Local TF–IDF semantic; dense models later |
+| **Local-first core product** | Offline edit, package, recovery, export, plugins, AI, sync, search | **~99%** | Product surface + search |
+| **Marketing / “v1 product”** | Polish, multi-OS CI, browser UX | **~97%** | **Multi-OS CI matrix** (Linux/Windows/macOS) |
+| **Long-term vision** | Full document OS, multiplayer UX, dense vectors, rich GPU | **~81%** | CI quality on three OSes |
 
 **Headline for directors:**  
-**Foundation ~98% DoD. Word-class editor + multi-transport sync + browser path + rich media + local hybrid/semantic search. Overall vision ~80%.**
+**Foundation ~98% DoD. Word-class editor + sync + browser path + media + search + multi-OS CI. Overall vision ~81%.**
 
 ---
 
 ## What remains (ordered)
 
-1. Multi-OS CI matrix  
-2. Long-lived WS/WSS sessions  
-3. Dense embeddings (optional offline model pack)  
-4. DOCX DrawingML / PDF image XObjects / font embed  
-5. Production TLS packaging  
+1. Long-lived WS/WSS sessions  
+2. Dense embeddings (optional offline model pack)  
+3. DOCX DrawingML / PDF image XObjects / font embed  
+4. Production TLS packaging  
+5. Cross-compile / browser e2e (optional)  
 
 ---
 
@@ -39,10 +39,11 @@
 pwsh -File "AGENTS Constitution/tools/verify-pack.ps1"
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
+cargo test --workspace budget_ -- --nocapture
 cargo run -p qf-app -- search-demo
-cargo run -p qf-app -- polish-demo
 ```
 
+CI: `.github/workflows/ci.yml` · `docs/34-ci-matrix.md`  
 MSRV: rustc **1.85.0**.
 
 ---

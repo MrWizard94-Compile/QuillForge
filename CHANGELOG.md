@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Multi-OS CI matrix:** Linux / Windows / macOS test + budgets, Ubuntu lint + constitution verify-pack, `ci-ok` aggregate (`docs/34-ci-matrix.md`).
+- **Hybrid / semantic search:** token AND, phrase, TF–IDF cosine, hybrid merge; GUI search panel; `search-demo` (`docs/33-semantic-search.md`).
+- **Rich media fidelity:** PNG decode/GUI paint, DOCX `w:tbl`, image lines in PDF export (`docs/32-rich-media.md`).
+- **Browser sync path:** QFSNC1 over `ws://` / `wss://`, HTML client, HTTPS demo (`docs/30-websocket-sync.md`, `docs/31-browser-sync-client.md`).
 - **Word-class product surface:** binding UX law (`docs/28-product-surface.md`), `ProductSurface` command-bar model, document-workspace theme, `quillforge surface` CLI (ADR-026).
 - **Process-kill harness:** `qf-kill-harness` aborts after fsync commit; parent reopens journal (ADR-025).
 - **Project status:** `docs/27-project-status.md` completion layers and residual roadmap.

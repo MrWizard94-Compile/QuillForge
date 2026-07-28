@@ -1,3 +1,5 @@
+# Quillforge CI — multi-OS matrix (Linux / Windows / macOS)
+# MSRV: rustc 1.85.0 · zero warnings · performance budgets
 name: ci
 
 on:
@@ -9,20 +11,77 @@ on:
 env:
   CARGO_TERM_COLOR: always
   RUSTFLAGS: -D warnings
+  RUST_BACKTRACE: 1
 
 jobs:
-  test:
+  # Single-platform style gate (avoid CRLF/LF noise across runners).
+  lint:
+    name: lint (ubuntu)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@1.85.0
         with:
           components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: lint-ubuntu
       - name: fmt
         run: cargo fmt --all -- --check
       - name: clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: constitution pack integrity
+        shell: pwsh
+        run: pwsh -File "AGENTS Constitution/tools/verify-pack.ps1"
+
+  # Full test + budgets on each primary desktop OS.
+  test:
+    name: test (${{ matrix.os }})
+    needs: lint
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.85.0
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: test-${{ matrix.os }}
+      - name: clippy (platform)
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: test
         run: cargo test --workspace
       - name: performance budgets
         run: cargo test --workspace budget_ -- --nocapture
+      - name: smoke demos (headless)
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo run -p qf-app -- version
+          cargo run -p qf-app -- surface
+          cargo run -p qf-app -- search-demo
+          cargo run -p qf-app -- polish-demo
+          cargo run -p qf-app -- review-demo
+
+  # Lightweight summary job so branch protection can require one check name.
+  ci-ok:
+    name: ci-ok
+    needs: [lint, test]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: check matrix results
+        run: |
+          if [ "${{ needs.lint.result }}" != "success" ]; then
+            echo "lint failed: ${{ needs.lint.result }}"
+            exit 1
+          fi
+          if [ "${{ needs.test.result }}" != "success" ]; then
+            echo "test matrix failed: ${{ needs.test.result }}"
+            exit 1
+          fi
+          echo "multi-OS CI green"

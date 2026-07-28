@@ -2019,6 +2019,7 @@ dependencies = [
  "qf-doc",
  "qf-kernel",
  "qf-layout",
+ "serde",
  "tempfile",
  "uuid",
  "zip",

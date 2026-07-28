@@ -93,8 +93,89 @@ impl QuillShellApp {
                     self.session.last_error = Some(e.to_string());
                 }
             }
+            "review.suggest" => {
+                self.session.review.visible = true;
+                self.session.surface.activate_tab(CommandBarTab::Review);
+                match self.session.propose_suggestion() {
+                    Ok(_) => {
+                        self.session.last_error =
+                            Some("Suggestion recorded (pending accept)".into());
+                    }
+                    Err(e) => self.session.last_error = Some(e.to_string()),
+                }
+            }
+            "review.accept" => {
+                if let Err(e) = self.session.accept_selected() {
+                    self.session.last_error = Some(e.to_string());
+                } else {
+                    self.session.last_error = Some("Suggestion accepted".into());
+                }
+            }
+            "review.reject" => {
+                if let Err(e) = self.session.reject_selected() {
+                    self.session.last_error = Some(e.to_string());
+                } else {
+                    self.session.last_error = Some("Suggestion rejected".into());
+                }
+            }
+            "review.comment" => {
+                self.session.review.visible = true;
+                self.session.surface.activate_tab(CommandBarTab::Review);
+                self.session.last_error =
+                    Some("Comments: use Suggestions for review notes (P3)".into());
+            }
             _ => self.session.toggle_bold_hint(),
         }
+    }
+
+    fn paint_review_panel(&mut self, ui: &mut egui::Ui, ink: Color32, ember: Color32) {
+        ui.heading(RichText::new("Suggestions").color(ember).size(16.0));
+        ui.label(
+            RichText::new("Accept applies via journal · Reject is status-only")
+                .small()
+                .color(Color32::from_gray(100)),
+        );
+        ui.separator();
+        ui.horizontal(|ui| {
+            ui.label(RichText::new("Instruction:").color(ink));
+            ui.add(
+                egui::TextEdit::singleline(&mut self.session.review.instruction)
+                    .desired_width(140.0),
+            );
+            if ui.button("Propose").clicked() {
+                self.handle_action("review.suggest");
+            }
+        });
+        ui.separator();
+        let rows = self.session.editor.pending_suggestion_rows();
+        if rows.is_empty() {
+            ui.label(RichText::new("No pending suggestions").italics().color(ink));
+        } else {
+            egui::ScrollArea::vertical().show(ui, |ui| {
+                for row in &rows {
+                    let selected = self.session.review.selected == Some(row.id);
+                    let label = format!(
+                        "{} · {} · {} ops",
+                        row.note, row.source_label, row.op_count
+                    );
+                    if ui.selectable_label(selected, RichText::new(label).color(ink)).clicked() {
+                        self.session.select_suggestion(row.id);
+                    }
+                }
+            });
+        }
+        ui.separator();
+        ui.horizontal(|ui| {
+            if ui.button("Accept").clicked() {
+                self.handle_action("review.accept");
+            }
+            if ui.button("Reject").clicked() {
+                self.handle_action("review.reject");
+            }
+            if ui.small_button("Close").clicked() {
+                self.session.review.visible = false;
+            }
+        });
     }
 
     fn paint_print_pages(&mut self, ui: &mut egui::Ui, paper: Color32, ink: Color32) {
@@ -226,6 +307,9 @@ impl eframe::App for QuillShellApp {
                             .clicked()
                         {
                             self.session.surface.activate_tab(*tab);
+                            if *tab == CommandBarTab::Review {
+                                self.session.review.visible = true;
+                            }
                         }
                     }
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -286,10 +370,27 @@ impl eframe::App for QuillShellApp {
                             let z = self.session.surface.status.zoom_percent;
                             self.session.set_zoom_percent(z.saturating_add(10));
                         }
+                        ui.separator();
+                        if ui.small_button("Review").clicked() {
+                            self.session.toggle_review_panel();
+                        }
                         if let Some(err) = &self.session.last_error {
                             ui.colored_label(Color32::from_rgb(0x1a, 0x6b, 0x3c), err);
                         }
                     });
+                });
+        }
+
+        // Review side panel (Word-class Suggestions surface)
+        if self.session.review.visible
+            || self.session.surface.active_tab == CommandBarTab::Review
+        {
+            self.session.review.visible = true;
+            egui::SidePanel::right("review_panel")
+                .default_width(280.0)
+                .frame(egui::Frame::none().fill(rail).inner_margin(10.0))
+                .show(ctx, |ui| {
+                    self.paint_review_panel(ui, ink, ember);
                 });
         }
 

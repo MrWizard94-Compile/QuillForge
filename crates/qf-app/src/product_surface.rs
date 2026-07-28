@@ -83,21 +83,29 @@ pub struct StatusBarModel {
     pub zoom_percent: u32,
     pub offline: bool,
     pub encrypted: bool,
+    /// Pending suggestions awaiting accept/reject (Review surface).
+    pub pending_suggestions: u32,
 }
 
 impl StatusBarModel {
     pub fn summary_line(&self) -> String {
         let net = if self.offline { "Offline" } else { "Online" };
         let enc = if self.encrypted { " · Encrypted" } else { "" };
+        let sug = if self.pending_suggestions > 0 {
+            format!(" ·  {} suggestions", self.pending_suggestions)
+        } else {
+            String::new()
+        };
         format!(
-            "Page {} of {}  ·  {} words  ·  {}%  ·  {}  ·  {}{}",
+            "Page {} of {}  ·  {} words  ·  {}%  ·  {}  ·  {}{}{}",
             self.page_current.max(1),
             self.page_total.max(1),
             self.word_count,
             self.zoom_percent,
             self.language,
             net,
-            enc
+            enc,
+            sug
         )
     }
 }
@@ -135,6 +143,7 @@ impl ProductSurface {
                 zoom_percent: 100,
                 offline: true,
                 encrypted: false,
+                pending_suggestions: 0,
             },
             show_rulers: true,
             show_status_bar: true,

@@ -22,7 +22,10 @@ qf-export = { workspace = true }
 qf-input = { workspace = true }
 qf-layout = { workspace = true }
 qf-sync = { workspace = true }
+qf-ai = { workspace = true }
+qf-collab = { workspace = true }
 serde = { workspace = true }
+serde_json = { workspace = true }
 thiserror = { workspace = true }
 eframe = { workspace = true }
 egui = { workspace = true }

@@ -1939,7 +1939,9 @@ version = "0.0.0"
 dependencies = [
  "eframe",
  "egui",
+ "qf-ai",
  "qf-blocks",
+ "qf-collab",
  "qf-core",
  "qf-export",
  "qf-input",
@@ -1948,6 +1950,7 @@ dependencies = [
  "qf-sync",
  "qf-theme",
  "serde",
+ "serde_json",
  "tempfile",
  "thiserror 2.0.19",
 ]

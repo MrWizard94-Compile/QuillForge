@@ -9,6 +9,7 @@
 mod editor;
 mod gui;
 mod product_surface;
+mod review;
 mod shell_session;
 
 pub use editor::{EditResult, EditorController, EditorError};
@@ -16,4 +17,5 @@ pub use gui::run_gui;
 pub use product_surface::{
     CommandAction, CommandBarTab, CommandGroup, DocumentViewMode, ProductSurface, StatusBarModel,
 };
+pub use review::{ReviewPanel, SuggestionRow};
 pub use shell_session::ShellSession;

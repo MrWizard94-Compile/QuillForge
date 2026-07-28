@@ -1,6 +1,6 @@
 //! Quillforge CLI (WPAI Software) — editor controller and demos.
 
-use qf_app::{run_gui, EditorController, ProductSurface};
+use qf_app::{run_gui, EditorController, ProductSurface, ShellSession};
 use qf_blocks::BlockBody;
 use qf_core::{
     cli_banner, ActorId, DocumentId, Hash256, Operation, ParentRef, SeqIdGen, SessionId, Version,
@@ -63,6 +63,13 @@ fn main() -> ExitCode {
             print_product_surface();
             ExitCode::SUCCESS
         }
+        "review-demo" => match run_review_demo() {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(e) => {
+                eprintln!("error: {e}");
+                ExitCode::FAILURE
+            }
+        },
         "edit" | "gui" => {
             let work = PathBuf::from("target/quill-gui");
             let name = args.next().unwrap_or_else(|| "Document".into());
@@ -84,6 +91,35 @@ fn main() -> ExitCode {
             ExitCode::FAILURE
         }
     }
+}
+
+fn run_review_demo() -> Result<(), String> {
+    let work = PathBuf::from("target/quill-review-demo");
+    let mut session = ShellSession::open_or_create(&work, "ReviewDemo").map_err(|e| e.to_string())?;
+    session.draft = "Word-class review loop starts here.".into();
+    session.apply_draft().map_err(|e| e.to_string())?;
+    let before = session.draft.clone();
+    println!("before: {before}");
+    session.review.instruction = "annotate".into();
+    let id = session.propose_suggestion().map_err(|e| e.to_string())?;
+    println!(
+        "pending after propose: {}",
+        session.surface.status.pending_suggestions
+    );
+    session.select_suggestion(id);
+    session.accept_selected().map_err(|e| e.to_string())?;
+    println!("after accept: {}", session.draft);
+    assert_ne!(session.draft, before);
+
+    session.draft = session.editor.focused_text().unwrap_or_default();
+    let mid = session.draft.clone();
+    let id2 = session.propose_suggestion().map_err(|e| e.to_string())?;
+    session.select_suggestion(id2);
+    session.reject_selected().map_err(|e| e.to_string())?;
+    assert_eq!(session.editor.focused_text().unwrap_or_default(), mid);
+    println!("after reject: text unchanged ({mid})");
+    println!("review-demo complete — accept/reject journal path verified");
+    Ok(())
 }
 
 fn print_product_surface() {
@@ -120,6 +156,7 @@ fn print_help() {
     println!("  quillforge demo [path.qfdoc]   Run editor + package demo");
     println!("  quillforge surface             Show Word-class product chrome model");
     println!("  quillforge edit [name]         Open Word-class GUI shell");
+    println!("  quillforge review-demo         Propose / accept / reject suggestions");
     println!("  quillforge sync-demo           Localhost TCP multi-client sync demo");
     println!("  quillforge tls-sync-demo       Localhost TLS (rustls) sync demo");
     println!("  quillforge version             Print version and WPAI identity");

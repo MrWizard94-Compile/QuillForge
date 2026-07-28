@@ -173,7 +173,7 @@ impl EditorController {
     }
 
     /// After commit, clamp caret to valid offset in focused block.
-    fn resync_selection_from_canonical(&mut self) {
+    pub(crate) fn resync_selection_from_canonical(&mut self) {
         let Some(block_id) = self.input.selection.block_id else {
             return;
         };
@@ -193,7 +193,7 @@ impl EditorController {
         }
     }
 
-    fn reflow(&mut self) {
+    pub(crate) fn reflow(&mut self) {
         self.layout_tree = self
             .layout_engine
             .full_layout(self.session.state(), &self.layout_config);

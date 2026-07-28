@@ -1,7 +1,9 @@
 //! Word-class shell session: editor + product surface metrics.
 
 use crate::product_surface::{CommandBarTab, DocumentViewMode, ProductSurface};
+use crate::review::ReviewPanel;
 use crate::{EditorController, EditorError};
+use qf_core::SuggestionId;
 use std::path::{Path, PathBuf};
 
 /// Desktop-shell state used by GUI and headless surface tests.
@@ -14,6 +16,7 @@ pub struct ShellSession {
     pub draft: String,
     pub last_error: Option<String>,
     pub dirty: bool,
+    pub review: ReviewPanel,
 }
 
 impl ShellSession {
@@ -33,6 +36,7 @@ impl ShellSession {
             draft,
             last_error: None,
             dirty: false,
+            review: ReviewPanel::word_class_default(),
         };
         session.refresh_surface();
         Ok(session)
@@ -45,6 +49,19 @@ impl ShellSession {
             self.surface.status.page_total,
         );
         self.surface.status.word_count = self.editor.word_count();
+        self.surface.status.pending_suggestions =
+            self.editor.pending_suggestions().len() as u32;
+        // Drop selection if suggestion is no longer pending.
+        if let Some(id) = self.review.selected {
+            if !self
+                .editor
+                .pending_suggestions()
+                .iter()
+                .any(|s| s.id == id)
+            {
+                self.review.selected = None;
+            }
+        }
         if self.dirty {
             // keep name; mark title with *
             let base = self.surface.document_display_name.trim_end_matches('*').to_string();
@@ -52,6 +69,56 @@ impl ShellSession {
                 self.surface.set_document_name(&format!("{base}*"));
             }
         }
+    }
+
+    pub fn toggle_review_panel(&mut self) {
+        self.review.visible = !self.review.visible;
+        if self.review.visible {
+            self.surface.activate_tab(CommandBarTab::Review);
+        }
+    }
+
+    pub fn propose_suggestion(&mut self) -> Result<SuggestionId, EditorError> {
+        self.apply_draft()?;
+        let instr = if self.review.instruction.trim().is_empty() {
+            "clarify"
+        } else {
+            self.review.instruction.trim()
+        };
+        let id = self.editor.propose_local_suggestion(instr)?;
+        self.review.selected = Some(id);
+        self.review.visible = true;
+        self.dirty = true;
+        self.refresh_surface();
+        Ok(id)
+    }
+
+    pub fn accept_selected(&mut self) -> Result<(), EditorError> {
+        let id = self
+            .review
+            .selected
+            .ok_or_else(|| EditorError::Other("no suggestion selected".into()))?;
+        self.editor.accept_suggestion(id)?;
+        self.draft = self.editor.focused_text().unwrap_or_default();
+        self.dirty = true;
+        self.refresh_surface();
+        Ok(())
+    }
+
+    pub fn reject_selected(&mut self) -> Result<(), EditorError> {
+        let id = self
+            .review
+            .selected
+            .ok_or_else(|| EditorError::Other("no suggestion selected".into()))?;
+        self.editor.reject_suggestion(id)?;
+        self.refresh_surface();
+        Ok(())
+    }
+
+    pub fn select_suggestion(&mut self, id: SuggestionId) {
+        self.review.selected = Some(id);
+        self.review.visible = true;
+        self.surface.activate_tab(CommandBarTab::Review);
     }
 
     pub fn apply_draft(&mut self) -> Result<(), EditorError> {
@@ -193,5 +260,37 @@ mod tests {
         s.next_page();
         s.prev_page();
         assert_eq!(s.surface.status.page_current, 1);
+    }
+
+    #[test]
+    fn review_propose_accept_via_shell() {
+        let dir = tempdir().unwrap();
+        let mut s = ShellSession::open_or_create(dir.path(), "review").unwrap();
+        s.draft = "Draft for review".into();
+        s.apply_draft().unwrap();
+        let before = s.draft.clone();
+        s.review.instruction = "annotate".into();
+        let id = s.propose_suggestion().unwrap();
+        assert!(s.review.visible);
+        assert_eq!(s.surface.status.pending_suggestions, 1);
+        assert!(s.status_line().contains("suggestions"));
+        assert!(ProductSurface::assert_no_microsoft_marks(&s.status_line()));
+        s.select_suggestion(id);
+        s.accept_selected().unwrap();
+        assert_eq!(s.surface.status.pending_suggestions, 0);
+        assert_ne!(s.draft, before);
+    }
+
+    #[test]
+    fn review_reject_keeps_draft() {
+        let dir = tempdir().unwrap();
+        let mut s = ShellSession::open_or_create(dir.path(), "reject").unwrap();
+        s.draft = "Keep me".into();
+        s.apply_draft().unwrap();
+        let id = s.propose_suggestion().unwrap();
+        s.select_suggestion(id);
+        s.reject_selected().unwrap();
+        assert_eq!(s.draft, "Keep me");
+        assert_eq!(s.editor.focused_text().unwrap(), "Keep me");
     }
 }

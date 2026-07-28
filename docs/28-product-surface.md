@@ -72,7 +72,7 @@ After foundation, **productization order** is:
 | P0 | Product surface law + chrome model (this doc + `ProductSurface`) | **Done** (model tested) |
 | P1 | Native window shell: page canvas + command bar + status | **Done** (`quillforge edit`) |
 | P2 | Print-layout fidelity (WYSIWYG vs layout tree) | **Done** — layout pages drive GUI + PDF `/Count` |
-| P3 | Review UI (suggestions accept/reject) | Word-class review loop |
+| P3 | Review UI (suggestions accept/reject) | **Done** — panel + journal accept/reject (`review-demo`) |
 | P4 | DOCX round-trip import | Open Word files into `.qfdoc` |
 | P5 | Polish: rulers, headers/footers, images | Parity set documented |
 

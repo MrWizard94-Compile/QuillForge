@@ -14,18 +14,18 @@
 | Layer | Scope | Completion | Notes |
 |-------|--------|------------|--------|
 | **Foundation DoD** | Ship checklist D1–D28 (`docs/ship/v1-checklist.md`) | **~98%** | All criteria **Met**; residual polish items are optional/depth |
-| **Local-first core product** | Offline edit, package, recovery, export, plugins, AI path, sync+TLS | **~94%** | Foundation + Word-class P1 native shell ships |
-| **Marketing / “v1 product”** | Polish exports, multi-OS kill CI, browser sync, UX | **~80%** | GUI shell open; WYSIWYG/print fidelity still P2+ |
-| **Long-term vision** | Full document OS, multiplayer product UX, semantic search, rich GPU | **~62%** | Word-class shell + durable core; rich media / DOCX import remain |
+| **Local-first core product** | Offline edit, package, recovery, export, plugins, AI path, sync+TLS | **~95%** | Foundation + Word-class P1 shell + P2 print fidelity |
+| **Marketing / “v1 product”** | Polish exports, multi-OS kill CI, browser sync, UX | **~83%** | Layout-aligned GUI/PDF; Review UI and DOCX import still open |
+| **Long-term vision** | Full document OS, multiplayer product UX, semantic search, rich GPU | **~65%** | Print pages shared screen↔PDF; rich media / multiplayer remain |
 
 **Headline for directors:**  
-**Foundation is shippable (~98% of binding DoD). Word-class P1 native shell is live (`quillforge edit`). Overall vision ~60–65%.**
+**Foundation ~98% DoD. Word-class shell ships with print-layout fidelity (screen page count = PDF `/Count`). Overall vision ~65%.**
 
 ### Product surface priority (director)
 
 | Priority | Target | Status |
 |----------|--------|--------|
-| **User appearance** | Upgraded Word-class document editor | P0 model + P1 GUI shell |
+| **User appearance** | Upgraded Word-class document editor | P0–P2 live |
 | **Brand** | WPAI only — never Microsoft/Word/Office marks in chrome | Enforced in tests |
 | **Engine** | Unchanged: Command → Journal → Kernel, `.qfdoc` | Intact |
 | **Law** | `docs/28-product-surface.md` · ADR-026 | Binding |
@@ -39,10 +39,10 @@
 | Canonical core | D1–D5 | **Met** |
 | Durability & recovery | D6–D10 | **Met** (process-kill harness) |
 | Evolution & unknown | D11–D14 | **Met** |
-| Product features | D15–D24 | **Met** (foundation depth) + **P1 GUI shell** |
+| Product features | D15–D24 | **Met** + **P1 GUI** + **P2 print fidelity** |
 | Quality | D25–D28 | **Met** |
 
-Evidence: automated workspace tests, recovery suite, budget CI, Wasmtime, TLS sync, structured DOCX/PDF, encryption, WPAI branding, egui shell under MSRV 1.85.
+Evidence: workspace clippy/tests green; layout page API; PDF export uses `LayoutEngine`; shell parity tests; Constitution v5.0.1.
 
 ---
 
@@ -52,20 +52,19 @@ Evidence: automated workspace tests, recovery suite, budget CI, Wasmtime, TLS sy
 - `.qfdoc` ZIP+CBOR, atomic LKG, QFENC1 encryption  
 - Recovery (synthetic + process-kill harness)  
 - Layout goldens, headless render  
-- Export: MD/HTML/TXT, multi-page PDF, structured DOCX  
+- Export: MD/HTML/TXT, **layout-aligned multi-page PDF**, structured DOCX  
 - Collab CRDT + presence; SyncHub; TCP + TLS QFSNC1  
 - Plugins (capabilities + Wasmtime); AI suggestion-only  
 - CI budgets; Constitution v5.0.1; WPAI brand  
-- **Word-class product surface model** (`ProductSurface`, `docs/28-product-surface.md`)  
-- **P1 native GUI shell** (`eframe`/`egui` 0.27 glow-only): command bar, page canvas, status, type→journal→save  
+- **P0** product surface model · **P1** native GUI shell · **P2** print pages (GUI canvas + PDF `/Count` parity)
 
 ---
 
 ## What remains (ordered)
 
-1. **P2 print-layout fidelity** (WYSIWYG page ≈ PDF pagination)  
-2. **P3 Review UI** (suggestions accept/reject)  
-3. **P4 DOCX round-trip import**  
+1. **P3 Review UI** (suggestions accept/reject)  
+2. **P4 DOCX round-trip import**  
+3. **P5 Polish** (rulers, headers/footers, images)  
 4. **WebSocket or browser sync** (TLS TCP already ships)  
 5. **Rich media in DOCX/PDF** (images, real tables, fonts)  
 6. **Semantic search** (token search ships)  
@@ -86,7 +85,7 @@ cargo run -p qf-app -- edit
 cargo run -p qf-app -- tls-sync-demo
 ```
 
-MSRV: rustc **1.85.0**. GUI stack pinned: `eframe`/`egui` 0.27 glow-only; lock `url` **2.5.2** (avoids icu 2.2 / rustc 1.86).
+MSRV: rustc **1.85.0**. GUI: `eframe`/`egui` 0.27 glow-only; lock `url` **2.5.2**.
 
 ---
 

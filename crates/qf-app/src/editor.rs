@@ -261,7 +261,37 @@ impl EditorController {
     }
 
     pub fn page_count(&self) -> u32 {
-        self.layout_tree.pages.len().max(1) as u32
+        self.layout_tree.page_count()
+    }
+
+    /// Plain lines for each print page (shared with PDF export).
+    pub fn page_plain_lines(&self) -> Vec<Vec<String>> {
+        self.layout_tree.page_plain_lines(self.session.state())
+    }
+
+    /// Lines for a 1-based page index.
+    pub fn page_lines(&self, page_1based: u32) -> Vec<String> {
+        let pages = self.page_plain_lines();
+        let idx = page_1based.saturating_sub(1) as usize;
+        pages.get(idx).cloned().unwrap_or_default()
+    }
+
+    /// Export PDF bytes using layout-aligned pagination.
+    pub fn export_pdf_bytes(&self) -> Result<Vec<u8>, EditorError> {
+        use qf_export::{CoreExporter, ExportFormat, ExportRequest, Exporter};
+        let out = CoreExporter
+            .export(
+                self.session.state(),
+                &ExportRequest {
+                    format: ExportFormat::Pdf,
+                    config: qf_export::ExportConfig {
+                        include_bibliography: false,
+                        include_timestamps: false,
+                    },
+                },
+            )
+            .map_err(EditorError::Other)?;
+        Ok(out.bytes)
     }
 
     /// Replace focused block text via journaled ReplaceRange (Word-class typing path).

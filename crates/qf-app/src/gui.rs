@@ -1,13 +1,28 @@
 //! Word-class native window shell (egui) — no Microsoft branding.
 //!
-//! Layout: command bar tabs · paper page with editor · status bar.
+//! Layout: command bar · print page canvas (layout tree) · status bar.
+//! Page geometry matches `qf_layout` US Letter defaults (print fidelity).
 
 use crate::product_surface::{CommandBarTab, DocumentViewMode};
 use crate::shell_session::ShellSession;
 use crate::ProductSurface;
 use eframe::egui::{self, Color32, FontId, RichText, Sense, Vec2};
+use qf_layout::{fixed_to_pt, PAGE_HEIGHT_PT, PAGE_WIDTH_PT};
 use qf_theme::Theme;
 use std::path::PathBuf;
+
+/// Snapshot of one laid-out text run for painting (screen ≈ layout coords).
+struct PagePaintLine {
+    x: f32,
+    y: f32,
+    text: String,
+    font_size: f32,
+}
+
+struct PagePaint {
+    page_num: u32,
+    lines: Vec<PagePaintLine>,
+}
 
 pub struct QuillShellApp {
     session: ShellSession,
@@ -24,39 +39,163 @@ impl QuillShellApp {
     }
 
     fn paper(&self) -> Color32 {
-        let c = self
-            .theme
+        self.theme
             .resolve(qf_core::ColorId(qf_theme::role::SURFACE_RAISED))
             .map(|r| Color32::from_rgb(r.r, r.g, r.b))
-            .unwrap_or(Color32::WHITE);
-        c
+            .unwrap_or(Color32::WHITE)
     }
 
     fn rail(&self) -> Color32 {
-        let c = self
-            .theme
+        self.theme
             .resolve(qf_core::ColorId(qf_theme::role::SURFACE))
             .map(|r| Color32::from_rgb(r.r, r.g, r.b))
-            .unwrap_or(Color32::from_rgb(0xf3, 0xf2, 0xf1));
-        c
+            .unwrap_or(Color32::from_rgb(0xf3, 0xf2, 0xf1))
     }
 
     fn ember(&self) -> Color32 {
-        let c = self
-            .theme
+        self.theme
             .resolve(qf_core::ColorId(qf_theme::role::ACCENT))
             .map(|r| Color32::from_rgb(r.r, r.g, r.b))
-            .unwrap_or(Color32::from_rgb(0xff, 0x7a, 0x26));
-        c
+            .unwrap_or(Color32::from_rgb(0xff, 0x7a, 0x26))
     }
 
     fn ink(&self) -> Color32 {
-        let c = self
-            .theme
+        self.theme
             .resolve(qf_core::ColorId(qf_theme::role::TEXT))
             .map(|r| Color32::from_rgb(r.r, r.g, r.b))
-            .unwrap_or(Color32::from_rgb(0x1a, 0x1a, 0x1a));
-        c
+            .unwrap_or(Color32::from_rgb(0x1a, 0x1a, 0x1a))
+    }
+
+    fn page_scale(&self) -> f32 {
+        let zoom = self.session.surface.status.zoom_percent.max(50) as f32 / 100.0;
+        // Fit letter width ~704px at 100% (similar to prior P1 canvas).
+        1.15 * zoom
+    }
+
+    fn handle_action(&mut self, id: &str) {
+        match id {
+            "file.save" => {
+                if let Err(e) = self.session.save() {
+                    self.session.last_error = Some(e.to_string());
+                }
+            }
+            "view.page" => self.session.set_view(DocumentViewMode::Page),
+            "view.draft" => self.session.set_view(DocumentViewMode::Draft),
+            "view.focus" => self.session.set_view(DocumentViewMode::Focus),
+            "export.pdf" => match self.session.export_pdf() {
+                Ok(path) => {
+                    self.session.last_error = Some(format!("Exported {}", path.display()));
+                }
+                Err(e) => self.session.last_error = Some(e.to_string()),
+            },
+            "export.docx" | "export.md" | "export.html" => {
+                if let Err(e) = self.session.apply_draft() {
+                    self.session.last_error = Some(e.to_string());
+                }
+            }
+            _ => self.session.toggle_bold_hint(),
+        }
+    }
+
+    fn paint_print_pages(&mut self, ui: &mut egui::Ui, paper: Color32, ink: Color32) {
+        let scale = self.page_scale();
+        let page_w = PAGE_WIDTH_PT * scale;
+        let page_h = PAGE_HEIGHT_PT * scale;
+        let current = self.session.surface.status.page_current;
+        // Snapshot page content so we can mutate session on click without borrow fights.
+        let pages: Vec<PagePaint> = self
+            .session
+            .editor
+            .layout_tree
+            .pages
+            .iter()
+            .map(|page| {
+                let lines: Vec<PagePaintLine> = page
+                    .frames
+                    .iter()
+                    .filter_map(|frame| {
+                        let text = self
+                            .session
+                            .editor
+                            .session
+                            .state()
+                            .document
+                            .project_text(frame.block_id)?;
+                        if text.is_empty() {
+                            return None;
+                        }
+                        let font_size = match &frame.kind {
+                            qf_layout::FragmentKind::Heading { level } => {
+                                (18.0 - f32::from((*level).min(3))) * scale / 1.15
+                            }
+                            _ => 12.0 * scale / 1.15,
+                        };
+                        Some(PagePaintLine {
+                            x: fixed_to_pt(frame.bounds.x) * scale,
+                            y: fixed_to_pt(frame.bounds.y) * scale,
+                            text,
+                            font_size: font_size.max(10.0),
+                        })
+                    })
+                    .collect();
+                PagePaint {
+                    page_num: page.index + 1,
+                    lines,
+                }
+            })
+            .collect();
+        let empty_pages = pages.is_empty();
+        let mut clicked_page: Option<u32> = None;
+
+        ui.vertical_centered(|ui| {
+            for page in &pages {
+                let is_current = page.page_num == current;
+                let (rect, resp) =
+                    ui.allocate_exact_size(Vec2::new(page_w, page_h), Sense::click());
+                ui.painter().rect_filled(rect, 2.0, paper);
+                let stroke = if is_current {
+                    egui::Stroke::new(2.0, Color32::from_rgb(0xff, 0x7a, 0x26))
+                } else {
+                    egui::Stroke::new(1.0, Color32::from_gray(180))
+                };
+                ui.painter().rect_stroke(rect, 2.0, stroke);
+
+                for line in &page.lines {
+                    let pos = rect.min + Vec2::new(line.x, line.y);
+                    ui.painter().text(
+                        pos,
+                        egui::Align2::LEFT_TOP,
+                        &line.text,
+                        FontId::proportional(line.font_size),
+                        ink,
+                    );
+                }
+
+                ui.painter().text(
+                    rect.right_bottom() - Vec2::new(24.0, 20.0),
+                    egui::Align2::RIGHT_BOTTOM,
+                    format!("{}", page.page_num),
+                    FontId::proportional(11.0),
+                    Color32::from_gray(120),
+                );
+
+                if resp.clicked() {
+                    clicked_page = Some(page.page_num);
+                }
+
+                ui.add_space(16.0);
+            }
+
+            if empty_pages {
+                let (rect, _) =
+                    ui.allocate_exact_size(Vec2::new(page_w, page_h), Sense::hover());
+                ui.painter().rect_filled(rect, 2.0, paper);
+            }
+        });
+
+        if let Some(p) = clicked_page {
+            self.session.goto_page(p);
+        }
     }
 }
 
@@ -90,14 +229,14 @@ impl eframe::App for QuillShellApp {
                         }
                     }
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if ui.button("Export PDF").clicked() {
+                            self.handle_action("export.pdf");
+                        }
                         if ui.button("Save").clicked() {
-                            if let Err(e) = self.session.save() {
-                                self.session.last_error = Some(e.to_string());
-                            }
+                            self.handle_action("file.save");
                         }
                     });
                 });
-                // Active groups
                 ui.horizontal_wrapped(|ui| {
                     for g in self.session.surface.active_groups() {
                         ui.group(|ui| {
@@ -105,30 +244,7 @@ impl eframe::App for QuillShellApp {
                             ui.horizontal(|ui| {
                                 for a in &g.actions {
                                     if ui.small_button(&a.label).clicked() {
-                                        match a.id.as_str() {
-                                            "file.save" => {
-                                                if let Err(e) = self.session.save() {
-                                                    self.session.last_error = Some(e.to_string());
-                                                }
-                                            }
-                                            "view.page" => {
-                                                self.session.set_view(DocumentViewMode::Page)
-                                            }
-                                            "view.draft" => {
-                                                self.session.set_view(DocumentViewMode::Draft)
-                                            }
-                                            "view.focus" => {
-                                                self.session.set_view(DocumentViewMode::Focus)
-                                            }
-                                            "export.pdf" | "export.docx" | "export.md"
-                                            | "export.html" => {
-                                                // Export via save path sibling; full dialogs in P2.
-                                                if let Err(e) = self.session.apply_draft() {
-                                                    self.session.last_error = Some(e.to_string());
-                                                }
-                                            }
-                                            _ => self.session.toggle_bold_hint(),
-                                        }
+                                        self.handle_action(&a.id);
                                     }
                                 }
                             });
@@ -143,53 +259,103 @@ impl eframe::App for QuillShellApp {
                 .frame(egui::Frame::none().fill(rail).inner_margin(4.0))
                 .show(ctx, |ui| {
                     ui.horizontal(|ui| {
-                        ui.label(RichText::new(self.session.status_line()).small().color(ink));
+                        if ui.small_button("◀").clicked() {
+                            self.session.prev_page();
+                        }
+                        ui.label(
+                            RichText::new(self.session.status_line())
+                                .small()
+                                .color(ink),
+                        );
+                        if ui.small_button("▶").clicked() {
+                            self.session.next_page();
+                        }
+                        ui.separator();
+                        if ui.small_button("−").clicked() {
+                            let z = self.session.surface.status.zoom_percent;
+                            self.session.set_zoom_percent(z.saturating_sub(10));
+                        }
+                        ui.label(
+                            RichText::new(format!(
+                                "{}%",
+                                self.session.surface.status.zoom_percent
+                            ))
+                            .small(),
+                        );
+                        if ui.small_button("+").clicked() {
+                            let z = self.session.surface.status.zoom_percent;
+                            self.session.set_zoom_percent(z.saturating_add(10));
+                        }
                         if let Some(err) = &self.session.last_error {
-                            ui.colored_label(Color32::RED, err);
+                            ui.colored_label(Color32::from_rgb(0x1a, 0x6b, 0x3c), err);
                         }
                     });
                 });
         }
 
-        // Page canvas
+        // Central: page canvas + typing strip
         egui::CentralPanel::default()
-            .frame(egui::Frame::none().fill(rail).inner_margin(16.0))
+            .frame(egui::Frame::none().fill(rail).inner_margin(8.0))
             .show(ctx, |ui| {
-                ui.vertical_centered(|ui| {
-                    let page_w = 612.0 * 1.15; // US Letter-ish scale
-                    let page_h = 792.0 * 0.85;
-                    let (rect, _resp) =
-                        ui.allocate_exact_size(Vec2::new(page_w, page_h), Sense::hover());
-                    ui.painter().rect_filled(rect, 2.0, paper);
-                    ui.painter().rect_stroke(
-                        rect,
-                        2.0,
-                        egui::Stroke::new(1.0, Color32::from_gray(180)),
-                    );
-
-                    // Editor over paper
-                    let mut child = ui.child_ui(
-                        rect.shrink2(Vec2::new(48.0, 48.0)),
-                        egui::Layout::top_down(egui::Align::Min),
-                    );
-                    child.style_mut().visuals.override_text_color = Some(ink);
-                    let te = egui::TextEdit::multiline(&mut self.session.draft)
-                        .font(FontId::proportional(14.0))
-                        .desired_width(f32::INFINITY)
-                        .frame(false);
-                    let response = child.add_sized(child.available_size(), te);
-                    if response.changed() {
-                        if let Err(e) = self.session.apply_draft() {
-                            self.session.last_error = Some(e.to_string());
-                        } else {
-                            self.session.dirty = true;
-                            self.session.refresh_surface();
-                        }
+                let view = self.session.surface.view_mode;
+                match view {
+                    DocumentViewMode::Draft | DocumentViewMode::Focus => {
+                        ui.vertical(|ui| {
+                            ui.label(
+                                RichText::new(if view == DocumentViewMode::Focus {
+                                    "Focus view — typing surface"
+                                } else {
+                                    "Draft view — continuous typing"
+                                })
+                                .small()
+                                .color(Color32::from_gray(100)),
+                            );
+                            let te = egui::TextEdit::multiline(&mut self.session.draft)
+                                .font(FontId::proportional(14.0))
+                                .desired_width(f32::INFINITY)
+                                .desired_rows(24);
+                            let response = ui.add_sized(
+                                Vec2::new(ui.available_width(), ui.available_height().max(200.0)),
+                                te,
+                            );
+                            if response.changed() {
+                                if let Err(e) = self.session.apply_draft() {
+                                    self.session.last_error = Some(e.to_string());
+                                } else {
+                                    self.session.dirty = true;
+                                    self.session.refresh_surface();
+                                }
+                            }
+                        });
                     }
-                });
+                    DocumentViewMode::Page => {
+                        // Typing strip (journal path) above scrollable print pages.
+                        ui.horizontal(|ui| {
+                            ui.label(RichText::new("Edit:").strong().color(ink));
+                            let te = egui::TextEdit::multiline(&mut self.session.draft)
+                                .font(FontId::proportional(13.0))
+                                .desired_width(ui.available_width() - 8.0)
+                                .desired_rows(3);
+                            let response = ui.add(te);
+                            if response.changed() {
+                                if let Err(e) = self.session.apply_draft() {
+                                    self.session.last_error = Some(e.to_string());
+                                } else {
+                                    self.session.dirty = true;
+                                    self.session.refresh_surface();
+                                }
+                            }
+                        });
+                        ui.separator();
+                        egui::ScrollArea::vertical()
+                            .auto_shrink([false, false])
+                            .show(ui, |ui| {
+                                self.paint_print_pages(ui, paper, ink);
+                            });
+                    }
+                }
             });
 
-        // Keep window title in sync
         ctx.send_viewport_cmd(egui::ViewportCommand::Title(
             self.session.surface.window_title.clone(),
         ));

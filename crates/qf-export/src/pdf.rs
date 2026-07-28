@@ -1,35 +1,68 @@
-//! Deterministic multi-page PDF 1.4 writer for text-bearing blocks.
+//! Deterministic multi-page PDF 1.4 writer aligned with the layout engine.
 //!
-//! Fixed Helvetica, US Letter, no external fonts — same inputs → same bytes.
-//! Lines paginate at a fixed line budget so long documents produce multiple pages.
+//! Pagination follows [`qf_layout::LayoutEngine`] (US Letter, same config as the
+//! editor) so screen page count and PDF `/Count` match. Fixed Helvetica, no
+//! external fonts — same inputs → same bytes.
 
 use crate::{export_plain, ExportConfig};
 use qf_citation::SourceTable;
 use qf_kernel::CanonicalState;
+use qf_layout::{LayoutConfig, LayoutEngine};
 
-/// Max lines exported into PDF (hard cap for foundation memory budget).
-const MAX_LINES: usize = 450;
-/// Usable body lines per US Letter page at 12 pt / 14 TL with 72 pt margins.
-const LINES_PER_PAGE: usize = 45;
+/// Max lines exported into a single PDF page content stream (safety cap).
+const MAX_LINES_PER_PAGE: usize = 80;
 
-/// Build a multi-page PDF from plain export text.
+/// Build a multi-page PDF from layout-tree pages (print fidelity).
 pub fn export_pdf(
     state: &CanonicalState,
     sources: &SourceTable,
     cfg: &ExportConfig,
 ) -> Result<Vec<u8>, String> {
-    let plain = export_plain(state, sources, cfg);
-    let lines: Vec<&str> = plain.lines().take(MAX_LINES).collect();
-    build_pdf_lines(&lines)
+    let layout_cfg = LayoutConfig::default();
+    let tree = LayoutEngine::new().full_layout(state, &layout_cfg);
+    let mut page_lines = tree.page_plain_lines(state);
+
+    // Bibliography (if any) appends to the last page as plain lines so export
+    // remains layout-primary without inventing phantom pages.
+    if cfg.include_bibliography {
+        let plain = export_plain(state, sources, cfg);
+        if let Some(idx) = plain.find("\n## References\n") {
+            let bib: Vec<String> = plain[idx..]
+                .lines()
+                .map(|l| l.trim().to_string())
+                .filter(|l| !l.is_empty())
+                .collect();
+            if !bib.is_empty() {
+                if page_lines.is_empty() {
+                    page_lines.push(bib);
+                } else if let Some(last) = page_lines.last_mut() {
+                    last.extend(bib);
+                }
+            }
+        }
+    }
+
+    if page_lines.is_empty() {
+        page_lines.push(Vec::new());
+    }
+
+    // Cap lines drawn per page (layout already owns pagination — do not invent pages).
+    let capped: Vec<Vec<String>> = page_lines
+        .into_iter()
+        .map(|page| page.into_iter().take(MAX_LINES_PER_PAGE).collect())
+        .collect();
+
+    build_pdf_pages(&capped)
 }
 
-fn build_pdf_lines(lines: &[&str]) -> Result<Vec<u8>, String> {
-    let page_chunks: Vec<&[&str]> = if lines.is_empty() {
-        vec![&[][..]]
-    } else {
-        lines.chunks(LINES_PER_PAGE).collect()
-    };
-    let page_count = page_chunks.len();
+/// PDF page count for a state using the same layout config as the editor.
+pub fn pdf_layout_page_count(state: &CanonicalState) -> u32 {
+    let tree = LayoutEngine::new().full_layout(state, &LayoutConfig::default());
+    tree.page_count()
+}
+
+fn build_pdf_pages(pages: &[Vec<String>]) -> Result<Vec<u8>, String> {
+    let page_count = pages.len().max(1);
 
     // Object layout:
     // 1 Catalog, 2 Pages, 3 Font,
@@ -56,7 +89,7 @@ fn build_pdf_lines(lines: &[&str]) -> Result<Vec<u8>, String> {
         b"3 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n".to_vec(),
     ));
 
-    for (i, chunk) in page_chunks.iter().enumerate() {
+    for (i, chunk) in pages.iter().enumerate() {
         let page_obj = 4 + i * 2;
         let content_obj = 5 + i * 2;
         numbered.push((
@@ -66,7 +99,8 @@ fn build_pdf_lines(lines: &[&str]) -> Result<Vec<u8>, String> {
             )
             .into_bytes(),
         ));
-        let stream = page_content_stream(chunk);
+        let line_refs: Vec<&str> = chunk.iter().map(|s| s.as_str()).collect();
+        let stream = page_content_stream(&line_refs);
         let mut content_obj_bytes =
             format!("{content_obj} 0 obj\n<< /Length {} >>\nstream\n", stream.len()).into_bytes();
         content_obj_bytes.extend_from_slice(&stream);
@@ -136,6 +170,7 @@ mod tests {
     };
     use qf_doc::{Block, Document};
     use qf_kernel::{CanonicalState, EntityTables};
+    use qf_layout::{LayoutConfig, LayoutEngine};
 
     fn state_with_paragraphs(n: usize, prefix: &str) -> CanonicalState {
         let mut gen = SeqIdGen::default();
@@ -192,17 +227,31 @@ mod tests {
     }
 
     #[test]
-    fn pdf_multipage_for_long_document() {
-        let state = state_with_paragraphs(LINES_PER_PAGE + 5, "Line");
+    fn pdf_page_count_matches_layout_engine() {
+        // ~30 short paragraphs fill one US Letter body with default line metrics;
+        // 50 forces a second layout page.
+        let state = state_with_paragraphs(50, "Line");
+        let layout_pages = LayoutEngine::new()
+            .full_layout(&state, &LayoutConfig::default())
+            .page_count();
+        assert!(layout_pages >= 2, "fixture must multi-page layout");
         let sources = SourceTable::default();
-        let pdf = export_pdf(&state, &sources, &ExportConfig::default()).unwrap();
-        assert!(pdf.starts_with(b"%PDF-1.4"));
+        let pdf = export_pdf(
+            &state,
+            &sources,
+            &ExportConfig {
+                include_bibliography: false,
+                ..ExportConfig::default()
+            },
+        )
+        .unwrap();
         let s = String::from_utf8_lossy(&pdf);
         assert!(
-            s.contains("/Count 2") || s.contains("/Count 3"),
-            "expected multi-page Count"
+            s.contains(&format!("/Count {layout_pages}")),
+            "PDF Count must equal layout page_count={layout_pages}, got: {s}"
         );
-        assert!(s.matches("/Type /Page ").count() >= 2);
+        assert_eq!(pdf_layout_page_count(&state), layout_pages);
+        assert!(s.matches("/Type /Page ").count() as u32 >= layout_pages);
     }
 
     #[test]
@@ -222,5 +271,6 @@ mod tests {
         assert!(pdf.starts_with(b"%PDF-1.4"));
         let s = String::from_utf8_lossy(&pdf);
         assert!(s.contains("/Count 1"));
+        assert_eq!(pdf_layout_page_count(&state), 1);
     }
 }

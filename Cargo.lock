@@ -2010,6 +2010,7 @@ dependencies = [
  "qf-core",
  "qf-doc",
  "qf-kernel",
+ "qf-layout",
  "tempfile",
  "uuid",
  "zip",

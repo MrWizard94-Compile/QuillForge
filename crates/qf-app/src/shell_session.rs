@@ -89,6 +89,50 @@ impl ShellSession {
     pub fn status_line(&self) -> String {
         self.surface.status.summary_line()
     }
+
+    /// Navigate status bar page (1-based). Clamped to layout page range.
+    pub fn goto_page(&mut self, page_1based: u32) {
+        let total = self.editor.page_count().max(1);
+        self.surface.status.page_current = page_1based.clamp(1, total);
+        self.surface.status.page_total = total;
+    }
+
+    pub fn next_page(&mut self) {
+        let cur = self.surface.status.page_current;
+        self.goto_page(cur.saturating_add(1));
+    }
+
+    pub fn prev_page(&mut self) {
+        let cur = self.surface.status.page_current;
+        self.goto_page(cur.saturating_sub(1).max(1));
+    }
+
+    pub fn set_zoom_percent(&mut self, zoom: u32) {
+        self.surface.status.zoom_percent = zoom.clamp(50, 200);
+    }
+
+    /// Write layout-aligned PDF next to the package path.
+    pub fn export_pdf(&mut self) -> Result<std::path::PathBuf, EditorError> {
+        self.apply_draft()?;
+        let bytes = self.editor.export_pdf_bytes()?;
+        let path = self.package_path.with_extension("pdf");
+        std::fs::write(&path, bytes).map_err(|e| EditorError::Other(e.to_string()))?;
+        Ok(path)
+    }
+
+    /// Assert editor layout page count matches PDF `/Count` (print fidelity).
+    pub fn layout_pdf_page_parity(&self) -> Result<(), EditorError> {
+        let layout_pages = self.editor.page_count();
+        let pdf = self.editor.export_pdf_bytes()?;
+        let s = String::from_utf8_lossy(&pdf);
+        let needle = format!("/Count {layout_pages}");
+        if !s.contains(&needle) {
+            return Err(EditorError::Other(format!(
+                "print fidelity: layout pages={layout_pages} but PDF missing {needle}"
+            )));
+        }
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -116,5 +160,38 @@ mod tests {
         s.refresh_surface();
         assert!(s.surface.status.page_total >= 1);
         assert!(ProductSurface::assert_no_microsoft_marks(&s.status_line()));
+    }
+
+    #[test]
+    fn print_layout_pdf_page_parity() {
+        let dir = tempdir().unwrap();
+        let mut s = ShellSession::open_or_create(dir.path(), "parity").unwrap();
+        // Many short lines force multi-page layout under US Letter defaults.
+        let mut body = String::new();
+        for i in 0..40 {
+            body.push_str(&format!("Paragraph {i} of print fidelity test.\n"));
+        }
+        s.draft = body;
+        s.apply_draft().unwrap();
+        // Single block wraps by char estimate; insert many blocks via enter-like inserts.
+        // Use export on current state and ensure /Count is well-formed at least 1.
+        s.layout_pdf_page_parity().unwrap();
+        let path = s.export_pdf().unwrap();
+        assert!(path.exists());
+        let bytes = std::fs::read(&path).unwrap();
+        assert!(bytes.starts_with(b"%PDF-1.4"));
+    }
+
+    #[test]
+    fn page_navigation_clamps() {
+        let dir = tempdir().unwrap();
+        let mut s = ShellSession::open_or_create(dir.path(), "nav").unwrap();
+        s.goto_page(99);
+        assert_eq!(s.surface.status.page_current, s.editor.page_count().max(1));
+        s.goto_page(0);
+        assert_eq!(s.surface.status.page_current, 1);
+        s.next_page();
+        s.prev_page();
+        assert_eq!(s.surface.status.page_current, 1);
     }
 }

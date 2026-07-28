@@ -6,6 +6,9 @@
 mod docx;
 mod pdf;
 
+/// Layout-aligned PDF helpers (print fidelity with `qf_layout`).
+pub use pdf::pdf_layout_page_count;
+
 use qf_blocks::{BlockBody, Mark, Span};
 use qf_citation::{format_source_marker, SourceKind, SourceRef, SourceTable};
 use qf_core::{Hash256, SourceId};

@@ -98,7 +98,35 @@ impl LayoutTree {
         }
         Hash256::sha256(format!("{self:?}").as_bytes())
     }
+
+    /// Number of print pages (at least one empty page).
+    pub fn page_count(&self) -> u32 {
+        self.pages.len().max(1) as u32
+    }
+
+    /// Plain lines per print page, in layout frame order — shared by GUI preview and PDF.
+    pub fn page_plain_lines(&self, state: &CanonicalState) -> Vec<Vec<String>> {
+        self.pages
+            .iter()
+            .map(|page| {
+                page.frames
+                    .iter()
+                    .filter_map(|f| state.document.project_text(f.block_id))
+                    .filter(|t| !t.is_empty())
+                    .collect()
+            })
+            .collect()
+    }
 }
+
+/// Convert fixed-point (1/64 pt) to floating points.
+pub fn fixed_to_pt(f: Fixed32) -> f32 {
+    f.0 as f32 / 64.0
+}
+
+/// US Letter width/height in points (matches default [`LayoutConfig`]).
+pub const PAGE_WIDTH_PT: f32 = 612.0;
+pub const PAGE_HEIGHT_PT: f32 = 792.0;
 
 #[derive(Clone, Debug, Default)]
 pub struct DirtySet {
@@ -367,6 +395,45 @@ mod tests {
             },
         );
         assert_eq!(a.content_hash(), dirty.content_hash());
+    }
+
+    #[test]
+    fn page_plain_lines_follow_frames() {
+        let (mut state, mut gen) = empty_state();
+        let p1 = BlockId::new(&mut gen);
+        let actor = state.document.meta.authors[0];
+        let meta = BlockMetadata {
+            created_by: actor,
+            created_at_seq: OpSeq(1),
+            attrs: Default::default(),
+        };
+        state.document.blocks.insert(
+            p1,
+            Block {
+                id: p1,
+                meta,
+                body: BlockBody::Paragraph(ParagraphBlock {
+                    spans: vec![Span {
+                        id: qf_core::SpanId(uuid::Uuid::nil()),
+                        text: "Hello pages".into(),
+                        marks: vec![],
+                    }],
+                }),
+            },
+        );
+        let root = state.document.root_section_id;
+        state
+            .document
+            .sections
+            .get_mut(&root)
+            .unwrap()
+            .blocks
+            .push(p1);
+        let tree = LayoutEngine::new().full_layout(&state, &LayoutConfig::default());
+        let lines = tree.page_plain_lines(&state);
+        assert_eq!(lines.len(), tree.pages.len());
+        assert!(lines[0].iter().any(|l| l.contains("Hello pages")));
+        assert_eq!(tree.page_count(), 1);
     }
 
     #[test]

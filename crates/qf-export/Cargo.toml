@@ -12,6 +12,7 @@ qf-doc = { workspace = true }
 qf-blocks = { workspace = true }
 qf-kernel = { workspace = true }
 qf-citation = { workspace = true }
+qf-layout = { workspace = true }
 zip = { workspace = true }
 
 [dev-dependencies]

@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Optional ONNX graph runtime:** Cargo feature `qf-search/onnx` adds pure-Rust `OnnxGraphRuntime` (QFEMB1 weight-table matmul + hash-bound fallback); default CI stays ORT-free (`docs/39-neural-onnx-pack.md`).
 - **DOCX TrueType font embed:** `export_docx_with_assets_and_font` writes `word/fonts/*.ttf` + `fontTable.xml`; editor DOCX uses pin font (`docs/40-font-packs.md`).
 - **Product mark:** `brand/assets/quillforge-product.png` embedded in the app; command-bar logo, insert image/logo, document-scaled PNG helper (`PRODUCT_MARK_PNG`).
 - **Custom font packs:** `FontPack` + built-in `quill_mono_v1` TrueType pin; PDF embeds `/FontFile2`; editor PDF export uses pin for self-contained output (`docs/40-font-packs.md`).

@@ -1,7 +1,7 @@
 # Neural / ONNX Embedding Packs
 
 **Document ID:** QF-SEARCH-NEURAL-001  
-**Status:** Foundation (optional packs)  
+**Status:** Foundation (optional packs + optional graph runtime)  
 **Law:** Local-first — no network weight download  
 
 ---
@@ -12,21 +12,39 @@
 |------|---------------|---------|------|
 | `hash_ngram_v1` | 64 | None | Default signed feature hash |
 | `neural_hash_v1` | 128 | None | Multi-scale offline neural-shaped pack |
-| `onnx_v1` | pack-declared | **Local file** | Space bound to model content hash |
+| `onnx_v1` | pack-declared | **Local file** | Pack + optional graph runtime |
 
 ### `neural_hash_v1`
 
 Tokens + prefix/suffix pieces + token bigrams + char 3/4-grams + length bucket → signed feature hashing → L2.
 
-Use when you want a richer offline dense path without shipping ONNX runtime.
-
-### `onnx_v1`
+### `onnx_v1` (default path, no feature)
 
 1. Pack JSON declares `model_path` (and optional `model_sha256`).  
 2. Loader reads local model bytes, hashes with SHA-256.  
 3. Embedding seed mixes with model hash; multi-scale features at pack dim.  
 
-This **does not run ONNX graph inference** yet. It makes pack identity and offline search stable while a future `onnx` runtime feature can swap the embed implementation without changing the pack file format.
+### Optional graph runtime (`--features onnx`)
+
+Cargo feature **`onnx`** on `qf-search` enables [`OnnxGraphRuntime`]:
+
+| Model bytes | Backend label | Behavior |
+|-------------|---------------|----------|
+| Magic `QFEMB1\0\0` + weight table | `qfemb1_weight_table_v1` | Token/ngram hash → row lookup → sum → L2 |
+| Other / opaque / protobuf ONNX | `hash_bound_v1` | Same identity-bound multi-scale path as default |
+
+```bash
+cargo test -p qf-search --features onnx
+```
+
+```rust
+let model = OnnxGraphRuntime::build_qfemb1_model(64, 128, seed);
+let pack = onnx_pack_from_model(path, 64)?;
+let mut eng = SearchEngine::with_pack(pack);
+eng.load_onnx_runtime_from_bytes(&model)?;
+```
+
+No native ONNX Runtime / ORT DLL is required. Vendor graph engines remain a later optional path.
 
 ---
 
@@ -43,14 +61,21 @@ This **does not run ONNX graph inference** yet. It makes pack identity and offli
 }
 ```
 
+### QFEMB1 weight table layout
+
+```text
+magic:   8 bytes  "QFEMB1\0\0"
+dim:     u32 LE
+buckets: u32 LE
+weights: f32 LE × (buckets × dim)  // row-major
+```
+
 | API | |
 |-----|--|
-| `load_embedding_pack_file` | Load JSON (+ hash ONNX model) |
-| `write_embedding_pack_file` | Write JSON |
+| `load_embedding_pack_file` | Load JSON (+ hash model) |
 | `onnx_pack_from_model` | Build pack from model path |
-| `EmbeddingPack::neural_hash_v1` | In-memory neural pack |
-| `SearchEngine::set_embedding_pack` | Swap pack + re-embed docs |
-| `SearchEngine::load_embedding_pack_path` | Disk pack → engine |
+| `OnnxGraphRuntime` | feature `onnx` graph load/embed |
+| `SearchEngine::load_onnx_runtime_from_bytes` | feature `onnx` |
 
 ---
 
@@ -58,8 +83,7 @@ This **does not run ONNX graph inference** yet. It makes pack identity and offli
 
 ```bash
 cargo test -p qf-search
-cargo test -p qf-search neural_hash -- --nocapture
-cargo test -p qf-search onnx_pack -- --nocapture
+cargo test -p qf-search --features onnx
 cargo run -p qf-app -- search-demo
 ```
 
@@ -67,7 +91,7 @@ cargo run -p qf-app -- search-demo
 
 ## Out of scope
 
-- ONNX Runtime / tract graph execution  
+- Microsoft ONNX Runtime / tract full graph (native)  
 - GPU embedding inference  
 - Cloud model download  
 - Tokenizer vocabulary files  

@@ -6,11 +6,10 @@
 //! |------|------|
 //! | [`EMBED_ALGO_HASH_NGRAM_V1`] | Tokens + char 3-grams (default, dim 64) |
 //! | [`EMBED_ALGO_NEURAL_HASH_V1`] | Multi-scale offline neural-shaped pack (dim 128) |
-//! | [`EMBED_ALGO_ONNX_V1`] | Local ONNX pack: model file identity + multi-scale embed |
+//! | [`EMBED_ALGO_ONNX_V1`] | Local ONNX pack (identity hash and/or optional graph runtime) |
 //!
-//! No cloud weights. Full ONNX graph inference is optional later; `onnx_v1`
-//! binds the embedding space to a local model file's content hash so pack
-//! swaps change vectors deterministically without a runtime dependency.
+//! No cloud weights. Optional Cargo feature **`onnx`** enables
+//! [`crate::OnnxGraphRuntime`] (pure-Rust QFEMB1 weight-table graph + hash fallback).
 
 use qf_core::Hash256;
 use serde::{Deserialize, Serialize};
@@ -29,7 +28,7 @@ pub const EMBED_ALGO_ONNX_V1: &str = "onnx_v1";
 
 const SEED_HASH_NGRAM: u64 = 0x51F1_F0CE_D0C5_EED5;
 const SEED_NEURAL_HASH: u64 = 0x4E45_5552_414C_4831; // "NEURALH1" flavor
-const SEED_ONNX_BASE: u64 = 0x0F4E_4E58_5041_434B; // "ONNXPAC" flavor
+pub(crate) const SEED_ONNX_BASE: u64 = 0x0F4E_4E58_5041_434B; // "ONNXPAC" flavor
 
 /// Portable offline embedding configuration ("model pack" metadata).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

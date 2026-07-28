@@ -11,15 +11,20 @@
 //! | **Hybrid** | Union of token + phrase + semantic + dense with score merge |
 //!
 //! Packs: `hash_ngram_v1` (default), `neural_hash_v1`, `onnx_v1` (local model file).
+//! Optional feature **`onnx`**: local graph runtime ([`OnnxGraphRuntime`]).
 //! No cloud embedding API. Suitable offline-first / local-first product law.
 
 mod embeddings;
+#[cfg(feature = "onnx")]
+mod onnx_rt;
 
 pub use embeddings::{
     dense_cosine, embed_text, load_embedding_pack_file, onnx_pack_from_model,
     write_embedding_pack_file, EmbeddingPack, DEFAULT_DENSE_DIM, EMBED_ALGO_HASH_NGRAM_V1,
     EMBED_ALGO_NEURAL_HASH_V1, EMBED_ALGO_ONNX_V1, NEURAL_HASH_DIM,
 };
+#[cfg(feature = "onnx")]
+pub use onnx_rt::{OnnxBackendKind, OnnxGraphRuntime, QFEMB1_MAGIC};
 
 use qf_core::{BlockId, OpSeq, SourceId};
 use qf_kernel::{CanonicalState, KernelEvent};
@@ -134,6 +139,9 @@ pub struct SearchEngine {
     n_docs: u32,
     /// Offline dense embedding pack (model metadata).
     pack: EmbeddingPack,
+    /// Optional local ONNX-pack graph runtime (`feature = "onnx"`).
+    #[cfg(feature = "onnx")]
+    onnx_rt: Option<OnnxGraphRuntime>,
 }
 
 impl Default for SearchEngine {
@@ -145,6 +153,8 @@ impl Default for SearchEngine {
             df: HashMap::new(),
             n_docs: 0,
             pack: EmbeddingPack::default(),
+            #[cfg(feature = "onnx")]
+            onnx_rt: None,
         }
     }
 }
@@ -167,10 +177,11 @@ impl SearchEngine {
 
     pub fn set_embedding_pack(&mut self, pack: EmbeddingPack) {
         self.pack = pack;
-        // Re-embed existing docs so Dense mode stays valid without full rebuild.
-        for d in &mut self.docs {
-            d.dense = embed_text(&d.text, &self.pack);
+        #[cfg(feature = "onnx")]
+        {
+            self.onnx_rt = None;
         }
+        self.reembed_docs();
     }
 
     /// Load pack JSON from disk (optional neural / ONNX sidecar) and re-embed.
@@ -178,6 +189,45 @@ impl SearchEngine {
         let pack = load_embedding_pack_file(path)?;
         self.set_embedding_pack(pack);
         Ok(())
+    }
+
+    /// Attach a local ONNX graph runtime (feature `onnx`) and re-embed docs.
+    #[cfg(feature = "onnx")]
+    pub fn set_onnx_runtime(&mut self, rt: Option<OnnxGraphRuntime>) {
+        if let Some(ref r) = rt {
+            self.pack = r.pack().clone();
+        }
+        self.onnx_rt = rt;
+        self.reembed_docs();
+    }
+
+    /// Load model bytes for the current `onnx_v1` pack into the graph runtime.
+    #[cfg(feature = "onnx")]
+    pub fn load_onnx_runtime_from_bytes(&mut self, model_bytes: &[u8]) -> Result<(), String> {
+        let rt = OnnxGraphRuntime::from_model_bytes(self.pack.clone(), model_bytes)?;
+        self.set_onnx_runtime(Some(rt));
+        Ok(())
+    }
+
+    #[cfg(feature = "onnx")]
+    pub fn onnx_backend_label(&self) -> Option<&'static str> {
+        self.onnx_rt.as_ref().map(|r| r.backend_label())
+    }
+
+    fn reembed_docs(&mut self) {
+        let texts: Vec<String> = self.docs.iter().map(|d| d.text.clone()).collect();
+        let dense: Vec<Vec<f32>> = texts.iter().map(|t| self.embed_doc(t)).collect();
+        for (d, v) in self.docs.iter_mut().zip(dense) {
+            d.dense = v;
+        }
+    }
+
+    fn embed_doc(&self, text: &str) -> Vec<f32> {
+        #[cfg(feature = "onnx")]
+        if let Some(rt) = &self.onnx_rt {
+            return rt.embed(text);
+        }
+        embed_text(text, &self.pack)
     }
 
     pub fn block_count(&self) -> usize {
@@ -359,7 +409,7 @@ impl SearchEngine {
     }
 
     fn query_dense(&self, text: &str) -> Vec<SearchHit> {
-        let q = embed_text(text, &self.pack);
+        let q = self.embed_doc(text);
         if q.iter().all(|x| *x == 0.0) {
             return vec![];
         }
@@ -390,9 +440,9 @@ impl SearchEngine {
         hits
     }
 
-    /// Embed arbitrary text with the engine's pack (for demos / external callers).
+    /// Embed arbitrary text with the engine's pack / optional ONNX runtime.
     pub fn embed(&self, text: &str) -> Vec<f32> {
-        embed_text(text, &self.pack)
+        self.embed_doc(text)
     }
 
     pub fn query_graph(&self, _q: &GraphQuery) -> Vec<GraphHit> {
@@ -437,7 +487,7 @@ impl SearchIngestor for SearchEngine {
                 *self.df.entry(term.clone()).or_insert(0) += 1;
                 self.index.entry(term.clone()).or_default().push(*id);
             }
-            let dense = embed_text(&text, &self.pack);
+            let dense = self.embed_doc(&text);
             self.docs.push(BlockDoc {
                 block_id: *id,
                 text,
@@ -690,5 +740,29 @@ mod tests {
         assert_eq!(a.block_count(), b.block_count());
         assert_eq!(a.state_gen, b.state_gen);
         assert_eq!(a.docs[0].dense, b.docs[0].dense);
+    }
+
+    #[cfg(feature = "onnx")]
+    #[test]
+    fn onnx_graph_runtime_weight_table_on_engine() {
+        use crate::{onnx_pack_from_model, OnnxGraphRuntime};
+        let dim = 64usize;
+        let model = OnnxGraphRuntime::build_qfemb1_model(dim, 64, 0xA11CE);
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("g.onnx");
+        std::fs::write(&path, &model).unwrap();
+        let pack = onnx_pack_from_model(&path, dim).unwrap();
+        let (k, ids) = kernel_with_docs(&[
+            "machine learning models and neural networks for classification",
+            "baking recipes with flour and sugar",
+            "deep learning transformers attention mechanisms",
+        ]);
+        let mut eng = SearchEngine::with_pack(pack);
+        eng.load_onnx_runtime_from_bytes(&model).unwrap();
+        assert_eq!(eng.onnx_backend_label(), Some("qfemb1_weight_table_v1"));
+        eng.rebuild(k.state());
+        let hits = eng.query(&SearchQuery::dense("neural network deep learning"));
+        assert!(!hits.is_empty());
+        assert_ne!(hits[0].block_id, ids[1]);
     }
 }

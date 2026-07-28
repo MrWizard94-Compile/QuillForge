@@ -6,6 +6,12 @@ publish.workspace = true
 license.workspace = true
 description = "Quillforge derived search indexes"
 
+[features]
+default = []
+## Pure-Rust local ONNX-pack graph runtime (`OnnxGraphRuntime`, QFEMB1 weight tables).
+## Default CI stays free of native ONNX Runtime / ORT DLLs.
+onnx = []
+
 [dependencies]
 qf-core = { workspace = true }
 qf-doc = { workspace = true }

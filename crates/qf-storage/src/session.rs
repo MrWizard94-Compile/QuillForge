@@ -113,8 +113,26 @@ impl DocumentSession {
             document,
             entities: EntityTables::default(),
         };
+        // Create requires an empty journal. Non-empty sidecars must use package open/replay.
+        if journal_path.exists() {
+            let len = std::fs::metadata(journal_path)
+                .map(|m| m.len())
+                .unwrap_or(0);
+            if len > 0 {
+                return Err(CommandError::Journal(format!(
+                    "create requires empty journal (found existing {} bytes at {})",
+                    len,
+                    journal_path.display()
+                )));
+            }
+        }
         let journal = Journal::open_or_create(journal_path)
             .map_err(|e| CommandError::Journal(e.to_string()))?;
+        if journal.last_seq() != OpSeq::ZERO {
+            return Err(CommandError::Journal(
+                "create requires empty journal (non-zero last_seq)".into(),
+            ));
+        }
         Ok(Self {
             kernel: Kernel::new(state),
             journal,

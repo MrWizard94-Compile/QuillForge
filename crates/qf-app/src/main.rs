@@ -144,6 +144,8 @@ fn main() -> ExitCode {
 
 fn run_polish_demo() -> Result<(), String> {
     let work = PathBuf::from("target/quill-polish");
+    // Fresh journal each demo run (create must not reopen a non-empty sidecar).
+    let _ = std::fs::remove_dir_all(&work);
     let mut session =
         ShellSession::open_or_create(&work, "PolishDemo").map_err(|e| e.to_string())?;
     session.draft = "P5 polish: rulers, headers/footers, images.".into();
@@ -152,6 +154,25 @@ fn run_polish_demo() -> Result<(), String> {
     session.chrome.footer = "Confidential · local-first".into();
     session.apply_page_chrome().map_err(|e| e.to_string())?;
     session.insert_image_placeholder().map_err(|e| e.to_string())?;
+    assert_eq!(session.editor.image_block_count(), 1);
+    // Decoded pixels available for GUI paint.
+    let aid = session
+        .editor
+        .session
+        .state()
+        .document
+        .blocks
+        .values()
+        .find_map(|b| match &b.body {
+            BlockBody::Image(img) => Some(img.asset_id),
+            _ => None,
+        })
+        .ok_or_else(|| "missing image block".to_string())?;
+    let (iw, ih, rgba) = session
+        .editor
+        .asset_rgba(aid)
+        .ok_or_else(|| "decode failed".to_string())?;
+    println!("image decode: {iw}x{ih} rgba_bytes={}", rgba.len());
     assert!(session.surface.show_rulers);
     session.toggle_rulers();
     assert!(!session.surface.show_rulers);

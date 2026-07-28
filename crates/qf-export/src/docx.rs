@@ -27,6 +27,13 @@ enum DocxPara {
     Body { text: String },
     Quote { text: String },
     Code { text: String },
+    /// Grid of cell plain text (row-major).
+    Table { rows: Vec<Vec<String>> },
+    Image {
+        alt: String,
+        width_px: u32,
+        height_px: u32,
+    },
     PageBreak,
 }
 
@@ -107,16 +114,29 @@ fn collect_paragraphs(state: &CanonicalState, sources: &SourceTable) -> Vec<Docx
                     }
                 }
                 BlockBody::Table(t) => {
-                    for row in &t.rows {
-                        let cells: Vec<String> = row
-                            .cells
-                            .iter()
-                            .map(|cell| format!("[cell {}x{}]", cell.colspan, cell.rowspan))
-                            .collect();
-                        out.push(DocxPara::Body {
-                            text: cells.join(" | "),
-                        });
-                    }
+                    let rows: Vec<Vec<String>> = t
+                        .rows
+                        .iter()
+                        .map(|row| {
+                            row.cells
+                                .iter()
+                                .map(|cell| {
+                                    let text: String = cell
+                                        .blocks
+                                        .iter()
+                                        .filter_map(|bid| state.document.project_text(*bid))
+                                        .collect::<Vec<_>>()
+                                        .join(" ");
+                                    if text.is_empty() {
+                                        format!("[cell {}x{}]", cell.colspan, cell.rowspan)
+                                    } else {
+                                        text
+                                    }
+                                })
+                                .collect()
+                        })
+                        .collect();
+                    out.push(DocxPara::Table { rows });
                 }
                 BlockBody::Callout(c) => {
                     let title = spans_plain(&c.title, sources);
@@ -129,8 +149,10 @@ fn collect_paragraphs(state: &CanonicalState, sources: &SourceTable) -> Vec<Docx
                     });
                 }
                 BlockBody::Image(i) => {
-                    out.push(DocxPara::Body {
-                        text: format!("[image: {}]", i.alt),
+                    out.push(DocxPara::Image {
+                        alt: i.alt.clone(),
+                        width_px: i.width_px.unwrap_or(0),
+                        height_px: i.height_px.unwrap_or(0),
                     });
                 }
                 BlockBody::Video(v) => {
@@ -325,6 +347,20 @@ fn document_xml(paras: &[DocxPara]) -> String {
                 DocxPara::Body { text } => body.push_str(&para_xml("Normal", text, false)),
                 DocxPara::Quote { text } => body.push_str(&para_xml("Quote", text, false)),
                 DocxPara::Code { text } => body.push_str(&para_xml("Code", text, true)),
+                DocxPara::Table { rows } => body.push_str(&table_xml(rows)),
+                DocxPara::Image {
+                    alt,
+                    width_px,
+                    height_px,
+                } => {
+                    // DrawingML image embed deferred; emit caption with pixel size for fidelity.
+                    let label = if *width_px > 0 && *height_px > 0 {
+                        format!("[image: {alt} {width_px}×{height_px}]")
+                    } else {
+                        format!("[image: {alt}]")
+                    };
+                    body.push_str(&para_xml("Normal", &label, false));
+                }
                 DocxPara::PageBreak => {
                     body.push_str(
                         r#"<w:p><w:r><w:br w:type="page"/></w:r></w:p>"#,
@@ -346,6 +382,32 @@ fn document_xml(paras: &[DocxPara]) -> String {
 </w:document>
 "#
     )
+}
+
+fn table_xml(rows: &[Vec<String>]) -> String {
+    if rows.is_empty() {
+        return para_xml("Normal", "[table]", false);
+    }
+    let cols = rows.iter().map(|r| r.len()).max().unwrap_or(1).max(1);
+    let mut xml = String::from(r#"<w:tbl><w:tblPr><w:tblW w:w="0" w:type="auto"/></w:tblPr>"#);
+    xml.push_str("<w:tblGrid>");
+    for _ in 0..cols {
+        xml.push_str(r#"<w:gridCol w:w="2400"/>"#);
+    }
+    xml.push_str("</w:tblGrid>");
+    for row in rows {
+        xml.push_str("<w:tr>");
+        for c in 0..cols {
+            let text = row.get(c).map(|s| s.as_str()).unwrap_or("");
+            xml.push_str(&format!(
+                r#"<w:tc><w:tcPr><w:tcW w:w="2400" w:type="dxa"/></w:tcPr>{inner}</w:tc>"#,
+                inner = para_xml("Normal", text, false)
+            ));
+        }
+        xml.push_str("</w:tr>");
+    }
+    xml.push_str("</w:tbl>");
+    xml
 }
 
 fn para_xml(style: &str, text: &str, preserve_newlines: bool) -> String {
@@ -490,6 +552,85 @@ mod tests {
         let mut xml = String::new();
         doc.read_to_string(&mut xml).unwrap();
         assert!(xml.contains("A &amp; B &lt;C&gt;"));
+    }
+
+    #[test]
+    fn docx_emits_real_table_markup() {
+        use qf_blocks::{TableBlock, TableCell, TableRow};
+        let mut gen = SeqIdGen::default();
+        let mut state = empty_state(&mut gen);
+        let cell_a = BlockId::new(&mut gen);
+        let cell_b = BlockId::new(&mut gen);
+        let actor = state.document.meta.authors[0];
+        let meta = BlockMetadata {
+            created_by: actor,
+            created_at_seq: OpSeq(1),
+            attrs: Default::default(),
+        };
+        state.document.blocks.insert(
+            cell_a,
+            Block {
+                id: cell_a,
+                meta: meta.clone(),
+                body: BlockBody::Paragraph(ParagraphBlock {
+                    spans: vec![span("Alpha")],
+                }),
+            },
+        );
+        state.document.blocks.insert(
+            cell_b,
+            Block {
+                id: cell_b,
+                meta: meta.clone(),
+                body: BlockBody::Paragraph(ParagraphBlock {
+                    spans: vec![span("Beta")],
+                }),
+            },
+        );
+        let tid = BlockId::new(&mut gen);
+        state.document.blocks.insert(
+            tid,
+            Block {
+                id: tid,
+                meta,
+                body: BlockBody::Table(TableBlock {
+                    column_count: 2,
+                    rows: vec![TableRow {
+                        cells: vec![
+                            TableCell {
+                                id: BlockId::new(&mut gen),
+                                colspan: 1,
+                                rowspan: 1,
+                                blocks: vec![cell_a],
+                            },
+                            TableCell {
+                                id: BlockId::new(&mut gen),
+                                colspan: 1,
+                                rowspan: 1,
+                                blocks: vec![cell_b],
+                            },
+                        ],
+                    }],
+                }),
+            },
+        );
+        let root = state.document.root_section_id;
+        state
+            .document
+            .sections
+            .get_mut(&root)
+            .unwrap()
+            .blocks
+            .push(tid);
+        // cell paragraphs also need to be in map only (not section order) — ok
+        let bytes =
+            export_docx(&state, &SourceTable::default(), &ExportConfig::default()).unwrap();
+        let mut archive = ZipArchive::new(Cursor::new(bytes)).unwrap();
+        let mut doc = archive.by_name("word/document.xml").unwrap();
+        let mut xml = String::new();
+        doc.read_to_string(&mut xml).unwrap();
+        assert!(xml.contains("<w:tbl>"), "missing table: {xml}");
+        assert!(xml.contains("Alpha") && xml.contains("Beta"), "{xml}");
     }
 
     #[test]

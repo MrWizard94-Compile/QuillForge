@@ -26,6 +26,10 @@ impl ShellSession {
         std::fs::create_dir_all(work_dir).map_err(|e| EditorError::Other(e.to_string()))?;
         let journal_path = work_dir.join(format!("{name}.journal"));
         let package_path = work_dir.join(format!("{name}.qfdoc"));
+        // create_default needs an empty journal; demos re-running reuse work dirs.
+        if journal_path.exists() {
+            let _ = std::fs::remove_file(&journal_path);
+        }
         let mut editor = EditorController::create_default(&journal_path)?;
         editor.ensure_editable_paragraph()?;
         let draft = editor.focused_text().unwrap_or_default();
@@ -95,7 +99,24 @@ impl ShellSession {
     }
 
     pub fn insert_image_placeholder(&mut self) -> Result<AssetId, EditorError> {
-        let id = self.editor.insert_image("Image", 320, 180)?;
+        // Prefer a visible brand-colored PNG when encoding succeeds.
+        let id = match crate::demo_png_bytes(96, 64) {
+            Ok(png) => self
+                .editor
+                .insert_image_bytes("Image", &png, None, None)?,
+            Err(_) => self.editor.insert_image("Image", 96, 64)?,
+        };
+        self.dirty = true;
+        self.refresh_surface();
+        Ok(id)
+    }
+
+    pub fn insert_image_file(&mut self, path: &Path) -> Result<AssetId, EditorError> {
+        let alt = path
+            .file_name()
+            .and_then(|s| s.to_str())
+            .unwrap_or("Image");
+        let id = self.editor.insert_image_path(path, alt)?;
         self.dirty = true;
         self.refresh_surface();
         Ok(id)

@@ -105,17 +105,58 @@ impl LayoutTree {
     }
 
     /// Plain lines per print page, in layout frame order — shared by GUI preview and PDF.
+    ///
+    /// Text blocks use projected text; images/tables get stable placeholders so PDF
+    /// export retains media presence (rich-media fidelity).
     pub fn page_plain_lines(&self, state: &CanonicalState) -> Vec<Vec<String>> {
         self.pages
             .iter()
             .map(|page| {
                 page.frames
                     .iter()
-                    .filter_map(|f| state.document.project_text(f.block_id))
+                    .filter_map(|f| frame_plain_line(state, f.block_id))
                     .filter(|t| !t.is_empty())
                     .collect()
             })
             .collect()
+    }
+}
+
+fn frame_plain_line(state: &CanonicalState, block_id: qf_core::BlockId) -> Option<String> {
+    if let Some(t) = state.document.project_text(block_id) {
+        return Some(t);
+    }
+    let block = state.document.blocks.get(&block_id)?;
+    match &block.body {
+        BlockBody::Image(img) => {
+            let w = img.width_px.unwrap_or(0);
+            let h = img.height_px.unwrap_or(0);
+            Some(format!("[image: {} {}×{}]", img.alt, w, h))
+        }
+        BlockBody::Table(t) => {
+            let mut rows = Vec::new();
+            for row in &t.rows {
+                let cells: Vec<String> = row
+                    .cells
+                    .iter()
+                    .map(|cell| {
+                        cell.blocks
+                            .iter()
+                            .filter_map(|bid| state.document.project_text(*bid))
+                            .collect::<Vec<_>>()
+                            .join(" ")
+                    })
+                    .collect();
+                rows.push(cells.join(" | "));
+            }
+            Some(if rows.is_empty() {
+                "[table]".into()
+            } else {
+                rows.join(" / ")
+            })
+        }
+        BlockBody::Video(v) => Some(format!("[video: {}]", v.alt)),
+        _ => None,
     }
 }
 

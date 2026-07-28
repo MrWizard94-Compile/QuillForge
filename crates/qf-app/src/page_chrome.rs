@@ -50,6 +50,39 @@ fn text_key(map: &PreservedMap, key: &str) -> Option<String> {
     }
 }
 
+/// Decode image width/height (PNG via `image` crate).
+pub fn decode_image_size(bytes: &[u8]) -> Option<(u32, u32)> {
+    let img = image::load_from_memory(bytes).ok()?;
+    Some((img.width(), img.height()))
+}
+
+/// Decode to RGBA8 pixels.
+pub fn decode_image_rgba(bytes: &[u8]) -> Option<(u32, u32, Vec<u8>)> {
+    let img = image::load_from_memory(bytes).ok()?.to_rgba8();
+    let (w, h) = img.dimensions();
+    Some((w, h, img.into_raw()))
+}
+
+/// Build a solid-color PNG for demos (ember-ish) without external files.
+pub fn demo_png_bytes(width: u32, height: u32) -> Result<Vec<u8>, String> {
+    use image::{ImageBuffer, Rgba, RgbaImage};
+    let w = width.clamp(8, 512);
+    let h = height.clamp(8, 512);
+    let mut img: RgbaImage = ImageBuffer::new(w, h);
+    for (x, y, pixel) in img.enumerate_pixels_mut() {
+        // Ember gradient for WPAI brand (not Office blue).
+        let t = (x + y) as f32 / (w + h) as f32;
+        let r = (0xff as f32 * (0.85 + 0.15 * t)) as u8;
+        let g = (0x7a as f32 * (0.7 + 0.3 * (1.0 - t))) as u8;
+        let b = 0x26u8;
+        *pixel = Rgba([r, g, b, 255]);
+    }
+    let mut buf = std::io::Cursor::new(Vec::new());
+    img.write_to(&mut buf, image::ImageFormat::Png)
+        .map_err(|e| e.to_string())?;
+    Ok(buf.into_inner())
+}
+
 impl EditorController {
     pub fn page_header(&self) -> String {
         text_key(&self.session.state().document.meta.custom, META_HEADER).unwrap_or_default()
@@ -82,25 +115,44 @@ impl EditorController {
         Ok(())
     }
 
-    /// Insert an image block (placeholder asset) after the focused block / at end.
+    /// Insert an image block (placeholder or real PNG bytes) after the last block.
     pub fn insert_image(
         &mut self,
         alt: &str,
         width_px: u32,
         height_px: u32,
     ) -> Result<AssetId, EditorError> {
+        self.insert_image_bytes(alt, PLACEHOLDER_PNG, Some(width_px), Some(height_px))
+    }
+
+    /// Insert image from PNG/JPEG bytes: decode dimensions when possible, store asset.
+    pub fn insert_image_bytes(
+        &mut self,
+        alt: &str,
+        bytes: &[u8],
+        width_hint: Option<u32>,
+        height_hint: Option<u32>,
+    ) -> Result<AssetId, EditorError> {
+        let (decoded_w, decoded_h) = decode_image_size(bytes).unwrap_or((0, 0));
+        let width_px = width_hint
+            .or(Some(decoded_w))
+            .unwrap_or(64)
+            .max(1);
+        let height_px = height_hint
+            .or(Some(decoded_h))
+            .unwrap_or(48)
+            .max(1);
+
         let asset_id = AssetId::new(self.session.ids.as_mut());
         let asset_key = asset_id.as_uuid().to_string();
-        self.session
-            .assets
-            .insert(asset_key, PLACEHOLDER_PNG.to_vec());
+        self.session.assets.insert(asset_key, bytes.to_vec());
 
         let body = BlockBody::Image(ImageBlock {
             asset_id,
             alt: alt.to_string(),
             caption: vec![],
-            width_px: Some(width_px.max(24)),
-            height_px: Some(height_px.max(24)),
+            width_px: Some(width_px),
+            height_px: Some(height_px),
         });
         let bb = encode_body(&body).map_err(|e| EditorError::Other(e.to_string()))?;
 
@@ -120,7 +172,6 @@ impl EditorController {
             body_payload: bb.payload,
         })?;
 
-        // Focus last block if it accepts text; otherwise leave selection.
         let last = {
             let doc = &self.session.state().document;
             let root = doc.root_section_id;
@@ -137,6 +188,25 @@ impl EditorController {
         Ok(asset_id)
     }
 
+    /// Load image path into the package asset map and document.
+    pub fn insert_image_path(&mut self, path: &std::path::Path, alt: &str) -> Result<AssetId, EditorError> {
+        let bytes = std::fs::read(path).map_err(|e| EditorError::Other(e.to_string()))?;
+        self.insert_image_bytes(alt, &bytes, None, None)
+    }
+
+    /// Decode asset to RGBA8 for GUI paint (None if missing/undecodable).
+    pub fn asset_rgba(&self, asset_id: AssetId) -> Option<(u32, u32, Vec<u8>)> {
+        let key = asset_id.as_uuid().to_string();
+        let bytes = self.session.assets.get(&key)?;
+        decode_image_rgba(bytes)
+    }
+
+    /// Asset raw bytes by id.
+    pub fn asset_bytes(&self, asset_id: AssetId) -> Option<&[u8]> {
+        let key = asset_id.as_uuid().to_string();
+        self.session.assets.get(&key).map(|v| v.as_slice())
+    }
+
     /// Count image blocks in the document (for tests / status).
     pub fn image_block_count(&self) -> usize {
         self.session
@@ -151,6 +221,7 @@ impl EditorController {
 
 #[cfg(test)]
 mod tests {
+    use super::{decode_image_rgba, decode_image_size, demo_png_bytes};
     use crate::EditorController;
     use tempfile::tempdir;
 
@@ -185,5 +256,29 @@ mod tests {
             .iter()
             .flat_map(|p| &p.frames)
             .any(|f| matches!(f.kind, qf_layout::FragmentKind::Media)));
+    }
+
+    #[test]
+    fn insert_demo_png_decodes_rgba() {
+        let png = demo_png_bytes(32, 24).unwrap();
+        let (w, h) = decode_image_size(&png).unwrap();
+        assert_eq!((w, h), (32, 24));
+        let (rw, rh, rgba) = decode_image_rgba(&png).unwrap();
+        assert_eq!((rw, rh), (32, 24));
+        assert_eq!(rgba.len(), 32 * 24 * 4);
+
+        let dir = tempdir().unwrap();
+        let mut ed = EditorController::create_default(&dir.path().join("png.journal")).unwrap();
+        ed.ensure_editable_paragraph().unwrap();
+        let id = ed.insert_image_bytes("Ember", &png, None, None).unwrap();
+        let (aw, ah, _) = ed.asset_rgba(id).unwrap();
+        assert_eq!((aw, ah), (32, 24));
+        // PDF plain lines include image placeholder with size.
+        let lines = ed.layout_tree.page_plain_lines(ed.session.state());
+        let flat: Vec<_> = lines.into_iter().flatten().collect();
+        assert!(
+            flat.iter().any(|l| l.contains("[image:") && l.contains("32")),
+            "expected image line in {flat:?}"
+        );
     }
 }

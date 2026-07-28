@@ -88,6 +88,8 @@ eframe = { version = "0.27", default-features = false, features = [
     "glow",
 ] }
 egui = "0.27"
+# PNG-only (MSRV 1.85); matches eframe 0.27 transitive image 0.24.
+image = { version = "0.24", default-features = false, features = ["png"] }
 # webbrowser (via egui-winit) pulls url; url ≥2.5.3 → idna 1.1 → icu 2.2 needs rustc 1.86.
 # Keep lock at url 2.5.2 / idna 0.5 (cargo update -p url --precise 2.5.2).
 

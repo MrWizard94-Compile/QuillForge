@@ -17,7 +17,9 @@ mod shell_session;
 pub use browser_demo::{run_browser_sync_demo, run_browser_wss_demo};
 pub use editor::{EditResult, EditorController, EditorError};
 pub use gui::run_gui;
-pub use page_chrome::PageChrome;
+pub use page_chrome::{
+    decode_image_rgba, decode_image_size, demo_png_bytes, PageChrome, PLACEHOLDER_PNG,
+};
 pub use product_surface::{
     CommandAction, CommandBarTab, CommandGroup, DocumentViewMode, ProductSurface, StatusBarModel,
 };

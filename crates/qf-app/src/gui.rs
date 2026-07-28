@@ -6,9 +6,11 @@
 use crate::product_surface::{CommandBarTab, DocumentViewMode};
 use crate::shell_session::ShellSession;
 use crate::ProductSurface;
-use eframe::egui::{self, Color32, FontId, RichText, Sense, Vec2};
+use eframe::egui::{self, Color32, ColorImage, FontId, RichText, Sense, TextureHandle, TextureOptions, Vec2};
+use qf_core::AssetId;
 use qf_layout::{fixed_to_pt, PAGE_HEIGHT_PT, PAGE_WIDTH_PT};
 use qf_theme::Theme;
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 /// Snapshot of one laid-out run for painting (screen ≈ layout coords).
@@ -20,6 +22,7 @@ struct PagePaintLine {
     text: String,
     font_size: f32,
     is_media: bool,
+    asset_id: Option<AssetId>,
 }
 
 struct PagePaint {
@@ -30,6 +33,8 @@ struct PagePaint {
 pub struct QuillShellApp {
     session: ShellSession,
     theme: Theme,
+    /// Decoded image textures keyed by asset UUID.
+    textures: HashMap<String, TextureHandle>,
 }
 
 impl QuillShellApp {
@@ -38,7 +43,29 @@ impl QuillShellApp {
         Ok(Self {
             session,
             theme: Theme::document_workspace_light(),
+            textures: HashMap::new(),
         })
+    }
+
+    fn texture_for(
+        &mut self,
+        ctx: &egui::Context,
+        asset_id: AssetId,
+    ) -> Option<TextureHandle> {
+        let key = asset_id.as_uuid().to_string();
+        if let Some(t) = self.textures.get(&key) {
+            return Some(t.clone());
+        }
+        let (w, h, rgba) = self.session.editor.asset_rgba(asset_id)?;
+        let size = [w as usize, h as usize];
+        let image = ColorImage::from_rgba_unmultiplied(size, &rgba);
+        let handle = ctx.load_texture(
+            format!("asset-{key}"),
+            image,
+            TextureOptions::LINEAR,
+        );
+        self.textures.insert(key, handle.clone());
+        Some(handle)
     }
 
     fn paper(&self) -> Color32 {
@@ -163,7 +190,8 @@ impl QuillShellApp {
             }
             "insert.image" => match self.session.insert_image_placeholder() {
                 Ok(_) => {
-                    self.session.last_error = Some("Image block inserted".into());
+                    self.textures.clear();
+                    self.session.last_error = Some("Image block inserted (decoded PNG)".into());
                 }
                 Err(e) => self.session.last_error = Some(e.to_string()),
             },
@@ -325,7 +353,13 @@ impl QuillShellApp {
         });
     }
 
-    fn paint_print_pages(&mut self, ui: &mut egui::Ui, paper: Color32, ink: Color32) {
+    fn paint_print_pages(
+        &mut self,
+        ui: &mut egui::Ui,
+        ctx: &egui::Context,
+        paper: Color32,
+        ink: Color32,
+    ) {
         let scale = self.page_scale();
         let page_w = PAGE_WIDTH_PT * scale;
         let page_h = PAGE_HEIGHT_PT * scale;
@@ -351,27 +385,34 @@ impl QuillShellApp {
                         let h = fixed_to_pt(frame.bounds.h).max(12.0) * scale / 1.0;
                         let is_media = matches!(frame.kind, qf_layout::FragmentKind::Media);
                         if is_media {
-                            let alt = self
+                            let block = self
                                 .session
                                 .editor
                                 .session
                                 .state()
                                 .document
                                 .blocks
-                                .get(&frame.block_id)
-                                .and_then(|b| match &b.body {
-                                    qf_blocks::BlockBody::Image(img) => Some(img.alt.clone()),
-                                    _ => None,
-                                })
-                                .unwrap_or_else(|| "Image".into());
+                                .get(&frame.block_id);
+                            let (alt, asset_id, iw, ih) = match block.map(|b| &b.body) {
+                                Some(qf_blocks::BlockBody::Image(img)) => (
+                                    img.alt.clone(),
+                                    Some(img.asset_id),
+                                    img.width_px.unwrap_or(96),
+                                    img.height_px.unwrap_or(64),
+                                ),
+                                _ => ("Media".into(), None, 96, 64),
+                            };
+                            let draw_h = ((ih as f32) * scale / 1.15).max(h).max(40.0);
+                            let draw_w = ((iw as f32) * scale / 1.15).min(w).max(40.0);
                             return Some(PagePaintLine {
                                 x,
                                 y,
-                                w,
-                                h: h.max(40.0 * scale / 1.15),
+                                w: draw_w,
+                                h: draw_h,
                                 text: format!("[Image: {alt}]"),
                                 font_size: 11.0,
                                 is_media: true,
+                                asset_id,
                             });
                         }
                         let text = self
@@ -398,6 +439,7 @@ impl QuillShellApp {
                             text,
                             font_size: font_size.max(10.0),
                             is_media: false,
+                            asset_id: None,
                         })
                     })
                     .collect();
@@ -455,22 +497,39 @@ impl QuillShellApp {
                                 pos,
                                 Vec2::new(line.w.max(80.0), line.h.max(40.0)),
                             );
-                            ui.painter().rect_filled(
-                                media_rect,
-                                2.0,
-                                Color32::from_rgb(0xf0, 0xee, 0xec),
-                            );
+                            let mut painted = false;
+                            if let Some(aid) = line.asset_id {
+                                if let Some(tex) = self.texture_for(ctx, aid) {
+                                    ui.painter().image(
+                                        tex.id(),
+                                        media_rect,
+                                        egui::Rect::from_min_max(
+                                            egui::pos2(0.0, 0.0),
+                                            egui::pos2(1.0, 1.0),
+                                        ),
+                                        Color32::WHITE,
+                                    );
+                                    painted = true;
+                                }
+                            }
+                            if !painted {
+                                ui.painter().rect_filled(
+                                    media_rect,
+                                    2.0,
+                                    Color32::from_rgb(0xf0, 0xee, 0xec),
+                                );
+                                ui.painter().text(
+                                    media_rect.center(),
+                                    egui::Align2::CENTER_CENTER,
+                                    &line.text,
+                                    FontId::proportional(line.font_size),
+                                    ink,
+                                );
+                            }
                             ui.painter().rect_stroke(
                                 media_rect,
                                 2.0,
                                 egui::Stroke::new(1.0, Color32::from_gray(150)),
-                            );
-                            ui.painter().text(
-                                media_rect.center(),
-                                egui::Align2::CENTER_CENTER,
-                                &line.text,
-                                FontId::proportional(line.font_size),
-                                ink,
                             );
                         } else {
                             ui.painter().text(
@@ -708,7 +767,7 @@ impl eframe::App for QuillShellApp {
                         egui::ScrollArea::vertical()
                             .auto_shrink([false, false])
                             .show(ui, |ui| {
-                                self.paint_print_pages(ui, paper, ink);
+                                self.paint_print_pages(ui, ctx, paper, ink);
                             });
                     }
                 }

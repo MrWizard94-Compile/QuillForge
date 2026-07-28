@@ -296,6 +296,8 @@ fn groups_for_tab(tab: CommandBarTab) -> Vec<CommandGroup> {
                 action("export.docx", "DOCX", "ExportDocx"),
                 action("export.md", "Markdown", "ExportMarkdown"),
                 action("export.html", "HTML", "ExportHtml"),
+                action("export.txt", "Plain text", "ExportPlain"),
+                action("export.all", "All formats", "ExportAll"),
             ],
         }],
     }

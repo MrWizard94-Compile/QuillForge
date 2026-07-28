@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Full open/export matrix:** open `qfdoc|docx|md|html|txt`; export `pdf|docx|md|html|txt` (+ save qfdoc); CLI `open` / `export-all`; GUI Export tab wired (`docs/41-open-export-matrix.md`). PDF remains export-only.
 - **Optional ONNX graph runtime:** Cargo feature `qf-search/onnx` adds pure-Rust `OnnxGraphRuntime` (QFEMB1 weight-table matmul + hash-bound fallback); default CI stays ORT-free (`docs/39-neural-onnx-pack.md`).
 - **DOCX TrueType font embed:** `export_docx_with_assets_and_font` writes `word/fonts/*.ttf` + `fontTable.xml`; editor DOCX uses pin font (`docs/40-font-packs.md`).
 - **Product mark:** `brand/assets/quillforge-product.png` embedded in the app; command-bar logo, insert image/logo, document-scaled PNG helper (`PRODUCT_MARK_PNG`).

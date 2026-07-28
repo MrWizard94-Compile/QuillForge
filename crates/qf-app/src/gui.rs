@@ -150,37 +150,74 @@ impl QuillShellApp {
             "view.page" => self.session.set_view(DocumentViewMode::Page),
             "view.draft" => self.session.set_view(DocumentViewMode::Draft),
             "view.focus" => self.session.set_view(DocumentViewMode::Focus),
-            "export.pdf" => match self.session.export_pdf() {
+            "export.pdf" => match self.session.export_as("pdf") {
                 Ok(path) => {
                     self.session.last_error = Some(format!("Exported {}", path.display()));
                 }
                 Err(e) => self.session.last_error = Some(e.to_string()),
             },
-            "export.docx" => match self.session.export_docx() {
+            "export.docx" => match self.session.export_as("docx") {
                 Ok(path) => {
                     self.session.last_error = Some(format!("Exported {}", path.display()));
                 }
                 Err(e) => self.session.last_error = Some(e.to_string()),
             },
-            "file.import_docx" => {
-                // Word-class import: load sibling/default import path under work dir.
-                let path = self
+            "export.md" => match self.session.export_as("md") {
+                Ok(path) => {
+                    self.session.last_error = Some(format!("Exported {}", path.display()));
+                }
+                Err(e) => self.session.last_error = Some(e.to_string()),
+            },
+            "export.html" => match self.session.export_as("html") {
+                Ok(path) => {
+                    self.session.last_error = Some(format!("Exported {}", path.display()));
+                }
+                Err(e) => self.session.last_error = Some(e.to_string()),
+            },
+            "export.txt" | "export.plain" => match self.session.export_as("txt") {
+                Ok(path) => {
+                    self.session.last_error = Some(format!("Exported {}", path.display()));
+                }
+                Err(e) => self.session.last_error = Some(e.to_string()),
+            },
+            "export.all" => match self.session.export_all() {
+                Ok(paths) => {
+                    self.session.last_error = Some(format!(
+                        "Exported {} files (+ .qfdoc)",
+                        paths.len().saturating_sub(1)
+                    ));
+                }
+                Err(e) => self.session.last_error = Some(e.to_string()),
+            },
+            "file.import_docx" | "file.import" => {
+                // Prefer import.* sibling files under work dir (docx, md, html, txt).
+                let parent = self
                     .session
                     .package_path
                     .parent()
-                    .map(|p| p.join("import.docx"))
-                    .unwrap_or_else(|| PathBuf::from("import.docx"));
-                match self.session.import_docx(&path) {
-                    Ok(n) => {
-                        self.session.last_error =
-                            Some(format!("Imported {n} blocks from {}", path.display()));
+                    .map(|p| p.to_path_buf())
+                    .unwrap_or_else(|| PathBuf::from("."));
+                let candidates = [
+                    parent.join("import.docx"),
+                    parent.join("import.md"),
+                    parent.join("import.html"),
+                    parent.join("import.txt"),
+                ];
+                let path = candidates.into_iter().find(|p| p.exists());
+                match path {
+                    Some(path) => match self.session.import_path(&path) {
+                        Ok(n) => {
+                            self.session.last_error =
+                                Some(format!("Imported {n} blocks from {}", path.display()));
+                        }
+                        Err(e) => self.session.last_error = Some(e.to_string()),
+                    },
+                    None => {
+                        self.session.last_error = Some(
+                            "No import.docx|md|html|txt beside package; place file and retry"
+                                .into(),
+                        );
                     }
-                    Err(e) => self.session.last_error = Some(e.to_string()),
-                }
-            }
-            "export.md" | "export.html" => {
-                if let Err(e) = self.session.apply_draft() {
-                    self.session.last_error = Some(e.to_string());
                 }
             }
             "review.suggest" => {

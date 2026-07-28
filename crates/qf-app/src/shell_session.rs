@@ -281,18 +281,56 @@ impl ShellSession {
 
     /// Write layout-aligned PDF next to the package path.
     pub fn export_pdf(&mut self) -> Result<std::path::PathBuf, EditorError> {
+        self.export_as("pdf")
+    }
+
+    /// Export DOCX next to the package path.
+    pub fn export_docx(&mut self) -> Result<std::path::PathBuf, EditorError> {
+        self.export_as("docx")
+    }
+
+    pub fn export_markdown(&mut self) -> Result<std::path::PathBuf, EditorError> {
+        self.export_as("md")
+    }
+
+    pub fn export_html(&mut self) -> Result<std::path::PathBuf, EditorError> {
+        self.export_as("html")
+    }
+
+    pub fn export_plain(&mut self) -> Result<std::path::PathBuf, EditorError> {
+        self.export_as("txt")
+    }
+
+    /// Export by extension (`pdf|docx|md|html|txt`) beside the package path.
+    pub fn export_as(&mut self, ext: &str) -> Result<std::path::PathBuf, EditorError> {
         self.apply_draft()?;
-        let bytes = self.editor.export_pdf_bytes()?;
-        let path = self.package_path.with_extension("pdf");
+        let bytes = self.editor.export_by_extension(ext)?;
+        let path = self.package_path.with_extension(ext);
         std::fs::write(&path, bytes).map_err(|e| EditorError::Other(e.to_string()))?;
         Ok(path)
     }
 
+    /// Export every foundation interchange format; returns written paths.
+    pub fn export_all(&mut self) -> Result<Vec<std::path::PathBuf>, EditorError> {
+        let mut paths = Vec::new();
+        for ext in ["pdf", "docx", "md", "html", "txt"] {
+            paths.push(self.export_as(ext)?);
+        }
+        // Native package is always available via save().
+        self.save()?;
+        paths.push(self.package_path.clone());
+        Ok(paths)
+    }
+
     /// Import a .docx file into this session and refresh surface/draft.
     pub fn import_docx(&mut self, path: &Path) -> Result<usize, EditorError> {
-        let n = self.editor.import_docx_path(path)?;
+        self.import_path(path)
+    }
+
+    /// Import any supported interchange format into this session.
+    pub fn import_path(&mut self, path: &Path) -> Result<usize, EditorError> {
+        let n = self.editor.import_any_path(path)?;
         self.draft = self.editor.focused_text().unwrap_or_default();
-        // If first block is heading/code, draft may be empty — use document plain head.
         if self.draft.is_empty() {
             self.draft = self.editor.document_plain();
         }
@@ -301,23 +339,57 @@ impl ShellSession {
         Ok(n)
     }
 
-    /// Export DOCX next to the package path.
-    pub fn export_docx(&mut self) -> Result<std::path::PathBuf, EditorError> {
-        self.apply_draft()?;
-        let bytes = self.editor.export_docx_bytes()?;
-        let path = self.package_path.with_extension("docx");
-        std::fs::write(&path, bytes).map_err(|e| EditorError::Other(e.to_string()))?;
-        Ok(path)
-    }
-
     /// Open a new shell session from a .docx file (saves `.qfdoc` beside work_dir).
     pub fn open_from_docx(
         work_dir: &Path,
         name: &str,
         docx_path: &Path,
     ) -> Result<Self, EditorError> {
+        Self::open_from_path(work_dir, name, docx_path)
+    }
+
+    /// Open any supported path into a new shell session and persist `.qfdoc`.
+    ///
+    /// Supported: `.qfdoc` (package open), `.docx`, `.md`, `.html`, `.txt`.
+    /// `.pdf` is export-only.
+    pub fn open_from_path(work_dir: &Path, name: &str, path: &Path) -> Result<Self, EditorError> {
+        let ext = path
+            .extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or("")
+            .to_ascii_lowercase();
+        std::fs::create_dir_all(work_dir).map_err(|e| EditorError::Other(e.to_string()))?;
+        if ext == "qfdoc" {
+            let package_path = work_dir.join(format!("{name}.qfdoc"));
+            let journal_path = work_dir.join(format!("{name}.journal"));
+            if path.canonicalize().ok() != package_path.canonicalize().ok() {
+                std::fs::copy(path, &package_path)
+                    .map_err(|e| EditorError::Other(e.to_string()))?;
+            }
+            if journal_path.exists() {
+                let _ = std::fs::remove_file(&journal_path);
+            }
+            let editor = EditorController::open_package(&package_path, &journal_path)?;
+            let draft = editor.focused_text().unwrap_or_else(|| editor.document_plain());
+            let surface = ProductSurface::word_class_default(name);
+            let chrome = PageChrome::from_meta(&editor.session.state().document.meta.custom);
+            let mut session = Self {
+                editor,
+                surface,
+                package_path,
+                journal_path,
+                draft,
+                last_error: None,
+                dirty: false,
+                review: ReviewPanel::word_class_default(),
+                chrome,
+                search_panel: SearchPanel::default(),
+            };
+            session.refresh_surface();
+            return Ok(session);
+        }
         let mut session = Self::open_or_create(work_dir, name)?;
-        session.import_docx(docx_path)?;
+        session.import_path(path)?;
         session.save()?;
         Ok(session)
     }
@@ -527,5 +599,65 @@ mod tests {
         s.insert_product_mark().unwrap();
         assert_eq!(s.editor.image_block_count(), 1);
         assert!(!s.editor.session.assets.is_empty());
+    }
+
+    #[test]
+    fn export_all_formats_and_open_markdown() {
+        let dir = tempdir().unwrap();
+        let mut s = ShellSession::open_or_create(dir.path(), "io").unwrap();
+        s.draft = "All formats body text".into();
+        s.apply_draft().unwrap();
+        let paths = s.export_all().unwrap();
+        assert!(paths.len() >= 6);
+        for ext in ["pdf", "docx", "md", "html", "txt", "qfdoc"] {
+            assert!(
+                paths.iter().any(|p| p.extension().and_then(|e| e.to_str()) == Some(ext)),
+                "missing .{ext} in {paths:?}"
+            );
+            let p = paths
+                .iter()
+                .find(|p| p.extension().and_then(|e| e.to_str()) == Some(ext))
+                .unwrap();
+            assert!(p.exists(), "missing file {}", p.display());
+        }
+        // Round-trip markdown import.
+        let md = dir.path().join("io.md");
+        let opened = ShellSession::open_from_path(dir.path(), "from-md", &md).unwrap();
+        assert!(
+            opened.editor.document_plain().contains("All formats"),
+            "{}",
+            opened.editor.document_plain()
+        );
+    }
+
+    #[test]
+    fn open_html_and_txt() {
+        let dir = tempdir().unwrap();
+        let html = dir.path().join("sample.html");
+        std::fs::write(&html, "<h1>Hi</h1><p>Body copy</p>").unwrap();
+        let s = ShellSession::open_from_path(dir.path(), "html", &html).unwrap();
+        let plain = s.editor.document_plain();
+        assert!(plain.contains("Hi") || plain.contains("Body"), "{plain}");
+
+        let txt = dir.path().join("sample.txt");
+        std::fs::write(&txt, "plain paragraph one\n\nplain two").unwrap();
+        let s2 = ShellSession::open_from_path(dir.path(), "txt", &txt).unwrap();
+        assert!(s2.editor.document_plain().contains("plain"));
+    }
+
+    #[test]
+    fn open_qfdoc_preserves_text() {
+        let dir = tempdir().unwrap();
+        let mut s = ShellSession::open_or_create(dir.path(), "pkg").unwrap();
+        s.draft = "Package open body".into();
+        s.apply_draft().unwrap();
+        s.save().unwrap();
+        let qfdoc = s.package_path.clone();
+        let reopened = ShellSession::open_from_path(dir.path(), "pkg2", &qfdoc).unwrap();
+        assert!(
+            reopened.editor.document_plain().contains("Package open body"),
+            "{}",
+            reopened.editor.document_plain()
+        );
     }
 }

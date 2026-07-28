@@ -108,10 +108,20 @@ fn main() -> ExitCode {
                 ExitCode::FAILURE
             }
         },
-        "import-docx" => {
+        "import-docx" | "open" | "import" => {
             let path = args.next();
             let name = args.next().unwrap_or_else(|| "Imported".into());
-            match run_import_docx(path, name) {
+            match run_open(path, name) {
+                Ok(()) => ExitCode::SUCCESS,
+                Err(e) => {
+                    eprintln!("error: {e}");
+                    ExitCode::FAILURE
+                }
+            }
+        },
+        "export-all" => {
+            let name = args.next().unwrap_or_else(|| "ExportAll".into());
+            match run_export_all(name) {
                 Ok(()) => ExitCode::SUCCESS,
                 Err(e) => {
                     eprintln!("error: {e}");
@@ -290,9 +300,11 @@ fn run_polish_demo() -> Result<(), String> {
     Ok(())
 }
 
-fn run_import_docx(path: Option<String>, name: String) -> Result<(), String> {
+fn run_open(path: Option<String>, name: String) -> Result<(), String> {
     let Some(path) = path else {
-        return Err("usage: quillforge import-docx <file.docx> [name]".into());
+        return Err(
+            "usage: quillforge open <file.(qfdoc|docx|md|html|txt)> [name]".into(),
+        );
     };
     let path = PathBuf::from(path);
     if !path.exists() {
@@ -300,13 +312,26 @@ fn run_import_docx(path: Option<String>, name: String) -> Result<(), String> {
     }
     let work = PathBuf::from("target/quill-import");
     let session =
-        ShellSession::open_from_docx(&work, &name, &path).map_err(|e| e.to_string())?;
-    println!("imported: {}", path.display());
+        ShellSession::open_from_path(&work, &name, &path).map_err(|e| e.to_string())?;
+    println!("opened:   {}", path.display());
     println!("package:  {}", session.package_path.display());
-    println!("blocks:   {}", session.editor.page_count()); // at least pages
+    println!("pages:    {}", session.editor.page_count());
     println!("words:    {}", session.editor.word_count());
     println!("plain preview:\n{}", session.editor.document_plain());
-    println!("import-docx complete — DOCX → .qfdoc via journal");
+    println!("open complete — interchange → .qfdoc via journal");
+    Ok(())
+}
+
+fn run_export_all(name: String) -> Result<(), String> {
+    let work = PathBuf::from("target/quill-export-all");
+    let mut session = ShellSession::open_or_create(&work, &name).map_err(|e| e.to_string())?;
+    session.draft = "Quillforge exports all foundation formats.".into();
+    session.apply_draft().map_err(|e| e.to_string())?;
+    let paths = session.export_all().map_err(|e| e.to_string())?;
+    for p in &paths {
+        println!("wrote {}", p.display());
+    }
+    println!("export-all complete — pdf docx md html txt + qfdoc");
     Ok(())
 }
 
@@ -374,7 +399,9 @@ fn print_help() {
     println!("  quillforge surface             Show Word-class product chrome model");
     println!("  quillforge edit [name]         Open Word-class GUI shell");
     println!("  quillforge review-demo         Propose / accept / reject suggestions");
-    println!("  quillforge import-docx <file> [name]  Import .docx → .qfdoc");
+    println!("  quillforge open <file> [name]  Open qfdoc|docx|md|html|txt → .qfdoc");
+    println!("  quillforge import-docx <file> [name]  Alias of open for .docx");
+    println!("  quillforge export-all [name]   Export pdf/docx/md/html/txt + save qfdoc");
     println!("  quillforge polish-demo         Rulers, headers/footers, images (P5)");
     println!("  quillforge sync-demo           Localhost TCP multi-client sync demo");
     println!("  quillforge tls-sync-demo       Localhost TLS (rustls) sync demo");

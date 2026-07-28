@@ -7,6 +7,7 @@ mod docx;
 mod docx_import;
 mod fonts;
 mod pdf;
+mod text_import;
 
 /// Local-first font packs (TrueType embed for PDF).
 pub use fonts::{
@@ -18,6 +19,8 @@ pub use pdf::{export_pdf_with_assets, export_pdf_with_assets_and_font, pdf_layou
 pub use docx::{export_docx_with_assets, export_docx_with_assets_and_font};
 /// DOCX import intermediate blocks (apply via journal in app/storage).
 pub use docx_import::{import_docx_blocks, import_docx_path, DocxImportBlock};
+/// Markdown / HTML / plain-text import → same intermediate blocks as DOCX.
+pub use text_import::{import_html, import_markdown, import_plain, import_text_path};
 
 use qf_blocks::{BlockBody, Mark, Span};
 use qf_citation::{format_source_marker, SourceKind, SourceRef, SourceTable};

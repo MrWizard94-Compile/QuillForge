@@ -2,7 +2,9 @@
 //!
 //! Layout is always derived after successful commits (never authoritative).
 
-use qf_core::{BlockId, Command, CommandError, OpSeq, ParentRef, TextOffset};
+use qf_core::{
+    ActorId, BlockId, Command, CommandError, OpSeq, ParentRef, SeqIdGen, SessionId, TextOffset,
+};
 use qf_input::{InputState, KeyEvent, PointerEvent, Selection};
 use qf_layout::{LayoutConfig, LayoutEngine, LayoutTree};
 use qf_search::{SearchEngine, SearchHit, SearchIngestor, SearchMode, SearchQuery};
@@ -59,6 +61,36 @@ impl EditorController {
     pub fn create_default(journal_path: &Path) -> Result<Self, EditorError> {
         let session = DocumentSession::create_default(journal_path)?;
         Ok(Self::new(session))
+    }
+
+    /// Open a `.qfdoc` package into a working journal path.
+    pub fn open_package(package_path: &Path, journal_path: &Path) -> Result<Self, EditorError> {
+        let mut gen = SeqIdGen::default();
+        let actor = ActorId::new(&mut gen);
+        let sess = SessionId::new(&mut gen);
+        let (session, _notes) = DocumentSession::open_package(
+            package_path,
+            journal_path,
+            actor,
+            sess,
+            Box::new(gen),
+        )
+        .map_err(|e| EditorError::Other(e.to_string()))?;
+        let mut ed = Self::new(session);
+        // Focus first text-bearing block when present.
+        let first = {
+            let doc = &ed.session.state().document;
+            let root = doc.root_section_id;
+            doc.sections
+                .get(&root)
+                .and_then(|s| s.blocks.first().copied())
+        };
+        if let Some(id) = first {
+            let _ = ed.focus(id, TextOffset(0));
+        } else {
+            let _ = ed.ensure_editable_paragraph();
+        }
+        Ok(ed)
     }
 
     pub fn op_seq(&self) -> OpSeq {
@@ -365,18 +397,16 @@ impl EditorController {
         })
     }
 
-    /// Import DOCX blocks via journaled InsertBlock commands (P4 round-trip path).
-    ///
-    /// Replaces current document body: existing blocks are removed, then import
-    /// blocks are inserted in order. Layout reflows after commit.
-    pub fn import_docx_bytes(&mut self, bytes: &[u8]) -> Result<usize, EditorError> {
+    /// Apply import intermediate blocks via journaled InsertBlock (shared by all importers).
+    pub fn apply_import_blocks(
+        &mut self,
+        blocks: &[qf_export::DocxImportBlock],
+    ) -> Result<usize, EditorError> {
         use qf_blocks::{BlockBody, CodeBlock, ImageBlock};
         use qf_core::AssetId;
-        use qf_export::{import_docx_blocks, DocxImportBlock};
+        use qf_export::DocxImportBlock;
         use qf_kernel::encode_body;
 
-        let blocks = import_docx_blocks(bytes).map_err(EditorError::Other)?;
-        // Remove existing root-section blocks (newest first so indices stay valid).
         let existing: Vec<BlockId> = {
             let doc = &self.session.state().document;
             let root = doc.root_section_id;
@@ -390,7 +420,7 @@ impl EditorController {
         }
 
         let mut count = 0u32;
-        for block in &blocks {
+        for block in blocks {
             let (body_type, body_payload) = match block {
                 DocxImportBlock::Paragraph { text } => ("paragraph".into(), text.as_bytes().to_vec()),
                 DocxImportBlock::Heading { level, text } => {
@@ -442,7 +472,6 @@ impl EditorController {
         if count == 0 {
             self.ensure_editable_paragraph()?;
         } else {
-            // Focus first text-bearing block when possible.
             let first = {
                 let doc = &self.session.state().document;
                 let root = doc.root_section_id;
@@ -458,9 +487,61 @@ impl EditorController {
         Ok(count as usize)
     }
 
+    /// Import DOCX blocks via journaled InsertBlock commands.
+    pub fn import_docx_bytes(&mut self, bytes: &[u8]) -> Result<usize, EditorError> {
+        use qf_export::import_docx_blocks;
+        let blocks = import_docx_blocks(bytes).map_err(EditorError::Other)?;
+        self.apply_import_blocks(&blocks)
+    }
+
     pub fn import_docx_path(&mut self, path: &Path) -> Result<usize, EditorError> {
         let bytes = std::fs::read(path).map_err(|e| EditorError::Other(e.to_string()))?;
         self.import_docx_bytes(&bytes)
+    }
+
+    /// Import Markdown / HTML / plain text by path extension.
+    pub fn import_text_path(&mut self, path: &Path) -> Result<usize, EditorError> {
+        use qf_export::import_text_path;
+        let blocks = import_text_path(path).map_err(EditorError::Other)?;
+        self.apply_import_blocks(&blocks)
+    }
+
+    /// Import raw text with an explicit format: `md` | `html` | `txt`.
+    pub fn import_text_format(&mut self, text: &str, format: &str) -> Result<usize, EditorError> {
+        use qf_export::{import_html, import_markdown, import_plain};
+        let blocks = match format {
+            "md" | "markdown" => import_markdown(text),
+            "html" | "htm" => import_html(text),
+            "txt" | "text" | "plain" => import_plain(text),
+            other => {
+                return Err(EditorError::Other(format!(
+                    "unknown text format {other}"
+                )));
+            }
+        };
+        self.apply_import_blocks(&blocks)
+    }
+
+    /// Open any supported document path into this editor (replaces body; does not change package path).
+    pub fn import_any_path(&mut self, path: &Path) -> Result<usize, EditorError> {
+        let ext = path
+            .extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or("")
+            .to_ascii_lowercase();
+        match ext.as_str() {
+            "docx" => self.import_docx_path(path),
+            "md" | "markdown" | "html" | "htm" | "txt" | "text" => self.import_text_path(path),
+            "qfdoc" => Err(EditorError::Other(
+                "open .qfdoc via package open, not import_any_path".into(),
+            )),
+            "pdf" => Err(EditorError::Other(
+                "PDF is export-only in foundation (no PDF import)".into(),
+            )),
+            other => Err(EditorError::Other(format!(
+                "unsupported open format .{other}; use qfdoc|docx|md|html|txt"
+            ))),
+        }
     }
 
     /// Export current document as DOCX bytes (DrawingML images + pin TrueType font).
@@ -477,6 +558,54 @@ impl EditorController {
             Some(&FontPack::pin_default()),
         )
         .map_err(EditorError::Other)
+    }
+
+    fn export_core(&self, format: qf_export::ExportFormat) -> Result<Vec<u8>, EditorError> {
+        use qf_export::{CoreExporter, ExportConfig, ExportRequest, Exporter};
+        // Prefer asset-aware paths for PDF/DOCX.
+        match format {
+            qf_export::ExportFormat::Pdf => self.export_pdf_bytes(),
+            qf_export::ExportFormat::Docx => self.export_docx_bytes(),
+            other => CoreExporter
+                .export(
+                    self.session.state(),
+                    &ExportRequest {
+                        format: other,
+                        config: ExportConfig {
+                            include_bibliography: false,
+                            include_timestamps: false,
+                        },
+                    },
+                )
+                .map(|o| o.bytes)
+                .map_err(EditorError::Other),
+        }
+    }
+
+    pub fn export_markdown_bytes(&self) -> Result<Vec<u8>, EditorError> {
+        self.export_core(qf_export::ExportFormat::Markdown)
+    }
+
+    pub fn export_html_bytes(&self) -> Result<Vec<u8>, EditorError> {
+        self.export_core(qf_export::ExportFormat::Html)
+    }
+
+    pub fn export_plain_bytes(&self) -> Result<Vec<u8>, EditorError> {
+        self.export_core(qf_export::ExportFormat::PlainText)
+    }
+
+    /// Export by extension: pdf|docx|md|html|txt (and aliases).
+    pub fn export_by_extension(&self, ext: &str) -> Result<Vec<u8>, EditorError> {
+        match ext.to_ascii_lowercase().as_str() {
+            "pdf" => self.export_pdf_bytes(),
+            "docx" => self.export_docx_bytes(),
+            "md" | "markdown" => self.export_markdown_bytes(),
+            "html" | "htm" => self.export_html_bytes(),
+            "txt" | "text" | "plain" => self.export_plain_bytes(),
+            other => Err(EditorError::Other(format!(
+                "unsupported export extension .{other}"
+            ))),
+        }
     }
 
     pub fn save(&mut self, path: &Path) -> Result<(), EditorError> {

@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Structured DOCX:** AST-driven export with Heading/Quote/Code styles and `styles.xml` (ADR-024).
+- **RepoForge birth law:** LIFE-BIRTH-001 + ADOPT Option D for attaching this constitution pack.
 - **TLS sync transport:** rustls TLS 1.3 adapter for QFSNC1 (`TlsSyncServer` / `TlsSyncClient`), shared wire codec, `tls-sync-demo` CLI, ADR-023.
 - **AGENTS Constitution pack v5.0.0:** portable universal pack (`PACK.md`, `ADOPT.md`, `VERSION`), integrity tools, project pointer Level 4 entry, archive of pre-v4 monolith.
 - **WPAI branding:** studio identity constants (`qf_core::brand`), forge-dark theme (`Theme::wpai_forge_dark`), CLI/version chrome, package `APP_VERSION` attribution, and in-repo `brand/` kit (voice + official marks).
@@ -35,7 +37,7 @@ Foundation release: local-first document OS core is production-shaped, zero-warn
 ### Known deferred (non-blocking for foundation tag)
 
 - WebSocket / browser transport (TLS + TCP QFSNC1 ship).
-- Rich PDF/DOCX typography (fonts, images, styles).
+- Full OOXML tables/media/images and custom fonts (structured DOCX styles ship).
 - OS process-spawn kill harness (synthetic power-loss matrix is binding).
 
 ### Verify

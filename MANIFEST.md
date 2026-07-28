@@ -1,24 +1,23 @@
-# Delivery MANIFEST — TLS QFSNC1 transport
+# Delivery MANIFEST — Structured DOCX + constitution birth law
 
-**Title:** rustls TLS 1.3 adapter for SyncHub / QFSNC1  
+**Title:** AST DOCX export; LIFE-BIRTH-001 RepoForge attach  
 **Date:** 2026-07-28  
-**Law:** AGENTS Constitution v5.0.0 · `specialist/NETWORKING.md` · SEC-INPUT-001
+**Law:** AGENTS Constitution v5.0.0
 
 ## Summary
 
-1. Shared `wire.rs` frame codec (QFSNC1 CBOR).  
-2. `TlsIdentity` + `TlsSyncServer` / `TlsSyncClient` (rustls, ring provider).  
-3. Dev self-signed certs; tests + `quillforge tls-sync-demo`.  
-4. ADR-023; ship checklist D21 TLS closed.
+1. Constitution: LIFE-BIRTH-001, ADOPT Option D (RepoForge), registry + Level-4 pointer.  
+2. DOCX: block-structured export (headings, quotes, code styles), styles.xml, deterministic ZIP.  
+3. ADR-024.
 
 ## Verify
 
 ```bash
+pwsh -File "AGENTS Constitution/tools/verify-pack.ps1"
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
-cargo run -p qf-app -- tls-sync-demo
 ```
 
 ## Self-audit
 
-CONST-GATE-001 pass: complete, tested, documented, zero warnings.
+CONST-GATE-001 pass.

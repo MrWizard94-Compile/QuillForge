@@ -198,3 +198,11 @@ Living record of decisions that bind implementers. Complements `docs/` specs.
 **Status:** Accepted  
 **Decision:** Encrypted sync uses the same QFSNC1 framed CBOR protocol over rustls TLS 1.3 (`TlsSyncServer` / `TlsSyncClient`). Wire codec is shared (`wire.rs`). Dev/tests use self-signed SAN localhost material (`TlsIdentity::generate_dev`); production loads PKCS#8 + cert chain DER. Plain TCP remains for local tooling.  
 **Why:** Closes the TLS residual with a real crypto stack without WebSocket/browser complexity; protocol version stays `QFSNC1` (NET-PROTO-001).
+
+---
+
+## ADR-024 — Structured DOCX export from canonical AST
+
+**Status:** Accepted  
+**Decision:** DOCX export walks document blocks (not plain-text lines). Headings map to Heading1–3 styles with outline levels; quotes/code get dedicated styles in `word/styles.xml`; lists/checklists flatten to text bullets. Deterministic ZIP timestamps retained.  
+**Why:** Marketing residual for rich DOCX structure without full OOXML table/media model.

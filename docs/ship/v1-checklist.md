@@ -42,7 +42,7 @@ Use this checklist before tagging a v1 release. Evidence points to automated tes
 | D15 | Editing offline | EditorController e2e | Met |
 | D16 | Layout | Golden fixtures | Met |
 | D17 | Rendering | qf-render headless tests | Met (headless GPU abstraction) |
-| D18 | Export | MD/HTML/TXT + PDF 1.4 + minimal OOXML DOCX | Met |
+| D18 | Export | MD/HTML/TXT + multi-page PDF + structured DOCX styles | Met |
 | D19 | Search | rebuild_equivalence | Met (token; semantic optional) |
 | D20 | Collab | presence + CRDT + suggestions | Met (foundation) |
 | D21 | Sync | durable queue + SyncHub + TCP + TLS (rustls) + presence | Met |

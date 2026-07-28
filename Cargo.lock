@@ -1950,6 +1950,7 @@ dependencies = [
  "qf-storage",
  "qf-sync",
  "qf-theme",
+ "rustls",
  "serde",
  "serde_json",
  "tempfile",

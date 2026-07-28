@@ -79,7 +79,8 @@ impl TlsIdentity {
         PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(self.key_pkcs8.clone()))
     }
 
-    pub(crate) fn server_config(&self) -> Result<Arc<ServerConfig>, SyncError> {
+    /// rustls server config (HTTPS demos, WSS, TLS QFSNC1).
+    pub fn server_config(&self) -> Result<Arc<ServerConfig>, SyncError> {
         ensure_crypto_provider();
         let cfg = ServerConfig::builder()
             .with_no_client_auth()
@@ -88,7 +89,8 @@ impl TlsIdentity {
         Ok(Arc::new(cfg))
     }
 
-    pub(crate) fn client_config(&self) -> Result<Arc<ClientConfig>, SyncError> {
+    /// rustls client config trusting this identity's certificate chain.
+    pub fn client_config(&self) -> Result<Arc<ClientConfig>, SyncError> {
         ensure_crypto_provider();
         let mut roots = RootCertStore::empty();
         for cert in &self.certs {
@@ -101,6 +103,53 @@ impl TlsIdentity {
             .with_no_client_auth();
         Ok(Arc::new(cfg))
     }
+
+    /// PEM-encoded leaf certificate (for browser trust instructions / export).
+    pub fn certificate_pem(&self) -> Result<String, SyncError> {
+        let der = self
+            .certs
+            .first()
+            .ok_or_else(|| SyncError::Auth("empty certificate chain".into()))?;
+        Ok(pem_encode("CERTIFICATE", der.as_ref()))
+    }
+}
+
+fn pem_encode(label: &str, der: &[u8]) -> String {
+    let b64 = {
+        const T: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+        let mut out = String::new();
+        let mut i = 0;
+        while i + 3 <= der.len() {
+            let n = ((der[i] as u32) << 16) | ((der[i + 1] as u32) << 8) | (der[i + 2] as u32);
+            out.push(T[((n >> 18) & 63) as usize] as char);
+            out.push(T[((n >> 12) & 63) as usize] as char);
+            out.push(T[((n >> 6) & 63) as usize] as char);
+            out.push(T[(n & 63) as usize] as char);
+            i += 3;
+        }
+        let rem = der.len() - i;
+        if rem == 1 {
+            let n = (der[i] as u32) << 16;
+            out.push(T[((n >> 18) & 63) as usize] as char);
+            out.push(T[((n >> 12) & 63) as usize] as char);
+            out.push('=');
+            out.push('=');
+        } else if rem == 2 {
+            let n = ((der[i] as u32) << 16) | ((der[i + 1] as u32) << 8);
+            out.push(T[((n >> 18) & 63) as usize] as char);
+            out.push(T[((n >> 12) & 63) as usize] as char);
+            out.push(T[((n >> 6) & 63) as usize] as char);
+            out.push('=');
+        }
+        out
+    };
+    let mut pem = format!("-----BEGIN {label}-----\n");
+    for chunk in b64.as_bytes().chunks(64) {
+        pem.push_str(std::str::from_utf8(chunk).unwrap_or(""));
+        pem.push('\n');
+    }
+    pem.push_str(&format!("-----END {label}-----\n"));
+    pem
 }
 
 /// TLS server speaking QFSNC1 over rustls.

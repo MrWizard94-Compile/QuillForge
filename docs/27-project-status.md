@@ -14,12 +14,12 @@
 | Layer | Scope | Completion | Notes |
 |-------|--------|------------|--------|
 | **Foundation DoD** | Ship checklist D1–D28 | **~98%** | All criteria **Met** |
-| **Local-first core product** | Offline edit, package, recovery, export, plugins, AI, sync | **~98%** | + Word-class P0–P5 + full sync transports |
-| **Marketing / “v1 product”** | Polish, multi-OS CI, browser UX | **~94%** | Browser **reference client** for QFSNC1/`ws://` |
-| **Long-term vision** | Full document OS, multiplayer UX, semantic search, rich GPU | **~76%** | Editor + multi-transport + browser client |
+| **Local-first core product** | Offline edit, package, recovery, export, plugins, AI, sync | **~98%** | + Word-class P0–P5 + full sync matrix |
+| **Marketing / “v1 product”** | Polish, multi-OS CI, browser UX | **~95%** | Browser client on **ws://** and **wss://** (HTTPS demo) |
+| **Long-term vision** | Full document OS, multiplayer UX, semantic search, rich GPU | **~77%** | Editor + multi-transport + browser path |
 
 **Headline for directors:**  
-**Foundation ~98% DoD. Word-class P0–P5 complete. Sync: TCP · TLS · WS · WSS · browser reference client. Overall vision ~76%.**
+**Foundation ~98% DoD. Word-class P0–P5 complete. Sync: TCP · TLS · WS · WSS · browser (HTTP+HTTPS). Overall vision ~77%.**
 
 ---
 
@@ -31,17 +31,18 @@
 | TLS 1.3 | `tls-sync-demo` |
 | WebSocket | `ws-sync-demo` |
 | WSS | `wss-sync-demo` |
-| **Browser client** | **`browser-sync-demo`** · `web/qfsnc1-client/` |
+| Browser `ws://` | `browser-sync-demo` |
+| **Browser `wss://`** | **`browser-wss-demo`** |
 
 ---
 
 ## What remains (ordered)
 
-1. Browser + `wss://` (HTTPS-hosted page + trusted cert)  
-2. Rich media fidelity (real image decode, tables/fonts)  
-3. Semantic search  
-4. Multi-OS CI matrix  
-5. Long-lived WS/WSS sessions  
+1. Rich media fidelity (real image decode, tables/fonts)  
+2. Semantic search  
+3. Multi-OS CI matrix  
+4. Long-lived WS/WSS sessions  
+5. Production TLS / public CA packaging  
 
 ---
 
@@ -51,8 +52,7 @@
 pwsh -File "AGENTS Constitution/tools/verify-pack.ps1"
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
-cargo run -p qf-app -- browser-sync-demo
-cargo run -p qf-app -- wss-sync-demo
+$env:QUILL_BROWSER_DEMO_SECS=5; cargo run -p qf-app -- browser-wss-demo
 cargo run -p qf-app -- polish-demo
 ```
 

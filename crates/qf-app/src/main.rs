@@ -1,6 +1,9 @@
 //! Quillforge CLI (WPAI Software) — editor controller and demos.
 
-use qf_app::{run_browser_sync_demo, run_gui, EditorController, ProductSurface, ShellSession};
+use qf_app::{
+    run_browser_sync_demo, run_browser_wss_demo, run_gui, EditorController, ProductSurface,
+    ShellSession,
+};
 use qf_blocks::BlockBody;
 use qf_core::{
     cli_banner, ActorId, DocumentId, Hash256, Operation, ParentRef, SeqIdGen, SessionId, Version,
@@ -59,6 +62,13 @@ fn main() -> ExitCode {
             }
         },
         "browser-sync-demo" => match run_browser_sync_demo() {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(e) => {
+                eprintln!("error: {e}");
+                ExitCode::FAILURE
+            }
+        },
+        "browser-wss-demo" => match run_browser_wss_demo() {
             Ok(()) => ExitCode::SUCCESS,
             Err(e) => {
                 eprintln!("error: {e}");
@@ -254,6 +264,7 @@ fn print_help() {
     println!("  quillforge ws-sync-demo        Localhost WebSocket QFSNC1 sync demo");
     println!("  quillforge wss-sync-demo       Localhost WSS (TLS+WS) QFSNC1 sync demo");
     println!("  quillforge browser-sync-demo   HTTP page + ws:// QFSNC1 browser client");
+    println!("  quillforge browser-wss-demo    HTTPS page + wss:// QFSNC1 browser client");
     println!("  quillforge version             Print version and WPAI identity");
     println!("  quillforge help                Show this help");
     println!();

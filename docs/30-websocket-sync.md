@@ -47,11 +47,11 @@ cargo run -p qf-app -- wss-sync-demo
 See **`docs/31-browser-sync-client.md`** and `web/qfsnc1-client/`.
 
 ```bash
-cargo run -p qf-app -- browser-sync-demo
+cargo run -p qf-app -- browser-sync-demo      # http + ws
+cargo run -p qf-app -- browser-wss-demo       # https + wss (dev cert)
 ```
 
 ## Out of scope (next)
 
 - Long-lived multiplexed sessions (current client opens a connection per request)  
-- Production CA / ALPN packaging  
-- Hosted HTTPS + `wss://` browser demo  
+- Production CA / public trust  

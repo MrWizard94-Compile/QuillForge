@@ -1,17 +1,15 @@
-# Delivery MANIFEST — CI performance budgets (D26)
+# Delivery MANIFEST — Multi-page PDF + foundation release
 
-**Title:** Performance budget tests + CI gate + xtask perf  
+**Title:** Multi-page PDF export and `v0.1.0-foundation` release packaging  
 **Date:** 2026-07-28  
-**Law:** AGENTS Constitution v4.1 (`PERF-BUDGET-001`, `CONST-GATE-001`, `ENG-WARN-001`)
+**Law:** AGENTS Constitution v4.1 + `operations/RELEASES.md` (REL-PACKAGE-001)
 
 ## Summary
 
-1. **`docs/26-performance-budgets.md`** — binding budget table (PB-LAYOUT, JOURNAL, EXPORT, SYNC, CRYPTO).
-2. **`budget_*` tests** — layout, journal, export, TCP sync, crypto.
-3. **CI** — `.github/workflows/ci.yml` runs `cargo test --workspace budget_`.
-4. **xtask** — `cargo xtask perf` and `check` includes budgets.
-5. **ADR-020** — CI-gated budgets decision.
-6. Ship checklist **D26 → Met**.
+1. **Multi-page PDF** — paginated deterministic PDF 1.4 (45 lines/page, max 450 lines).
+2. **CHANGELOG.md** — Keep a Changelog entry for foundation release.
+3. **README** — verify commands, law pointer, foundation tag note.
+4. **Tag** — `v0.1.0-foundation` after suite green.
 
 ## Verify
 
@@ -19,23 +17,20 @@
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 cargo test --workspace budget_ -- --nocapture
-cargo xtask perf
+cargo run -p qf-app -- demo
+cargo run -p qf-app -- sync-demo
 ```
 
-## Self-audit
+## Self-audit (CONST-GATE-001)
 
-| CONST-GATE | Result |
-|------------|--------|
+| # | Result |
+|---|--------|
 | Completeness | Pass |
-| Zero warnings | Pass |
-| Tests | Pass (all budget_* + workspace) |
+| Zero warnings | Pass (pre-push) |
+| Tests | Pass |
 | Docs sync | Pass |
-| Review packaging | Pass |
+| Release packaging | Pass — CHANGELOG + tag |
 
-## Deferred (marketing / polish)
+## Deferred post-foundation
 
-| Item | Notes |
-|------|--------|
-| TLS/WebSocket WAN | Protocol + TCP complete |
-| Rich PDF/DOCX styles | Minimal writers ship |
-| OS process-spawn kill | Synthetic matrix binding |
+TLS/WebSocket WAN, rich DOCX/PDF typography, OS process-spawn kill harness.

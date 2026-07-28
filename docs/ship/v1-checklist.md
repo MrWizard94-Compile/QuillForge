@@ -83,7 +83,7 @@ cargo run -p qf-app -- version
 # or: cargo xtask check
 ```
 
-Optional tag: `v0.1.0-foundation` (foundation DoD met; marketing v1 may still add rich export styles / TLS WAN).
+Tag: **`v0.1.0-foundation`** (foundation DoD met; marketing v1 may still add rich export styles / TLS WAN).
 
 ## Rollback
 

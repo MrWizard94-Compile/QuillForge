@@ -174,3 +174,11 @@ Living record of decisions that bind implementers. Complements `docs/` specs.
 **Status:** Accepted  
 **Decision:** Performance budgets live in `docs/26-performance-budgets.md` and are enforced by tests named `budget_*` in layout, journal, export, sync, and security crates. CI and `cargo xtask check`/`perf` run `cargo test --workspace budget_`. Limits are generous debug-CI ceilings that still catch algorithmic regressions.  
 **Why:** Closes D26 without flaky micro-benchmarks; operational load under wall-clock caps.
+
+---
+
+## ADR-021 — Multi-page deterministic PDF pagination
+
+**Status:** Accepted  
+**Decision:** PDF export paginates plain-export lines at 45 lines/page (US Letter, Helvetica 12, TL 14), up to 450 lines total. Shared font object; one content stream per page; byte-stable for identical input.  
+**Why:** Long documents must not truncate silently at 60 lines; multi-page still avoids font subsetting complexity.

@@ -61,6 +61,13 @@ This repository contains the production architecture foundation. Start here:
 | [docs/23-risk-register.md](docs/23-risk-register.md) | Risk register |
 | [docs/24-definition-of-done.md](docs/24-definition-of-done.md) | Definition of done for v1 |
 | [docs/25-telemetry.md](docs/25-telemetry.md) | Telemetry (default disabled) |
+| [docs/26-performance-budgets.md](docs/26-performance-budgets.md) | CI performance budgets |
+| [docs/ship/v1-checklist.md](docs/ship/v1-checklist.md) | Foundation ship checklist |
+| [CHANGELOG.md](CHANGELOG.md) | Release history |
+
+## Law
+
+Binding AI/engineering law: [AGENTS.md](AGENTS.md) → [AGENTS Constitution](AGENTS%20Constitution/AGENTS.md) v4.1 + [SOP.md](AGENTS%20Constitution/SOP.md).
 
 ## Workspace
 
@@ -69,7 +76,8 @@ QuillForge/
 ├── Cargo.toml          # virtual workspace manifest
 ├── crates/             # focused internal crates (version 0.0.0)
 ├── xtask/              # cargo xtask automation
-└── docs/               # engineering specifications
+├── docs/               # engineering specifications
+└── AGENTS Constitution/  # quality + process law
 ```
 
 Build & verify:
@@ -77,9 +85,15 @@ Build & verify:
 ```bash
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
+cargo test --workspace budget_ -- --nocapture
 cargo run -p qf-app -- demo
+cargo run -p qf-app -- sync-demo
 cargo xtask check
 ```
+
+## Foundation release
+
+Tag **`v0.1.0-foundation`** marks the local-first core as shippable for further product work. See [CHANGELOG.md](CHANGELOG.md). Package format version remains `1.0.0`.
 
 ## Implementation status
 

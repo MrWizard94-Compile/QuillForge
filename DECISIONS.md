@@ -182,3 +182,11 @@ Living record of decisions that bind implementers. Complements `docs/` specs.
 **Status:** Accepted  
 **Decision:** PDF export paginates plain-export lines at 45 lines/page (US Letter, Helvetica 12, TL 14), up to 450 lines total. Shared font object; one content stream per page; byte-stable for identical input.  
 **Why:** Long documents must not truncate silently at 60 lines; multi-page still avoids font subsetting complexity.
+
+---
+
+## ADR-022 — WPAI studio branding for Quillforge
+
+**Status:** Accepted  
+**Decision:** Quillforge is branded as a **WPAI** (Wizard Productions AI Studio / **W.P.A.I**) Software product. Product name stays Quillforge. Studio voice, thesis, and forge palette are codified in `qf_core::brand`, default UI theme `Theme::wpai_forge_dark`, and repository `brand/`. Package metadata and CLI display studio attribution.  
+**Why:** Portfolio consistency with Wizard Productions AI Studio; transparent AI-assisted, human-directed positioning.

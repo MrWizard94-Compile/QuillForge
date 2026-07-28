@@ -1,8 +1,16 @@
 # Quillforge
 
+**WPAI Software** · Wizard Productions AI Studio (**W.P.A.I**)
+
 **Local-first document operating system** for writing, publishing, research, knowledge management, collaboration, and enterprise review workflows.
 
 Quillforge is a durable, offline-first, canonical-document platform with optional synchronization and a capability-based plugin system. The entire codebase is Rust.
+
+**Studio tagline:** Forging the future of creative media.  
+**Thesis:** AI is in the name. The wizard is in the work.  
+**Badge:** Human-directed · AI-assisted  
+
+Brand kit (forge palette, voice, official marks): **[brand/](brand/)**.
 
 ## Hard architectural truth
 
@@ -94,6 +102,14 @@ cargo xtask check
 ## Foundation release
 
 Tag **`v0.1.0-foundation`** marks the local-first core as shippable for further product work. See [CHANGELOG.md](CHANGELOG.md). Package format version remains `1.0.0`.
+
+## Studio
+
+Quillforge is a **WPAI** (Wizard Productions AI Studio) Software product, directed by Rob Bulkley (Mrwizard94).
+
+Made in open collaboration with AI tools; written into shape, directed, and finished by Rob Bulkley. AI is in the name — the wizard is in the work.
+
+- https://wpaistudio.net · rob@wpaistudio.net
 
 ## Implementation status
 

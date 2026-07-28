@@ -1,7 +1,8 @@
-//! Quillforge core primitives.
+//! Quillforge core primitives (WPAI Software).
 //!
 //! Foundation of the workspace: IDs, versioning, preserved maps, commands,
-//! operations, and shared error types. This crate MUST NOT depend on other `qf-*` crates.
+//! operations, brand identity, and shared error types. This crate MUST NOT
+//! depend on other `qf-*` crates.
 //!
 //! # Canonical mutation path
 //!
@@ -11,6 +12,7 @@
 //!
 //! Only operations are durable and replayable. Commands are ephemeral intent.
 
+mod brand;
 mod command;
 mod error;
 mod hash;
@@ -19,6 +21,7 @@ mod operation;
 mod preserved;
 mod version;
 
+pub use brand::*;
 pub use command::*;
 pub use error::*;
 pub use hash::*;

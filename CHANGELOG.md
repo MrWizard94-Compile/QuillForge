@@ -4,9 +4,15 @@ All notable changes to Quillforge are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+
+- **WPAI branding:** studio identity constants (`qf_core::brand`), forge-dark theme (`Theme::wpai_forge_dark`), CLI/version chrome, package `APP_VERSION` attribution, and in-repo `brand/` kit (voice + official marks).
+
 ## [0.1.0-foundation] — 2026-07-28
 
-Foundation release: local-first document OS core is production-shaped, zero-warning, and CI-gated.
+Foundation release: local-first document OS core is production-shaped, zero-warning, and CI-gated. A **WPAI Software** product of Wizard Productions AI Studio.
 
 ### Added
 

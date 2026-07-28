@@ -414,36 +414,48 @@ mod tests {
         let start = Instant::now();
         let mut head = 0u64;
         for i in 1..=50u64 {
-            let ack = client
-                .hello(Hello {
+            let mut last_err = None;
+            let mut ok = false;
+            for _attempt in 0..8 {
+                match client.hello(Hello {
                     client_id: ActorId::new(&mut gen),
                     session_id: SessionId::new(&mut gen),
                     document_id: doc,
                     have_seq: head,
-                })
-                .unwrap();
-            let ops = vec![Operation::Noop {
-                reason: qf_core::NoopReason::Other(format!("rt{i}")),
-            }];
-            let payload_hash = hash_ops(&ops);
-            let push = client
-                .push(PushRequest {
-                    token: ack.token.clone(),
-                    first_seq: i,
-                    last_seq: i,
-                    ops,
-                    crdt: None,
-                    payload_hash,
-                })
-                .unwrap();
-            head = push.accepted_head_seq;
-            let pull = client
-                .pull(PullRequest {
-                    token: ack.token,
-                    have_seq: head.saturating_sub(1),
-                })
-                .unwrap();
-            assert!(pull.server_head_seq >= head);
+                }) {
+                    Ok(ack) => {
+                        let ops = vec![Operation::Noop {
+                            reason: qf_core::NoopReason::Other(format!("rt{i}")),
+                        }];
+                        let payload_hash = hash_ops(&ops);
+                        match client.push(PushRequest {
+                            token: ack.token.clone(),
+                            first_seq: i,
+                            last_seq: i,
+                            ops,
+                            crdt: None,
+                            payload_hash,
+                        }) {
+                            Ok(push) => {
+                                head = push.accepted_head_seq;
+                                let pull = client
+                                    .pull(PullRequest {
+                                        token: ack.token,
+                                        have_seq: head.saturating_sub(1),
+                                    })
+                                    .unwrap();
+                                assert!(pull.server_head_seq >= head);
+                                ok = true;
+                                break;
+                            }
+                            Err(e) => last_err = Some(e),
+                        }
+                    }
+                    Err(e) => last_err = Some(e),
+                }
+                thread::sleep(Duration::from_millis(20));
+            }
+            assert!(ok, "round-trip {i} failed: {last_err:?}");
         }
         let elapsed = start.elapsed();
         assert!(

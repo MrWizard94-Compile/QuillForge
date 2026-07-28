@@ -1,8 +1,12 @@
-//! Quillforge CLI — exercises the editor controller (primary user workflow).
+//! Quillforge CLI (WPAI Software) — editor controller and demos.
 
 use qf_app::EditorController;
 use qf_blocks::BlockBody;
-use qf_core::{ActorId, DocumentId, Hash256, Operation, ParentRef, SeqIdGen, SessionId, Version};
+use qf_core::{
+    cli_banner, ActorId, DocumentId, Hash256, Operation, ParentRef, SeqIdGen, SessionId, Version,
+    FOUNDER_CREDIT, HUMAN_DIRECTED_BADGE, PRODUCT_DIVISION, PRODUCT_NAME, STUDIO_DISCLOSURE,
+    STUDIO_LEGAL, STUDIO_SHORT, STUDIO_SITE, STUDIO_TAGLINE, STUDIO_THESIS,
+};
 use qf_export::{CoreExporter, ExportFormat, ExportRequest, Exporter};
 use qf_input::KeyEvent;
 use qf_storage::DocumentSession;
@@ -33,8 +37,18 @@ fn main() -> ExitCode {
             }
         },
         "version" => {
-            println!("quillforge {}", env!("CARGO_PKG_VERSION"));
-            println!("package format {}", Version::V1_0_0);
+            println!("{}", cli_banner());
+            println!(
+                "{PRODUCT_NAME} {} · package format {}",
+                env!("CARGO_PKG_VERSION"),
+                Version::V1_0_0
+            );
+            println!(
+                "{STUDIO_LEGAL} ({STUDIO_SHORT}) · {PRODUCT_NAME} is a {PRODUCT_DIVISION} product"
+            );
+            println!("{HUMAN_DIRECTED_BADGE}");
+            println!("Studio: {STUDIO_SITE}");
+            println!("Founder: {FOUNDER_CREDIT}");
             ExitCode::SUCCESS
         }
         "help" | "-h" | "--help" => {
@@ -50,16 +64,22 @@ fn main() -> ExitCode {
 }
 
 fn print_help() {
-    println!("Quillforge — local-first document OS");
+    println!("{}", cli_banner());
+    println!("{STUDIO_LEGAL} — {STUDIO_TAGLINE}");
+    println!("{STUDIO_THESIS}");
+    println!("{HUMAN_DIRECTED_BADGE}");
     println!();
     println!("Usage:");
     println!("  quillforge demo [path.qfdoc]   Run editor + package demo");
     println!("  quillforge sync-demo           Localhost TCP multi-client sync demo");
-    println!("  quillforge version             Print version");
+    println!("  quillforge version             Print version and WPAI identity");
     println!("  quillforge help                Show this help");
     println!();
     println!("Law: AGENTS Constitution/AGENTS.md + SOP.md");
     println!("Architecture: Input → Command → Journal → Kernel → Layout");
+    println!("Brand: brand/ (WPAI forge visual + voice)");
+    println!();
+    println!("{STUDIO_DISCLOSURE}");
 }
 
 fn run_sync_demo() -> Result<(), String> {
@@ -139,7 +159,7 @@ fn run_demo(path: Option<String>) -> Result<(), String> {
         .ensure_editable_paragraph()
         .map_err(|e| e.to_string())?;
 
-    for ch in "Hello, Quillforge.".chars() {
+    for ch in "Hello, Quillforge — WPAI.".chars() {
         editor
             .handle_key(KeyEvent::Char(ch))
             .map_err(|e| e.to_string())?;

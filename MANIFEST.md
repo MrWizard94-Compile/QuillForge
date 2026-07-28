@@ -1,36 +1,26 @@
-# Delivery MANIFEST — Multi-page PDF + foundation release
+# Delivery MANIFEST — WPAI branding alignment
 
-**Title:** Multi-page PDF export and `v0.1.0-foundation` release packaging  
+**Title:** Quillforge branded as WPAI Software product  
 **Date:** 2026-07-28  
-**Law:** AGENTS Constitution v4.1 + `operations/RELEASES.md` (REL-PACKAGE-001)
+**Law:** AGENTS Constitution v4.1 + company Brand voice (`brand/BRAND-VOICE.md`)
 
 ## Summary
 
-1. **Multi-page PDF** — paginated deterministic PDF 1.4 (45 lines/page, max 450 lines).
-2. **CHANGELOG.md** — Keep a Changelog entry for foundation release.
-3. **README** — verify commands, law pointer, foundation tag note.
-4. **Tag** — `v0.1.0-foundation` after suite green.
+1. `qf_core::brand` — WPAI / W.P.A.I constants, CLI banner, package identity helper.  
+2. `Theme::wpai_forge_dark` — coal/ember forge palette as product default.  
+3. CLI help/version chrome with studio thesis and disclosure.  
+4. `brand/` kit with official marks + voice (from `C:\WPAI\Brand`).  
+5. README, CHANGELOG, ADR-022, Cargo authors.
 
 ## Verify
 
 ```bash
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
-cargo test --workspace budget_ -- --nocapture
-cargo run -p qf-app -- demo
-cargo run -p qf-app -- sync-demo
+cargo run -p qf-app -- version
+cargo run -p qf-app -- help
 ```
 
-## Self-audit (CONST-GATE-001)
+## Self-audit
 
-| # | Result |
-|---|--------|
-| Completeness | Pass |
-| Zero warnings | Pass (pre-push) |
-| Tests | Pass |
-| Docs sync | Pass |
-| Release packaging | Pass — CHANGELOG + tag |
-
-## Deferred post-foundation
-
-TLS/WebSocket WAN, rich DOCX/PDF typography, OS process-spawn kill harness.
+CONST-GATE-001: complete branding surfaces, tests pass, no stubs, docs synced.

@@ -12,7 +12,7 @@ use qf_input::KeyEvent;
 use qf_storage::DocumentSession;
 use qf_sync::{
     Hello, PullRequest, PushRequest, SyncHub, TcpSyncClient, TcpSyncServer, TlsIdentity,
-    TlsSyncClient, TlsSyncServer, WsSyncClient, WsSyncServer,
+    TlsSyncClient, TlsSyncServer, WsSyncClient, WsSyncServer, WssSyncClient, WssSyncServer,
 };
 use std::env;
 use std::path::PathBuf;
@@ -45,6 +45,13 @@ fn main() -> ExitCode {
             }
         },
         "ws-sync-demo" => match run_ws_sync_demo() {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(e) => {
+                eprintln!("error: {e}");
+                ExitCode::FAILURE
+            }
+        },
+        "wss-sync-demo" => match run_wss_sync_demo() {
             Ok(()) => ExitCode::SUCCESS,
             Err(e) => {
                 eprintln!("error: {e}");
@@ -238,6 +245,7 @@ fn print_help() {
     println!("  quillforge sync-demo           Localhost TCP multi-client sync demo");
     println!("  quillforge tls-sync-demo       Localhost TLS (rustls) sync demo");
     println!("  quillforge ws-sync-demo        Localhost WebSocket QFSNC1 sync demo");
+    println!("  quillforge wss-sync-demo       Localhost WSS (TLS+WS) QFSNC1 sync demo");
     println!("  quillforge version             Print version and WPAI identity");
     println!("  quillforge help                Show this help");
     println!();
@@ -303,6 +311,74 @@ fn run_tls_sync_demo() -> Result<(), String> {
     );
     server.stop();
     println!("tls-sync-demo complete — QFSNC1 over TLS 1.3 verified");
+    Ok(())
+}
+
+fn run_wss_sync_demo() -> Result<(), String> {
+    let identity = TlsIdentity::generate_dev().map_err(|e| e.to_string())?;
+    let server =
+        WssSyncServer::start(SyncHub::new(), identity.clone()).map_err(|e| e.to_string())?;
+    let addr = server.addr();
+    println!("WSS QFSNC1 hub: {}", server.url());
+
+    let mut gen = SeqIdGen::default();
+    let doc = DocumentId::new(&mut gen);
+    let client_a = WssSyncClient::connect(addr, &identity).map_err(|e| e.to_string())?;
+    let client_b = WssSyncClient::connect(addr, &identity).map_err(|e| e.to_string())?;
+
+    let ack_a = client_a
+        .hello(Hello {
+            client_id: ActorId::new(&mut gen),
+            session_id: SessionId::new(&mut gen),
+            document_id: doc,
+            have_seq: 0,
+        })
+        .map_err(|e| e.to_string())?;
+    let ops = vec![Operation::Noop {
+        reason: qf_core::NoopReason::Other("wss-sync-demo".into()),
+    }];
+    let payload_hash = {
+        let mut buf = Vec::new();
+        for op in &ops {
+            let s = format!("{op:?}");
+            buf.extend_from_slice(&(s.len() as u32).to_le_bytes());
+            buf.extend_from_slice(s.as_bytes());
+        }
+        Hash256::sha256(&buf)
+    };
+    let push = client_a
+        .push(PushRequest {
+            token: ack_a.token,
+            first_seq: 1,
+            last_seq: 1,
+            ops,
+            crdt: None,
+            payload_hash,
+        })
+        .map_err(|e| e.to_string())?;
+    println!("WSS client A pushed; head={}", push.accepted_head_seq);
+
+    let ack_b = client_b
+        .hello(Hello {
+            client_id: ActorId::new(&mut gen),
+            session_id: SessionId::new(&mut gen),
+            document_id: doc,
+            have_seq: 0,
+        })
+        .map_err(|e| e.to_string())?;
+    let pull = client_b
+        .pull(PullRequest {
+            token: ack_b.token,
+            have_seq: 0,
+        })
+        .map_err(|e| e.to_string())?;
+    println!(
+        "WSS client B pulled; head={} ops={}",
+        pull.server_head_seq,
+        pull.ops.len()
+    );
+    server.stop();
+    println!("wss-sync-demo complete — QFSNC1 over TLS+WebSocket verified");
     Ok(())
 }
 

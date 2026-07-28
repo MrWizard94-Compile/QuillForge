@@ -9,6 +9,7 @@
 //! - [`TcpSyncServer`] / [`TcpSyncClient`] — plain TCP QFSNC1 frames
 //! - [`TlsSyncServer`] / [`TlsSyncClient`] — same protocol over rustls TLS 1.3
 //! - [`WsSyncServer`] / [`WsSyncClient`] — QFSNC1 binary frames over WebSocket (`ws://…/qfsnc1`)
+//! - [`WssSyncServer`] / [`WssSyncClient`] — same over TLS (`wss://…/qfsnc1`)
 //! - [`DurableSyncQueue`] — fsync offline queue
 
 mod durable_queue;
@@ -17,6 +18,7 @@ mod tcp;
 mod tls;
 mod wire;
 mod ws;
+mod wss;
 
 pub use durable_queue::{make_sync_item, DurableSyncQueue};
 pub use hub::{
@@ -27,6 +29,7 @@ pub use tcp::{TcpSyncClient, TcpSyncServer};
 pub use tls::{TlsIdentity, TlsSyncClient, TlsSyncServer};
 pub use wire::{WireRequest, WireResponse, PROTOCOL_ID};
 pub use ws::{WsSyncClient, WsSyncServer};
+pub use wss::{WssSyncClient, WssSyncServer};
 
 use qf_collab::{merge_crdt, PresenceBroker, PresenceEvent, TextCrdt};
 use qf_core::{BlockId, DocumentId, Hash256, Operation};

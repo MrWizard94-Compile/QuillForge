@@ -1,7 +1,7 @@
 //! WebSocket transport for QFSNC1 (browser-ready path).
 //!
 //! Each QFSNC1 frame (magic + length + CBOR) is one WebSocket **binary** message.
-//! Handshake is RFC 6455 over plain TCP (ws://). TLS+WSS can wrap later.
+//! Handshake is RFC 6455 over plain TCP (`ws://`) or TLS (`wss://` via [`crate::wss`]).
 //!
 //! Path: `/qfsnc1` — servers reject other upgrade targets.
 
@@ -162,13 +162,14 @@ impl WsSyncClient {
         stream
             .set_write_timeout(Some(Duration::from_secs(5)))
             .map_err(|e| SyncError::Network(e.to_string()))?;
-        client_handshake(&mut stream, self.addr)?;
+        let host = format!("{}", self.addr);
+        client_handshake(&mut stream, &host)?;
         write_qfsnc1_ws(&mut stream, &req, true)?;
         read_qfsnc1_ws(&mut stream)
     }
 }
 
-fn serve_one_ws<S: Read + Write>(
+pub(crate) fn serve_one_ws<S: Read + Write>(
     stream: &mut S,
     hub: &Arc<Mutex<SyncHub>>,
     client_masking: bool,
@@ -180,7 +181,7 @@ fn serve_one_ws<S: Read + Write>(
     write_qfsnc1_ws(stream, &resp, client_masking)
 }
 
-fn write_qfsnc1_ws<W: Write, T: serde::Serialize>(
+pub(crate) fn write_qfsnc1_ws<W: Write, T: serde::Serialize>(
     stream: &mut W,
     value: &T,
     mask: bool,
@@ -190,31 +191,35 @@ fn write_qfsnc1_ws<W: Write, T: serde::Serialize>(
     write_ws_binary(stream, &buf, mask)
 }
 
-fn read_qfsnc1_ws<R: Read, T: serde::de::DeserializeOwned>(stream: &mut R) -> Result<T, SyncError> {
+pub(crate) fn read_qfsnc1_ws<R: Read, T: serde::de::DeserializeOwned>(
+    stream: &mut R,
+) -> Result<T, SyncError> {
     let payload = read_ws_binary(stream)?;
     let mut cur = Cursor::new(payload);
     read_frame(&mut cur)
 }
 
-// --- HTTP upgrade ---
+// --- HTTP upgrade (generic Read+Write for TCP and TLS streams) ---
 
-fn client_handshake(stream: &mut TcpStream, addr: SocketAddr) -> Result<(), SyncError> {
+pub(crate) fn client_handshake<S: Read + Write>(
+    stream: &mut S,
+    host: &str,
+) -> Result<(), SyncError> {
     let key_raw: [u8; 16] = {
         let mut k = [0u8; 16];
-        // Deterministic-enough non-crypto random for tests; mix time + addr.
+        // Non-crypto mix for connection nonce (tests/dev).
         let t = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_nanos())
             .unwrap_or(0);
         for (i, b) in k.iter_mut().enumerate() {
             *b = ((t >> (i * 4)) as u8)
-                .wrapping_add(addr.port() as u8)
+                .wrapping_add(host.len() as u8)
                 .wrapping_add(i as u8);
         }
         k
     };
     let key_b64 = b64_encode(&key_raw);
-    let host = format!("{addr}");
     let req = format!(
         "GET {WS_PATH} HTTP/1.1\r\n\
          Host: {host}\r\n\
@@ -247,7 +252,7 @@ fn client_handshake(stream: &mut TcpStream, addr: SocketAddr) -> Result<(), Sync
     Ok(())
 }
 
-fn server_handshake(stream: &mut TcpStream) -> Result<(), SyncError> {
+pub(crate) fn server_handshake<S: Read + Write>(stream: &mut S) -> Result<(), SyncError> {
     let headers = read_http_headers(stream)?;
     let first = headers.lines().next().unwrap_or("");
     if !first.contains(WS_PATH) {
@@ -279,7 +284,7 @@ fn server_handshake(stream: &mut TcpStream) -> Result<(), SyncError> {
     Ok(())
 }
 
-fn read_http_headers(stream: &mut TcpStream) -> Result<String, SyncError> {
+fn read_http_headers<R: Read>(stream: &mut R) -> Result<String, SyncError> {
     // Byte-at-a-time so we never consume past the end of headers into WS frames.
     let mut buf = Vec::with_capacity(512);
     let mut b = [0u8; 1];

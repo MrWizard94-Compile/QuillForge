@@ -21,7 +21,7 @@ use std::time::Duration;
 
 static INSTALL_PROVIDER: Once = Once::new();
 
-fn ensure_crypto_provider() {
+pub(crate) fn ensure_crypto_provider() {
     INSTALL_PROVIDER.call_once(|| {
         let _ = rustls::crypto::ring::default_provider().install_default();
     });
@@ -79,7 +79,7 @@ impl TlsIdentity {
         PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(self.key_pkcs8.clone()))
     }
 
-    fn server_config(&self) -> Result<Arc<ServerConfig>, SyncError> {
+    pub(crate) fn server_config(&self) -> Result<Arc<ServerConfig>, SyncError> {
         ensure_crypto_provider();
         let cfg = ServerConfig::builder()
             .with_no_client_auth()
@@ -88,7 +88,7 @@ impl TlsIdentity {
         Ok(Arc::new(cfg))
     }
 
-    fn client_config(&self) -> Result<Arc<ClientConfig>, SyncError> {
+    pub(crate) fn client_config(&self) -> Result<Arc<ClientConfig>, SyncError> {
         ensure_crypto_provider();
         let mut roots = RootCertStore::empty();
         for cert in &self.certs {

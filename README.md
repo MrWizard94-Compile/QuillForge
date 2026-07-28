@@ -75,7 +75,7 @@ This repository contains the production architecture foundation. Start here:
 
 ## Law
 
-Binding AI/engineering law: [AGENTS.md](AGENTS.md) → [AGENTS Constitution](AGENTS%20Constitution/AGENTS.md) v4.1 + [SOP.md](AGENTS%20Constitution/SOP.md).
+Binding AI/engineering law: [AGENTS.md](AGENTS.md) → [AGENTS Constitution](AGENTS%20Constitution/AGENTS.md) **v5.0.0** portable pack + [SOP.md](AGENTS%20Constitution/SOP.md). Verify: `pwsh -File "AGENTS Constitution/tools/verify-pack.ps1"`.
 
 ## Workspace
 

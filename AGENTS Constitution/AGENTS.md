@@ -1,17 +1,20 @@
 # AGENTS.md — Constitution of an AI Empire
 
-**Version**: 4.1.0  
-**Last Updated**: 2026-07-27  
-**Status**: Binding — Universal Production Constitution (Hardened)  
+**Version**: 5.0.0  
+**Last Updated**: 2026-07-28  
+**Status**: Binding — Universal Production Constitution (Portable Pack)  
 **Classification**: Level 1 — Constitution (Immutable cross-project quality law)  
 **Document ID**: MOD-CONST-ROOT-001  
 **Module ID**: MOD-CONST-ROOT-001  
+**Pack version**: **5.0.0** ([VERSION](VERSION), [PACK.md](PACK.md))  
 
 **Purpose**: Sovereign entry point for quality law. Process law lives in [SOP.md](SOP.md). Execution detail lives in scoped modules. Project-local law lives in each project’s own docs.
 
 This file is authoritative and short. It does not restate module contents in full. Every important rule has **exactly one canonical home** (`CONST-ONEHOME-001`, [RULE-REGISTRY.md](RULE-REGISTRY.md)).
 
-**Governance (pack integrity):** [RULE-REGISTRY.md](RULE-REGISTRY.md) · [MODULE-INDEX.md](MODULE-INDEX.md) · [INTEGRITY.md](INTEGRITY.md) · `tools/verify-pack.ps1`
+This constitution ships as a **universal, reusable, movable pack** ([PACK.md](PACK.md), [ADOPT.md](ADOPT.md)). Folder location is not identity (`GOV-PORT-001`).
+
+**Governance:** [PACK.md](PACK.md) · [RULE-REGISTRY.md](RULE-REGISTRY.md) · [MODULE-INDEX.md](MODULE-INDEX.md) · [INTEGRITY.md](INTEGRITY.md) · `tools/verify-pack.ps1`
 
 ---
 
@@ -230,19 +233,20 @@ Rules:
 ## Folder Map
 
 ```
-AGENTS Constitution/
+<pack-root>/                  ← movable; any path/name
+├── VERSION · PACK.md · ADOPT.md · README.md
 ├── AGENTS.md                 ← You are here (Level 1 entry)
 ├── SOP.md                    ← Level 2 process law
-├── RULE-REGISTRY.md          ← Sole Rule ID authority
-├── MODULE-INDEX.md           ← Module catalog
-├── INTEGRITY.md              ← Pack integrity law
-├── tools/verify-pack.ps1     ← Automated integrity check
-├── constitution/              ← Level 1 detail
-├── standards/ · operations/ · collaboration/ · specialist/
-└── templates/
+├── RULE-REGISTRY.md · MODULE-INDEX.md · INTEGRITY.md
+├── tools/                    ← verify / self-audit / full self-run / checksums
+├── constitution/ · standards/ · operations/
+├── collaboration/ · specialist/ · templates/
+├── docs/                     ← optional SOP evidence
+└── reports/                  ← generated; not law
 ```
 
-Full module catalog: [MODULE-INDEX.md](MODULE-INDEX.md).
+Full module catalog: [MODULE-INDEX.md](MODULE-INDEX.md).  
+Adopt / move: [ADOPT.md](ADOPT.md).
 
 ### Constitution
 
@@ -332,6 +336,15 @@ SOP steps must satisfy at least: `ENG-WARN-001`, `TEST-BEHAVIOR-001`, `DOC-SYNC-
 ---
 
 ## Changelog
+
+### 5.0.0 — 2026-07-28
+
+* **Universal portable pack**: path-independent identity (`PACK.md`, `VERSION`, `ADOPT.md`).  
+* **Portability rules** `GOV-PORT-001`–`006`; absolute host paths forbidden in binding law.  
+* **Project pointer template** for consumers; Level 4 stays outside the pack.  
+* Tools accept `-PackRoot`; full self-run no longer couples to a desktop folder name.  
+* Checksums helper `tools/write-checksums.ps1`.  
+* Solidifies reusable drop-in constitution for any project/domain.
 
 ### 4.1.0 — 2026-07-27
 

@@ -3,12 +3,13 @@
 ```
 Document: Pack Integrity
 Module ID: MOD-GOV-INT-001
-Version: 1.1.0
+Version: 1.2.0
 Status: Binding (governance)
 Authority: AGENTS.md
-Applies When: Amending the constitution pack; before publishing a pack version; dual-copy sync
+Applies When: Amending the constitution pack; before publishing a pack version; move/copy/mirror
 Dependencies:
   - AGENTS.md
+  - PACK.md
   - RULE-REGISTRY.md
   - MODULE-INDEX.md
 Overrides: None
@@ -36,6 +37,9 @@ All of the following must exist (relative to pack root):
 
 ### Root
 
+* `VERSION`
+* `PACK.md`
+* `ADOPT.md`
 * `AGENTS.md`
 * `SOP.md`
 * `README.md`
@@ -92,14 +96,18 @@ All of the following must exist (relative to pack root):
 * `templates/AUDIT.template.md`
 * `templates/DELIVERY-REPORT.template.md`
 * `templates/PROJECT-OVERRIDE.template.md`
+* `templates/PROJECT-POINTER.template.md`
 
 ### Tools
 
 * `tools/verify-pack.ps1`
-* `tools/self-audit.ps1` (meta-audit; recommended, not required for GOV-INT-002 file set)
+* `tools/self-audit.ps1`
+* `tools/run-full-constitution-self.ps1`
+* `tools/write-checksums.ps1`
 
-`_archive_pre_v4/` is optional historical material; it is not required for integrity.  
-`reports/SELF-AUDIT-latest.md` is generated output (not required for GOV-INT-002).
+`_archive_*` is optional historical material; not required for integrity.  
+`docs/` SOP evidence is recommended for pack evolution history; not all files are GOV-INT-002-required.  
+`reports/*` is generated output (not required for GOV-INT-002).
 
 ---
 
@@ -143,17 +151,25 @@ Every binding module under `constitution/`, `standards/`, `operations/`, `collab
 
 ---
 
-## GOV-SYNC-001 — Dual-copy sync
+## GOV-SYNC-001 — Mirror / multi-copy discipline
 
-When this pack is mirrored (e.g. Desktop human workspace ↔ project `AGENTS Constitution/`):
+When this pack is copied or mirrored:
 
-1. Choose a **source of truth** for the amend (usually the human workspace pack).  
+1. Choose one **source of truth** for the amend.  
 2. Apply complete file replacements.  
-3. Run `tools/verify-pack.ps1` on **both** copies.  
-4. Record pack version in root `AGENTS.md` changelog.  
-5. Do not leave copies on different major/minor hardened versions without a documented reason.
+3. Run `tools/verify-pack.ps1` on **every** copy that remains in use.  
+4. Bump `VERSION` / `PACK.md` / `AGENTS.md` changelog for material changes.  
+5. Do not leave active copies on different major/minor versions without a documented reason.
+
+Portability details: [PACK.md](PACK.md) (`GOV-PORT-*`). Adoption: [ADOPT.md](ADOPT.md).
 
 ---
+
+## GOV-PORT-001 — Path independence (enforced)
+
+* Binding law and tools must not embed host absolute paths.  
+* `verify-pack.ps1` fails the pack if absolute host paths appear in binding files.  
+* Reports may record absolute paths for diagnostics only.
 
 ## GOV-OVR-001 — Project overrides
 
@@ -171,10 +187,12 @@ When amending the pack, confirm:
 1. `verify-pack.ps1` → pass  
 2. Registry updated if any Rule ID added/changed  
 3. Module index updated if any file added/renamed  
-4. Root folder map still accurate  
+4. `PACK.md` / `VERSION` / folder map still accurate  
 5. No forbidden aliases reintroduced  
 6. No full restatement of rules outside canonical homes  
 7. Version bumps on changed files  
+8. No absolute host paths in binding law (`GOV-PORT-001`)  
+9. After move/copy: re-run verify  
 
 ---
 

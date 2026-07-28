@@ -106,7 +106,14 @@ foreach ($m in [regex]::Matches($agents, '\]\((?<u>[^)]+)\)')) {
 if ($broken -eq 0) { Pass "All AGENTS.md relative links resolve" }
 
 # Version
-if ($agents -match '4\.1\.0') { Pass "AGENTS.md version 4.1.0" } else { Fail "AGENTS.md not on 4.1.0" }
+if ($agents -match '5\.\d+\.\d+') { Pass "AGENTS.md version 5.x (universal pack)" } else { Fail "AGENTS.md not on 5.x" }
+$verPath = Join-Path $PackRoot "VERSION"
+if (Test-Path $verPath) {
+    $pv = (Get-Content $verPath -TotalCount 1).Trim()
+    if ($pv -match '^5\.') { Pass "VERSION file $pv" } else { Fail "VERSION not 5.x ($pv)" }
+} else { Fail "VERSION file missing" }
+if (Test-Path (Join-Path $PackRoot "PACK.md")) { Pass "PACK.md present" } else { Fail "PACK.md missing" }
+if (Test-Path (Join-Path $PackRoot "ADOPT.md")) { Pass "ADOPT.md present" } else { Fail "ADOPT.md missing" }
 
 # Always-load set
 foreach ($rel in @(

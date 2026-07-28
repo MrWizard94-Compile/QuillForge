@@ -202,7 +202,7 @@ Individual projects may maintain a short resumption table (complete vs next) in 
 | Version | Date | Changes |
 |---------|------|---------|
 | 1.0 | 2026-07-27 | Initial SOP (as WORKFLOW.md content). |
-| 1.0.1 | 2026-07-27 | Renamed to SOP.md; cleaned structure; linked AGENTS.md; Quillforge baseline. |
+| 1.0.1 | 2026-07-27 | Renamed to SOP.md; cleaned structure; linked AGENTS.md; early project baseline. |
 | 1.0.2 | 2026-07-27 | Linked modular AGENTS modules/ (v3 flat layout). |
 | 2.0.0 | 2026-07-27 | Level-2 process law under v4 four-level constitution; Rule ID gates; template references. |
 | 2.0.1 | 2026-07-27 | Universal human-workspace pack: remove project-specific baseline notes; supersede WORKFLOW.md. |

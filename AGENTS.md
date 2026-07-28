@@ -1,39 +1,77 @@
-# AGENTS — Project Entry Point
+# AGENTS — Project Entry Point (QuillForge)
 
-**Level 1 — Constitution (SOUL) v4.1 hardened:**
+This file is **Level 4 project law entry only**. It points at the universal AGENTS Constitution pack. It does not duplicate the constitution.
 
-→ **[AGENTS Constitution/AGENTS.md](AGENTS%20Constitution/AGENTS.md)**
+**Pack path (relative):** [`AGENTS Constitution/`](AGENTS%20Constitution/)  
+**Pack version:** **5.0.0** — see [`AGENTS Constitution/VERSION`](AGENTS%20Constitution/VERSION)
 
-**Level 2 — Operating law (process):**
+---
 
-→ **[AGENTS Constitution/SOP.md](AGENTS%20Constitution/SOP.md)**
+## Binding pack
 
-**Governance (pack integrity):**
+| Role | Path |
+|------|------|
+| **Constitution (SOUL)** | [AGENTS Constitution/AGENTS.md](AGENTS%20Constitution/AGENTS.md) |
+| **Process (SOP)** | [AGENTS Constitution/SOP.md](AGENTS%20Constitution/SOP.md) |
+| **Pack identity / portability** | [AGENTS Constitution/PACK.md](AGENTS%20Constitution/PACK.md) |
+| **Adopt / move** | [AGENTS Constitution/ADOPT.md](AGENTS%20Constitution/ADOPT.md) |
+| **Rule registry** | [AGENTS Constitution/RULE-REGISTRY.md](AGENTS%20Constitution/RULE-REGISTRY.md) |
+| **Module index** | [AGENTS Constitution/MODULE-INDEX.md](AGENTS%20Constitution/MODULE-INDEX.md) |
+| **Integrity** | [AGENTS Constitution/INTEGRITY.md](AGENTS%20Constitution/INTEGRITY.md) |
 
-→ [RULE-REGISTRY.md](AGENTS%20Constitution/RULE-REGISTRY.md) · [MODULE-INDEX.md](AGENTS%20Constitution/MODULE-INDEX.md) · [INTEGRITY.md](AGENTS%20Constitution/INTEGRITY.md)  
-→ Verify: `pwsh -File "AGENTS Constitution/tools/verify-pack.ps1"`
+---
 
-**Level 3 — Modules (load by task):**
+## Always load (via pack)
+
+* Pack `AGENTS.md`  
+* Pack `SOP.md`  
+* Pack `constitution/03-DEFINITION-OF-DONE.md`  
+* Pack `standards/ENGINEERING.md`  
+* Pack `standards/TESTING.md`  
+* Pack `standards/DOCUMENTATION.md`  
+
+Then load pack modules per the applicability matrix in pack `AGENTS.md`.
+
+---
+
+## Layout (pack)
 
 ```
 AGENTS Constitution/
-├── constitution/     Core law, authority, human–AI contract, DoD
-├── standards/        Engineering, testing, security, docs, perf, deps, observability
-├── operations/       Delivery, VCS, releases, refactor, migrations, lifecycle
-├── collaboration/    Multi-agent, context switch, review packaging, memory
-├── specialist/       Novel R&D, IP, networking, low-level, constrained HW
-├── templates/        MANIFEST, ADR, audit, delivery report, project override
-└── tools/            verify-pack.ps1
+├── VERSION · PACK.md · ADOPT.md · README.md
+├── AGENTS.md · SOP.md
+├── RULE-REGISTRY.md · MODULE-INDEX.md · INTEGRITY.md
+├── constitution/ · standards/ · operations/
+├── collaboration/ · specialist/ · templates/
+├── tools/ · docs/ · reports/
 ```
 
-**Always load (any contribution):** `AGENTS.md` · `SOP.md` · `constitution/03-DEFINITION-OF-DONE.md` · `standards/ENGINEERING.md` · `standards/TESTING.md` · `standards/DOCUMENTATION.md`
+---
 
-**Level 4 — Project law:** this repo’s local docs, PRDs, ADRs, task plans (may tighten, not silently weaken `CONST-*` / `ENG-WARN-001` / `TEST-BEHAVIOR-001` / `SEC-INPUT-001` without `PROJECT-OVERRIDE`).
+## Verify pack
 
-This root file exists so tools and new AIs discover the law immediately.  
-Do not duplicate the constitution here.
+```powershell
+pwsh -File "AGENTS Constitution/tools/verify-pack.ps1"
+pwsh -File "AGENTS Constitution/tools/self-audit.ps1"
+```
 
-**Evolution**
+Must exit `0` after pack install, move, or update (`GOV-INT-001`).
+
+---
+
+## Level 4 — QuillForge project law
+
+* Product specs / research: `docs/` (and related project docs)  
+* Architecture / ADRs: project-local as maintained  
+* Overrides: pack `templates/PROJECT-OVERRIDE.template.md` (store under this project if used)  
+
+**QuillForge note:** Honor canonical path `Command → Operations → Journal → Kernel → Derived` where applicable.
+
+Project law may **tighten** standards. It may not weaken `CONST-*`, `ENG-WARN-001`, `TEST-BEHAVIOR-001`, or `SEC-INPUT-001` without a documented override.
+
+---
+
+## Evolution
 
 | Artifact | Method |
 |----------|--------|
@@ -41,4 +79,5 @@ Do not duplicate the constitution here.
 | Process | Complete replace `AGENTS Constitution/SOP.md` |
 | Modules | Complete replace the affected module file |
 | Rule IDs | Update `RULE-REGISTRY.md` in the same delivery |
-| Pack structure | Update `MODULE-INDEX.md` + `INTEGRITY.md`; run verify-pack |
+| Pack structure | Update `MODULE-INDEX.md` + `INTEGRITY.md` + `VERSION` / `PACK.md`; run verify-pack |
+| This pointer | Update if the relative pack path changes |

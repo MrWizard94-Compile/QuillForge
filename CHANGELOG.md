@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **AGENTS Constitution pack v5.0.0:** portable universal pack (`PACK.md`, `ADOPT.md`, `VERSION`), integrity tools, project pointer Level 4 entry, archive of pre-v4 monolith.
 - **WPAI branding:** studio identity constants (`qf_core::brand`), forge-dark theme (`Theme::wpai_forge_dark`), CLI/version chrome, package `APP_VERSION` attribution, and in-repo `brand/` kit (voice + official marks).
 
 ## [0.1.0-foundation] — 2026-07-28

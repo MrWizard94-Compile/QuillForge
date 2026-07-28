@@ -36,6 +36,7 @@ Write-Host ""
 
 # --- GOV-INT-002 required files ---
 $required = @(
+    "VERSION", "PACK.md", "ADOPT.md",
     "AGENTS.md", "SOP.md", "README.md", "Modularize.md",
     "RULE-REGISTRY.md", "MODULE-INDEX.md", "INTEGRITY.md",
     "constitution/00-CORE-LAW.md",
@@ -55,7 +56,11 @@ $required = @(
     "templates/MANIFEST.template.md", "templates/ADR.template.md",
     "templates/AUDIT.template.md", "templates/DELIVERY-REPORT.template.md",
     "templates/PROJECT-OVERRIDE.template.md",
-    "tools/verify-pack.ps1"
+    "templates/PROJECT-POINTER.template.md",
+    "tools/verify-pack.ps1",
+    "tools/self-audit.ps1",
+    "tools/run-full-constitution-self.ps1",
+    "tools/write-checksums.ps1"
 )
 
 foreach ($rel in $required) {
@@ -227,12 +232,60 @@ foreach ($f in $mdFiles) {
     }
 }
 
-# --- Root version ---
-if ($agents -notmatch 'Version\*\*:\s*4\.') {
-    Warn "AGENTS.md version not on 4.x line"
+# --- Root / pack version ---
+$versionFile = Join-Path $PackRoot "VERSION"
+if (Test-Path -LiteralPath $versionFile) {
+    $packVer = (Get-Content -LiteralPath $versionFile -TotalCount 1).Trim()
+    if ($packVer -notmatch '^\d+\.\d+\.\d+$') {
+        Fail "VERSION must be semver X.Y.Z (got '$packVer')"
+    }
+} else {
+    Fail "VERSION file missing"
+}
+if ($agents -notmatch 'Version\*\*:\s*5\.') {
+    Warn "AGENTS.md version not on 5.x line (universal portable pack)"
+}
+
+# --- GOV-PORT-001: no absolute host paths in binding law files ---
+$bindingGlobs = @(
+    "AGENTS.md", "SOP.md", "PACK.md", "ADOPT.md", "README.md", "INTEGRITY.md",
+    "RULE-REGISTRY.md", "MODULE-INDEX.md", "Modularize.md", "VERSION"
+)
+# Pattern built in parts so this file does not contain a forbidden literal host path.
+$pathRx = '(?i)([CD]:\\Us' + 'ers\\|/Us' + 'ers/[A-Za-z]|One' + 'Drive\\|/ho' + 'me/[a-z])'
+foreach ($rel in $bindingGlobs) {
+    $bp = Join-Path $PackRoot ($rel -replace "/", [IO.Path]::DirectorySeparatorChar)
+    if (-not (Test-Path -LiteralPath $bp)) { continue }
+    $bt = [IO.File]::ReadAllText($bp)
+    if ($bt -match $pathRx) {
+        Fail "Absolute host path in binding file $rel (GOV-PORT-001) — use pack-relative paths"
+    }
+}
+Get-ChildItem -Path (Join-Path $PackRoot "constitution"), (Join-Path $PackRoot "standards"),
+    (Join-Path $PackRoot "operations"), (Join-Path $PackRoot "collaboration"),
+    (Join-Path $PackRoot "specialist"), (Join-Path $PackRoot "templates"),
+    (Join-Path $PackRoot "tools") -Recurse -File -ErrorAction SilentlyContinue |
+    Where-Object { $_.Extension -match '\.(md|ps1)$' } |
+    ForEach-Object {
+        $rel = $_.FullName.Substring($PackRoot.Length).TrimStart("\", "/").Replace("\", "/")
+        # skip this detector script (defines path patterns)
+        if ($rel -eq "tools/verify-pack.ps1") { return }
+        $t = [IO.File]::ReadAllText($_.FullName)
+        if ($t -match $pathRx) {
+            Fail "Absolute host path in $rel (GOV-PORT-001)"
+        }
+    }
+
+# --- PACK.md portability markers ---
+$packMd = Join-Path $PackRoot "PACK.md"
+if (Test-Path -LiteralPath $packMd) {
+    $pt = [IO.File]::ReadAllText($packMd)
+    if ($pt -notmatch 'GOV-PORT-001') { Fail "PACK.md missing GOV-PORT-001" }
+    if ($pt -notmatch 'GOV-PORT-002') { Fail "PACK.md missing GOV-PORT-002" }
 }
 
 # --- Report ---
+Write-Host "Pack VERSION:                $packVer"
 Write-Host "Active Rule IDs in registry: $($activeIds.Count)"
 Write-Host "Rule IDs cited in pack:      $($usedIds.Count)"
 Write-Host "Markdown files scanned:      $($mdFiles.Count)"

@@ -322,7 +322,7 @@ That makes the reusable AGENTS Constitution folder easier to maintain, easier fo
 | Spec item | Status |
 |-----------|--------|
 | Folder tree | Done |
-| Short root AGENTS.md v4.1 | Done (hardened) |
+| Short root AGENTS.md v5.0 | Done (universal portable pack) |
 | SOP as Level 2 process law | Done (`SOP.md` v2.1; supersedes `WORKFLOW.md`) |
 | Rule IDs | Done + **RULE-REGISTRY.md** |
 | Module manifests | Done + **MODULE-INDEX.md** (`MOD-…-001`) |
@@ -333,5 +333,7 @@ That makes the reusable AGENTS Constitution folder easier to maintain, easier fo
 | Pre-v4 monolith archive | `_archive_pre_v4/` |
 
 **Verify:** `pwsh -File tools/verify-pack.ps1` → must PASS.
+
+**Portability:** `PACK.md` / `ADOPT.md` / `VERSION` (5.0.0).
 
 *End of Modularize.md*

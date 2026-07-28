@@ -3,18 +3,21 @@
 ```
 Document: Module Index
 Module ID: MOD-GOV-IDX-001
-Version: 1.1.0
+Version: 1.2.0
 Status: Binding (governance)
 Authority: AGENTS.md
 Applies When: Loading modules; amending pack structure; verifying pack integrity
 Dependencies:
   - AGENTS.md
+  - PACK.md
   - RULE-REGISTRY.md
   - INTEGRITY.md
 Overrides: None
 ```
 
 Every Level-3+ document has a stable **Module ID** (`MOD-…-001` form). Adding a module requires updating this index, `AGENTS.md` folder map, and `INTEGRITY.md` required-file list in the same delivery.
+
+**Pack version:** see `VERSION` (currently 5.0.0).
 
 ---
 
@@ -35,6 +38,9 @@ Every Level-3+ document has a stable **Module ID** (`MOD-…-001` form). Adding 
 
 | Path | Module ID |
 |------|-----------|
+| `VERSION` | pack semver stamp |
+| `PACK.md` | MOD-GOV-PACK-001 |
+| `ADOPT.md` | MOD-GOV-ADOPT-001 |
 | `RULE-REGISTRY.md` | MOD-GOV-REG-001 |
 | `MODULE-INDEX.md` | MOD-GOV-IDX-001 |
 | `INTEGRITY.md` | MOD-GOV-INT-001 |
@@ -113,6 +119,7 @@ Every Level-3+ document has a stable **Module ID** (`MOD-…-001` form). Adding 
 | `templates/AUDIT.template.md` | MOD-TPL-AUDIT-001 |
 | `templates/DELIVERY-REPORT.template.md` | MOD-TPL-DELIVERY-001 |
 | `templates/PROJECT-OVERRIDE.template.md` | MOD-TPL-OVERRIDE-001 |
+| `templates/PROJECT-POINTER.template.md` | MOD-TPL-POINTER-001 |
 
 ---
 
@@ -120,8 +127,10 @@ Every Level-3+ document has a stable **Module ID** (`MOD-…-001` form). Adding 
 
 | Path | Purpose |
 |------|---------|
-| `tools/verify-pack.ps1` | Automated pack integrity verification (`GOV-INT-*`) |
+| `tools/verify-pack.ps1` | Automated pack integrity + portability checks (`GOV-INT-*`, `GOV-PORT-001`) |
 | `tools/self-audit.ps1` | Run the pack against itself (`CONST-GATE-001` meta-audit → `reports/SELF-AUDIT-latest.md`) |
+| `tools/run-full-constitution-self.ps1` | Full constitution + SOP self-run → `reports/FULL-CONSTITUTION-SELF-RUN-latest.md` |
+| `tools/write-checksums.ps1` | Portable SHA256 inventory → `reports/CHECKSUMS.sha256` |
 
 ---
 

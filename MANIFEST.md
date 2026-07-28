@@ -1,26 +1,29 @@
-# Delivery MANIFEST — WPAI branding alignment
+# Delivery MANIFEST — AGENTS Constitution pack v5.0.0
 
-**Title:** Quillforge branded as WPAI Software product  
+**Title:** Finalize and commit portable AGENTS Constitution pack  
 **Date:** 2026-07-28  
-**Law:** AGENTS Constitution v4.1 + company Brand voice (`brand/BRAND-VOICE.md`)
+**Law:** Pack v5.0.0 (`GOV-INT-001`, `CONST-GATE-001`)
 
 ## Summary
 
-1. `qf_core::brand` — WPAI / W.P.A.I constants, CLI banner, package identity helper.  
-2. `Theme::wpai_forge_dark` — coal/ember forge palette as product default.  
-3. CLI help/version chrome with studio thesis and disclosure.  
-4. `brand/` kit with official marks + voice (from `C:\WPAI\Brand`).  
-5. README, CHANGELOG, ADR-022, Cargo authors.
+Director finalized AGENTS Constitution as universal portable pack **5.0.0**. Project root `AGENTS.md` is Level 4 pointer only.
 
 ## Verify
 
-```bash
-cargo clippy --workspace --all-targets -- -D warnings
-cargo test --workspace
-cargo run -p qf-app -- version
-cargo run -p qf-app -- help
+```powershell
+pwsh -File "AGENTS Constitution/tools/verify-pack.ps1"
+pwsh -File "AGENTS Constitution/tools/self-audit.ps1"
 ```
+
+**RESULT:** PASS (GOV-INT-001) — VERSION 5.0.0, 130 active rule IDs, self-audit OVERALL PASS.
+
+## Package contents
+
+- Pack SOUL/SOP/modules/tools/templates/docs/reports  
+- `PACK.md`, `ADOPT.md`, `VERSION`  
+- Optional `_archive_pre_v4/` historical monolith  
+- Root `AGENTS.md` project pointer  
 
 ## Self-audit
 
-CONST-GATE-001: complete branding surfaces, tests pass, no stubs, docs synced.
+Section 0 pass for governance delivery. No product code changes in this commit.

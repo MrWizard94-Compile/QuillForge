@@ -3,12 +3,13 @@
 ```
 Document: Rule Registry
 Module ID: MOD-GOV-REG-001
-Version: 1.1.0
+Version: 1.2.0
 Status: Binding (governance)
 Authority: AGENTS.md
 Applies When: Creating, amending, or citing Rule IDs; audits; delivery reports
 Dependencies:
   - AGENTS.md
+  - PACK.md
 Overrides: None
 ```
 
@@ -195,10 +196,16 @@ Overrides: None
 | GOV-INT-002 | Required file set present | `INTEGRITY.md` | Active |
 | GOV-INT-003 | All cited Rule IDs exist in registry | `INTEGRITY.md` | Active |
 | GOV-INT-004 | All module manifests valid | `INTEGRITY.md` | Active |
-| GOV-SYNC-001 | Dual-copy sync discipline when pack is mirrored | `INTEGRITY.md` | Active |
+| GOV-SYNC-001 | Mirror / multi-copy discipline | `INTEGRITY.md` | Active |
 | GOV-INT-005 | Link integrity | `INTEGRITY.md` | Active |
 | GOV-INT-006 | Anti-fragmentation (gate only in root) | `INTEGRITY.md` | Active |
 | GOV-OVR-001 | Project override discipline | `INTEGRITY.md` | Active |
+| GOV-PORT-001 | Path independence (no host absolute paths in law) | `PACK.md` | Active |
+| GOV-PORT-002 | Self-contained drop-in pack | `PACK.md` | Active |
+| GOV-PORT-003 | Stable identity under move/rename | `PACK.md` | Active |
+| GOV-PORT-004 | Copy and mirror discipline | `PACK.md` | Active |
+| GOV-PORT-005 | No host coupling in binding docs | `PACK.md` | Active |
+| GOV-PORT-006 | Universal domain applicability | `PACK.md` | Active |
 
 ---
 

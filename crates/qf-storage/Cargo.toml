@@ -6,6 +6,10 @@ publish.workspace = true
 license.workspace = true
 description = "Quillforge .qfdoc package storage, recovery, migration, document session"
 
+[[bin]]
+name = "qf-kill-harness"
+path = "src/bin/qf-kill-harness.rs"
+
 [dependencies]
 qf-core = { workspace = true }
 qf-journal = { workspace = true }

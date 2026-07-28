@@ -22,7 +22,7 @@ Use this checklist before tagging a v1 release. Evidence points to automated tes
 
 | ID | Criterion | Evidence | Status |
 |----|-----------|----------|--------|
-| D6 | Committed ops survive fsync | Journal fsync + `rec_commit_survives_handle_forget` | Met |
+| D6 | Committed ops survive fsync | Journal fsync + handle-forget + `process_abort_after_commit_preserves_journal` | Met |
 | D7 | Atomic package write | `atomic_write_creates_and_lkg` | Met |
 | D8 | Open from journal + checkpoint | `create_edit_save_open_preserves_state` | Met |
 | D9 | Derived rebuild after open | Layout/render rebuild from state | Met (search async optional) |
@@ -63,7 +63,7 @@ Use this checklist before tagging a v1 release. Evidence points to automated tes
 
 ## Residual risks accepted for foundation v1 tag
 
-1. ~~Process-kill matrix~~ **Closed (synthetic)** — handle-forget, partial frames, LKG, encrypted open, durable sync queue reopen; OS process spawn harness optional.  
+1. ~~Process-kill matrix~~ **Closed** — synthetic recovery suite + OS process-abort harness (`qf-kill-harness` / `process_kill` tests).  
 2. ~~PDF/DOCX text stand-ins~~ **Closed** — minimal deterministic PDF 1.4 and OOXML DOCX.  
 3. ~~Wasmtime not wired~~ **Closed** — Wasmtime guest runtime with fuel + hostcalls (`qf-plugin::wasm_runtime`).  
 4. ~~Network sync server~~ **Closed** — SyncHub + TCP + **TLS (rustls)** QFSNC1; WebSocket WAN optional later.  

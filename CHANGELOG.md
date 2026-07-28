@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Process-kill harness:** `qf-kill-harness` aborts after fsync commit; parent reopens journal (ADR-025).
+- **Project status:** `docs/27-project-status.md` completion layers and residual roadmap.
 - **Structured DOCX:** AST-driven export with Heading/Quote/Code styles and `styles.xml` (ADR-024).
 - **RepoForge birth law:** LIFE-BIRTH-001 + ADOPT Option D for attaching this constitution pack.
 - **TLS sync transport:** rustls TLS 1.3 adapter for QFSNC1 (`TlsSyncServer` / `TlsSyncClient`), shared wire codec, `tls-sync-demo` CLI, ADR-023.
@@ -38,7 +40,7 @@ Foundation release: local-first document OS core is production-shaped, zero-warn
 
 - WebSocket / browser transport (TLS + TCP QFSNC1 ship).
 - Full OOXML tables/media/images and custom fonts (structured DOCX styles ship).
-- OS process-spawn kill harness (synthetic power-loss matrix is binding).
+- ~~OS process-spawn kill harness~~ closed (abort harness + synthetic suite).
 
 ### Verify
 

@@ -206,3 +206,11 @@ Living record of decisions that bind implementers. Complements `docs/` specs.
 **Status:** Accepted  
 **Decision:** DOCX export walks document blocks (not plain-text lines). Headings map to Heading1–3 styles with outline levels; quotes/code get dedicated styles in `word/styles.xml`; lists/checklists flatten to text bullets. Deterministic ZIP timestamps retained.  
 **Why:** Marketing residual for rich DOCX structure without full OOXML table/media model.
+
+---
+
+## ADR-025 — OS process-abort durability harness
+
+**Status:** Accepted  
+**Decision:** In addition to synthetic recovery tests, CI runs a child process (`qf-kill-harness`) that commits through `DocumentSession` then `process::abort()`. Parent reopens the journal and verifies chain + seq ≥ 1. Marker file proves abort occurred only after commit Ok.  
+**Why:** Closes residual “process-kill matrix optional” with real process death without flaky multi-OS SIGKILL orchestration.

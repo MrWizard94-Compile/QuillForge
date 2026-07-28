@@ -7,7 +7,8 @@
 //! ```
 
 use crate::hub::{
-    Hello, HelloAck, PullRequest, PullResponse, PushAck, PushRequest, SyncHub,
+    DrainNotifyRequest, Hello, HelloAck, NotifyBatch, PullRequest, PullResponse, PushAck,
+    PushRequest, SubscribeRequest, Subscribed, SyncHub,
 };
 use crate::SyncError;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
@@ -25,6 +26,8 @@ pub enum WireRequest {
     Hello(Hello),
     Pull(PullRequest),
     Push(PushRequest),
+    Subscribe(SubscribeRequest),
+    DrainNotify(DrainNotifyRequest),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -33,6 +36,8 @@ pub enum WireResponse {
     HelloAck(HelloAck),
     Pull(PullResponse),
     PushAck(PushAck),
+    Subscribed(Subscribed),
+    Notify(NotifyBatch),
     Error { kind: String, message: String },
 }
 
@@ -102,6 +107,14 @@ pub fn dispatch(hub: &Arc<Mutex<SyncHub>>, req: WireRequest) -> WireResponse {
         },
         WireRequest::Push(p) => match hub.push(p) {
             Ok(a) => WireResponse::PushAck(a),
+            Err(e) => err_resp(e),
+        },
+        WireRequest::Subscribe(s) => match hub.subscribe(s) {
+            Ok(a) => WireResponse::Subscribed(a),
+            Err(e) => err_resp(e),
+        },
+        WireRequest::DrainNotify(d) => match hub.drain_notifies(d) {
+            Ok(n) => WireResponse::Notify(n),
             Err(e) => err_resp(e),
         },
     }

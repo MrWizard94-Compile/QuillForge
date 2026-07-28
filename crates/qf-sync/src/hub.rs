@@ -10,7 +10,7 @@ use crate::{
 use qf_collab::{PresenceEvent, TextCrdt};
 use qf_core::{ActorId, DocumentId, Hash256, Operation, SessionId};
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, VecDeque};
 use uuid::Uuid;
 
 /// Opaque session token issued by HelloAck.
@@ -63,11 +63,44 @@ pub struct PushAck {
     pub accepted_head_seq: u64,
 }
 
+/// Client registers for head-advance notifications (no continuous Pull poll).
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct SubscribeRequest {
+    pub token: SessionToken,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Subscribed {
+    pub server_head_seq: u64,
+}
+
+/// Drain pending server-push notifies for a session.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct DrainNotifyRequest {
+    pub token: SessionToken,
+}
+
+/// One head-advance event fan-out from a peer Push (server-push notify).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct HeadNotify {
+    pub document_id: DocumentId,
+    pub server_head_seq: u64,
+    /// Actor that pushed the batch (best-effort).
+    pub from_actor: ActorId,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct NotifyBatch {
+    pub events: Vec<HeadNotify>,
+}
+
 #[derive(Clone, Debug)]
 struct ClientSession {
     actor: ActorId,
     session: SessionId,
     document_id: DocumentId,
+    /// When true, peer Pushes enqueue [`HeadNotify`] into this session's mailbox.
+    subscribed: bool,
 }
 
 #[derive(Default)]
@@ -96,6 +129,8 @@ struct StoredBatch {
 pub struct SyncHub {
     sessions: HashMap<Uuid, ClientSession>,
     docs: HashMap<DocumentId, DocReplica>,
+    /// Per-session notify mailbox (token → pending head events).
+    notify_mail: HashMap<Uuid, VecDeque<HeadNotify>>,
 }
 
 impl SyncHub {
@@ -112,6 +147,7 @@ impl SyncHub {
                 actor: req.client_id,
                 session: req.session_id,
                 document_id: req.document_id,
+                subscribed: false,
             },
         );
         Ok(HelloAck {
@@ -119,6 +155,63 @@ impl SyncHub {
             server_head_seq: doc.head_seq,
             acl_epoch: doc.acl_epoch,
         })
+    }
+
+    /// Register for server-push head notifies on the session's document.
+    pub fn subscribe(&mut self, req: SubscribeRequest) -> Result<Subscribed, SyncError> {
+        let session = self
+            .sessions
+            .get_mut(&req.token.0)
+            .ok_or_else(|| SyncError::Auth("unknown session".into()))?;
+        session.subscribed = true;
+        let head = self
+            .docs
+            .get(&session.document_id)
+            .map(|d| d.head_seq)
+            .unwrap_or(0);
+        // Ensure mailbox exists.
+        self.notify_mail.entry(req.token.0).or_default();
+        Ok(Subscribed {
+            server_head_seq: head,
+        })
+    }
+
+    /// Drain pending notifies (non-blocking). Empty when nothing advanced since last drain.
+    pub fn drain_notifies(&mut self, req: DrainNotifyRequest) -> Result<NotifyBatch, SyncError> {
+        if !self.sessions.contains_key(&req.token.0) {
+            return Err(SyncError::Auth("unknown session".into()));
+        }
+        let events = self
+            .notify_mail
+            .get_mut(&req.token.0)
+            .map(|q| q.drain(..).collect())
+            .unwrap_or_default();
+        Ok(NotifyBatch { events })
+    }
+
+    fn fanout_notify(
+        &mut self,
+        document_id: DocumentId,
+        server_head_seq: u64,
+        from_token: Uuid,
+        from_actor: ActorId,
+    ) {
+        let recipients: Vec<Uuid> = self
+            .sessions
+            .iter()
+            .filter(|(id, s)| {
+                s.subscribed && s.document_id == document_id && **id != from_token
+            })
+            .map(|(id, _)| *id)
+            .collect();
+        let event = HeadNotify {
+            document_id,
+            server_head_seq,
+            from_actor,
+        };
+        for id in recipients {
+            self.notify_mail.entry(id).or_default().push_back(event.clone());
+        }
     }
 
     pub fn pull(&self, req: PullRequest) -> Result<PullResponse, SyncError> {
@@ -208,8 +301,13 @@ impl SyncHub {
                 None => c,
             });
         }
+        let head = doc.head_seq;
+        let doc_id = session.document_id;
+        let from_actor = session.actor;
+        let from_token = req.token.0;
+        self.fanout_notify(doc_id, head, from_token, from_actor);
         Ok(PushAck {
-            accepted_head_seq: doc.head_seq,
+            accepted_head_seq: head,
         })
     }
 
@@ -378,6 +476,24 @@ impl SyncClient {
         self.local_head = self.local_head.max(resp.server_head_seq);
         Ok(resp)
     }
+
+    /// Opt into server-push head notifies for this document.
+    pub fn subscribe(&mut self, hub: &mut SyncHub) -> Result<Subscribed, SyncError> {
+        let token = self
+            .token
+            .clone()
+            .ok_or_else(|| SyncError::Auth("not connected".into()))?;
+        hub.subscribe(SubscribeRequest { token })
+    }
+
+    /// Drain pending head notifies (call after peer activity or on a wait path).
+    pub fn drain_notifies(&mut self, hub: &mut SyncHub) -> Result<NotifyBatch, SyncError> {
+        let token = self
+            .token
+            .clone()
+            .ok_or_else(|| SyncError::Auth("not connected".into()))?;
+        hub.drain_notifies(DrainNotifyRequest { token })
+    }
 }
 
 /// Drain durable queue against a hub (offline → online reconciliation).
@@ -445,6 +561,45 @@ mod tests {
         // Hub merges CRDTs on push — tip contains both lineages
         let text = tip.materialize();
         assert!(text.contains('H') || text.contains('Y') || !text.is_empty());
+    }
+
+    #[test]
+    fn subscribe_receives_notify_on_peer_push_without_pull() {
+        let mut hub = SyncHub::new();
+        let mut gen = SeqIdGen::default();
+        let doc = DocumentId::new(&mut gen);
+        let mut a = SyncClient::new(doc, ActorId::new(&mut gen), SessionId::new(&mut gen));
+        let mut b = SyncClient::new(doc, ActorId::new(&mut gen), SessionId::new(&mut gen));
+        a.connect(&mut hub).unwrap();
+        b.connect(&mut hub).unwrap();
+        b.subscribe(&mut hub).unwrap();
+
+        // Before any push, mailbox is empty.
+        let empty = b.drain_notifies(&mut hub).unwrap();
+        assert!(empty.events.is_empty());
+
+        let mut ca = TextCrdt::new(1);
+        ca.local_insert(0, "notify-me");
+        a.push_ops(&mut hub, 1, 1, vec![], Some(ca)).unwrap();
+
+        // B learns of head advance via notify — no Pull yet.
+        let batch = b.drain_notifies(&mut hub).unwrap();
+        assert_eq!(batch.events.len(), 1);
+        assert_eq!(batch.events[0].document_id, doc);
+        assert_eq!(batch.events[0].server_head_seq, 1);
+        assert_eq!(batch.events[0].from_actor, a.actor);
+
+        // Drain is empty after consume.
+        assert!(b.drain_notifies(&mut hub).unwrap().events.is_empty());
+
+        // Unsubscribed peer C does not get mail.
+        let mut c = SyncClient::new(doc, ActorId::new(&mut gen), SessionId::new(&mut gen));
+        c.connect(&mut hub).unwrap();
+        a.push_ops(&mut hub, 2, 2, vec![], Some(TextCrdt::new(1)))
+            .unwrap();
+        // B still subscribed → gets notify; C not subscribed → empty
+        assert!(!b.drain_notifies(&mut hub).unwrap().events.is_empty());
+        assert!(c.drain_notifies(&mut hub).unwrap().events.is_empty());
     }
 
     #[test]

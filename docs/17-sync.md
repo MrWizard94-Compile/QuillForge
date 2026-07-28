@@ -49,10 +49,15 @@ Hello { client, doc_id, vector_clock/op_heads }
 Pull { have: Heads } → Ops { ops }
 Push { ops } → PushAck { accepted_heads } | Reject
 
+Subscribe { token } → Subscribed { server_head_seq }
+  (peer Push) → HeadNotify enqueued for other subscribers
+DrainNotify { token } → Notify { events }
+
 PresenceSubscribe → PresenceStream
 ```
 
-Transport: HTTPS/WebSocket over TLS 1.3.
+Transport: HTTPS/WebSocket over TLS 1.3.  
+Head notify: `docs/38-server-push-notify.md`.
 
 ---
 

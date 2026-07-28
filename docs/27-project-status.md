@@ -16,18 +16,18 @@
 | **Foundation DoD** | Ship checklist D1–D28 | **~98%** | All criteria **Met** |
 | **Local-first core product** | Offline edit, package, recovery, export, plugins, AI, sync, search | **~99%** | + DrawingML DOCX images |
 | **Marketing / “v1 product”** | Polish, multi-OS CI, browser UX | **~98%** | Search + rich export fidelity |
-| **Long-term vision** | Full document OS, multiplayer UX, neural packs, rich GPU | **~85%** | Hash-ngram dense; DrawingML export |
+| **Long-term vision** | Full document OS, multiplayer UX, neural packs, rich GPU | **~86%** | Notify mailboxes; neural optional |
 
 **Headline for directors:**  
-**Foundation shippable. Product surface + multi-OS CI + hybrid/dense search + PDF/DOCX image fidelity. Overall vision ~85%.**
+**Foundation shippable. Product surface + CI + dense search + DOCX/PDF media + server-push notify. Overall vision ~86%.**
 
 ---
 
 ## What remains (ordered)
 
-1. Server-push notify without client poll  
-2. Optional neural/ONNX embedding pack  
-3. Custom font embedding  
+1. Optional neural/ONNX embedding pack  
+2. Custom font embedding  
+3. Unsolicited multi-connection WS notify frames  
 4. Browser e2e (optional)  
 
 ---

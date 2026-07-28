@@ -3,7 +3,8 @@
 //! See [`crate::wire`] for frame layout. TLS wraps the same protocol in [`crate::tls`].
 
 use crate::hub::{
-    Hello, HelloAck, PullRequest, PullResponse, PushAck, PushRequest, SyncHub,
+    DrainNotifyRequest, Hello, HelloAck, NotifyBatch, PullRequest, PullResponse, PushAck,
+    PushRequest, SubscribeRequest, Subscribed, SyncHub,
 };
 use crate::wire::{
     map_wire_err, serve_one, write_frame, read_frame, WireRequest, WireResponse,
@@ -139,6 +140,22 @@ impl TcpSyncClient {
         }
     }
 
+    pub fn subscribe(&self, req: SubscribeRequest) -> Result<Subscribed, SyncError> {
+        match self.round_trip(WireRequest::Subscribe(req))? {
+            WireResponse::Subscribed(s) => Ok(s),
+            WireResponse::Error { kind, message } => Err(map_wire_err(kind, message)),
+            other => Err(SyncError::Network(format!("unexpected response: {other:?}"))),
+        }
+    }
+
+    pub fn drain_notify(&self, req: DrainNotifyRequest) -> Result<NotifyBatch, SyncError> {
+        match self.round_trip(WireRequest::DrainNotify(req))? {
+            WireResponse::Notify(n) => Ok(n),
+            WireResponse::Error { kind, message } => Err(map_wire_err(kind, message)),
+            other => Err(SyncError::Network(format!("unexpected response: {other:?}"))),
+        }
+    }
+
     fn round_trip(&self, req: WireRequest) -> Result<WireResponse, SyncError> {
         let mut stream = TcpStream::connect_timeout(&self.addr, Duration::from_secs(2))
             .map_err(|e| SyncError::Network(e.to_string()))?;
@@ -224,6 +241,62 @@ mod tests {
             .unwrap();
         assert_eq!(pull.server_head_seq, 1);
         assert_eq!(pull.ops.len(), 1);
+
+        server.stop();
+    }
+
+    #[test]
+    fn tcp_subscribe_notify_on_peer_push() {
+        let server = TcpSyncServer::start(SyncHub::new()).unwrap();
+        let addr = server.addr();
+        let mut gen = SeqIdGen::default();
+        let doc = DocumentId::new(&mut gen);
+
+        let a = TcpSyncClient::connect(addr);
+        let ack_a = a
+            .hello(Hello {
+                client_id: ActorId::new(&mut gen),
+                session_id: SessionId::new(&mut gen),
+                document_id: doc,
+                have_seq: 0,
+            })
+            .unwrap();
+
+        let b = TcpSyncClient::connect(addr);
+        let ack_b = b
+            .hello(Hello {
+                client_id: ActorId::new(&mut gen),
+                session_id: SessionId::new(&mut gen),
+                document_id: doc,
+                have_seq: 0,
+            })
+            .unwrap();
+        b.subscribe(SubscribeRequest {
+            token: ack_b.token.clone(),
+        })
+        .unwrap();
+
+        let ops = vec![Operation::Noop {
+            reason: qf_core::NoopReason::Other("notify".into()),
+        }];
+        a.push(PushRequest {
+            token: ack_a.token,
+            first_seq: 1,
+            last_seq: 1,
+            ops: ops.clone(),
+            crdt: None,
+            payload_hash: hash_ops(&ops),
+        })
+        .unwrap();
+
+        let batch = b
+            .drain_notify(DrainNotifyRequest {
+                token: ack_b.token,
+            })
+            .unwrap();
+        assert_eq!(batch.events.len(), 1);
+        assert_eq!(batch.events[0].server_head_seq, 1);
+        assert_eq!(batch.events[0].document_id, doc);
 
         server.stop();
     }

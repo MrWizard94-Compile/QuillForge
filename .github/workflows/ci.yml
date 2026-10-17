@@ -2,6 +2,9 @@
 # MSRV: rustc 1.85.0 · zero warnings · performance budgets
 name: ci
 
+permissions:
+  contents: read
+
 on:
   push:
     branches: [main]
@@ -14,6 +17,36 @@ env:
   RUST_BACKTRACE: 1
 
 jobs:
+  constitution:
+    name: constitution
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out QuillForge
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          path: project
+          persist-credentials: false
+      - name: Check out accepted WPAI Constitution
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: MrWizard94-Compile/Agents-Constitution
+          ref: 89f8771df5a6fa8627cb9576afca1eefd0486d27
+          path: constitution
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - name: Validate pinned canonical source and tests
+        working-directory: constitution
+        run: |
+          python tools/validate-source.py
+          python -m unittest discover -s tests -v
+      - name: Audit project adoption with exact-history classification
+        run: python project/tools/check-constitution-adoption.py --source constitution/tools/check-adoption.py
+      - name: Test fail-closed history classification
+        working-directory: project
+        run: python -m unittest discover -s tools -p 'test_*.py' -v
+
   # Single-platform style gate (avoid CRLF/LF noise across runners).
   lint:
     name: lint (ubuntu)
@@ -29,10 +62,7 @@ jobs:
       - name: fmt
         run: cargo fmt --all -- --check
       - name: clippy
-        run: cargo clippy --workspace --all-targets -- -D warnings
-      - name: constitution pack integrity
-        shell: pwsh
-        run: pwsh -File "AGENTS Constitution/tools/verify-pack.ps1"
+        run: cargo clippy --locked --workspace --all-targets -- -D warnings
 
   # Full test + budgets on each primary desktop OS.
   test:
@@ -52,30 +82,34 @@ jobs:
         with:
           shared-key: test-${{ matrix.os }}
       - name: clippy (platform)
-        run: cargo clippy --workspace --all-targets -- -D warnings
+        run: cargo clippy --locked --workspace --all-targets -- -D warnings
       - name: test
-        run: cargo test --workspace
+        run: cargo test --locked --workspace
       - name: performance budgets
-        run: cargo test --workspace budget_ -- --nocapture
+        run: cargo test --locked --workspace budget_ -- --nocapture
       - name: smoke demos (headless)
         shell: bash
         run: |
           set -euo pipefail
-          cargo run -p qf-app -- version
-          cargo run -p qf-app -- surface
-          cargo run -p qf-app -- search-demo
-          cargo run -p qf-app -- polish-demo
-          cargo run -p qf-app -- review-demo
+          cargo run --locked -p qf-app -- version
+          cargo run --locked -p qf-app -- surface
+          cargo run --locked -p qf-app -- search-demo
+          cargo run --locked -p qf-app -- polish-demo
+          cargo run --locked -p qf-app -- review-demo
 
   # Lightweight summary job so branch protection can require one check name.
   ci-ok:
     name: ci-ok
-    needs: [lint, test]
+    needs: [constitution, lint, test]
     runs-on: ubuntu-latest
     if: always()
     steps:
       - name: check matrix results
         run: |
+          if [ "${{ needs.constitution.result }}" != "success" ]; then
+            echo "constitution failed: ${{ needs.constitution.result }}"
+            exit 1
+          fi
           if [ "${{ needs.lint.result }}" != "success" ]; then
             echo "lint failed: ${{ needs.lint.result }}"
             exit 1

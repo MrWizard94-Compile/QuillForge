@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- **WPAI Constitution adoption:** project guidance, CLI help, and CI now use
+  the accepted canonical GitHub source instead of a vendored law tree.
+  Project-specific product/architecture law is retained. Earlier governance
+  entries below are history, not instructions to load the retired copies.
+- **Declared formatting gate:** apply Rust 1.85.0 rustfmt to the published
+  baseline in a separate mechanical commit; no unrelated local product edits
+  or unpublished commits are included.
+
 ### Added
 
 - **Full open/export matrix:** open `qfdoc|docx|md|html|txt`; export `pdf|docx|md|html|txt` (+ save qfdoc); CLI `open` / `export-all`; GUI Export tab wired (`docs/41-open-export-matrix.md`). PDF remains export-only.

@@ -79,7 +79,11 @@ This repository contains the production architecture foundation. Start here:
 
 ## Law
 
-Binding AI/engineering law: [AGENTS.md](AGENTS.md) → [AGENTS Constitution](AGENTS%20Constitution/AGENTS.md) **v5.0.1** portable pack + [SOP.md](AGENTS%20Constitution/SOP.md). Verify: `pwsh -File "AGENTS Constitution/tools/verify-pack.ps1"`.
+Binding AI/engineering law: [AGENTS.md](AGENTS.md) routes to the canonical
+[WPAI Constitution](https://github.com/MrWizard94-Compile/Agents-Constitution).
+Freeze accepted `main` for an invocation; use its loader and applicable law.
+This repository keeps project law, not an editable Constitution copy.
+See [adoption verification and recovery](docs/governance-adoption.md).
 
 ## Workspace
 
@@ -89,7 +93,7 @@ QuillForge/
 ├── crates/             # focused internal crates (version 0.0.0)
 ├── xtask/              # cargo xtask automation
 ├── docs/               # engineering specifications
-└── AGENTS Constitution/  # quality + process law
+└── AGENTS.md            # project law + canonical Constitution pointer
 ```
 
 Build & verify (MSRV **1.85.0**):
@@ -136,8 +140,7 @@ Made in open collaboration with AI tools; written into shape, directed, and fini
 | M10 | AI suggestions + ship checklist | **Done** |
 | Ship | Foundation v1 checklist | [docs/ship/v1-checklist.md](docs/ship/v1-checklist.md) |
 
-Binding law: **[AGENTS Constitution/AGENTS.md](AGENTS%20Constitution/AGENTS.md)** (entry: [AGENTS.md](AGENTS.md)).  
-SOP (delivery process): **[AGENTS Constitution/SOP.md](AGENTS%20Constitution/SOP.md)**.  
+Binding law and delivery process: **[WPAI Constitution](https://github.com/MrWizard94-Compile/Agents-Constitution)** (entry: [AGENTS.md](AGENTS.md)).
 Research program: **[docs/research/00-index.md](docs/research/00-index.md)**.  
 Latest delivery: **[MANIFEST.md](MANIFEST.md)**.  
 Decisions: **[DECISIONS.md](DECISIONS.md)**.

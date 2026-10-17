@@ -91,3 +91,26 @@ publication boundaries, pinned stack, bounded audit work, and recoverable
 history. No new invention claim or multi-agent implementation. Cross-platform
 CI and merge are separate evidence gates; no native editor, full product,
 full-PC cleanup, or new release acceptance is claimed by these local checks.
+
+## Cross-platform MSRV repair
+
+The first adoption PR run `39077558620` passed canonical validation, the
+adoption audit/tests, and formatting. Linux Clippy then exposed pre-existing
+target-specific lock drift: `home` 0.5.12 requires Rust 1.88 and
+`wayland-protocols` 0.32.13 requires 1.86, above the declared 1.85 baseline.
+Windows-only verification had not exercised those Linux dependency paths.
+
+Official release metadata, checked October 17, declares Rust 1.81 for
+[`home` 0.5.11](https://crates.io/api/v1/crates/home/0.5.11) and Rust 1.71 for
+[`wayland-protocols` 0.32.12](https://crates.io/api/v1/crates/wayland-protocols/0.32.12).
+Precise Cargo updates select those compatible patch versions without changing
+the Rust pin or disabling a target. Cargo also reconciled existing
+Windows-sys/getrandom dependency selections within the locked cohort; no new
+direct dependency was added. Windows checks are repeated for that changed
+cohort, and Linux/macOS acceptance still depends on fresh CI. The primary
+checkout and its own lockfile are unchanged.
+
+After the lock repair, strict Windows all-target Clippy and the full locked
+workspace suite pass again, with zero failed/ignored tests or diagnostics.
+Linux's resolved 272-package graph declares no Rust requirement above 1.85;
+that metadata check is not a substitute for compiling/testing it in CI.

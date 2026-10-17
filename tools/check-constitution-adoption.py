@@ -18,7 +18,7 @@ SOURCE_SHA256 = "8abf494f014cf6f2595e9b4b281a06d01a394ebebb8fa5f6ff2aefd5c95323e
 # exemptions from hiding new consumers. CRLF normalization permits Git checkout
 # conventions; no other bytes or finding codes are ignored.
 REVIEWED = {
-    "CHANGELOG.md": ("cccdf8047987fa4425b35fd4a539e7b791b13935492d31e06b713f446a7ef0a5", {43, 63}),
+    "CHANGELOG.md": ("dbd6c06f874c48c78727c3164941fe0ad6fde66f14de19de85a3932f42bcd96f", {46, 66}),
 }
 
 

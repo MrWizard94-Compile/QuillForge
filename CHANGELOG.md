@@ -15,6 +15,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Declared formatting gate:** apply Rust 1.85.0 rustfmt to the published
   baseline in a separate mechanical commit; no unrelated local product edits
   or unpublished commits are included.
+- **Cross-platform MSRV:** constrain the home/Wayland lock cohort to compatible
+  patches after Linux CI exposed dependencies requiring newer Rust. Retain
+  Rust 1.85.0 and all OS/test gates; repeat Windows checks for the changed cohort.
 
 ### Added
 

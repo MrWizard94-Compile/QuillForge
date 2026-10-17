@@ -55,12 +55,23 @@ pub fn export_docx_with_assets_and_font(
 
 #[derive(Clone, Debug)]
 enum DocxPara {
-    Heading { level: u8, text: String },
-    Body { text: String },
-    Quote { text: String },
-    Code { text: String },
+    Heading {
+        level: u8,
+        text: String,
+    },
+    Body {
+        text: String,
+    },
+    Quote {
+        text: String,
+    },
+    Code {
+        text: String,
+    },
     /// Grid of cell plain text (row-major).
-    Table { rows: Vec<Vec<String>> },
+    Table {
+        rows: Vec<Vec<String>>,
+    },
     Image {
         asset_key: String,
         alt: String,
@@ -288,9 +299,7 @@ fn build_docx_paragraphs(
     };
     let image_rid_base = if embed_font.is_some() { 3u32 } else { 2u32 };
     let media = collect_media(paras, assets, image_rid_base);
-    let family = embed_font
-        .map(|f| f.family.as_str())
-        .unwrap_or("Calibri");
+    let family = embed_font.map(|f| f.family.as_str()).unwrap_or("Calibri");
     let document_xml = document_xml(paras, &media);
     let styles_xml = styles_xml_with_font(family);
     let content_types = content_types_xml(&media, embed_font.is_some());
@@ -310,14 +319,14 @@ fn build_docx_paragraphs(
     let mut cursor = Cursor::new(Vec::new());
     {
         let mut zip = ZipWriter::new(&mut cursor);
-        write_entry(&mut zip, "[Content_Types].xml", content_types.as_bytes(), opts)?;
-        write_entry(&mut zip, "_rels/.rels", rels.as_bytes(), opts)?;
         write_entry(
             &mut zip,
-            "word/document.xml",
-            document_xml.as_bytes(),
+            "[Content_Types].xml",
+            content_types.as_bytes(),
             opts,
         )?;
+        write_entry(&mut zip, "_rels/.rels", rels.as_bytes(), opts)?;
+        write_entry(&mut zip, "word/document.xml", document_xml.as_bytes(), opts)?;
         write_entry(&mut zip, "word/styles.xml", styles_xml.as_bytes(), opts)?;
         write_entry(
             &mut zip,
@@ -329,12 +338,7 @@ fn build_docx_paragraphs(
             let font_file = font_file_name(pack);
             let font_table = font_table_xml(&pack.family);
             let font_table_rels = font_table_rels_xml(&font_file);
-            write_entry(
-                &mut zip,
-                "word/fontTable.xml",
-                font_table.as_bytes(),
-                opts,
-            )?;
+            write_entry(&mut zip, "word/fontTable.xml", font_table.as_bytes(), opts)?;
             write_entry(
                 &mut zip,
                 "word/_rels/fontTable.xml.rels",
@@ -351,8 +355,7 @@ fn build_docx_paragraphs(
         for m in &media {
             write_entry(&mut zip, &m.part_path, &m.bytes, opts)?;
         }
-        zip.finish()
-            .map_err(|e| format!("docx zip finish: {e}"))?;
+        zip.finish().map_err(|e| format!("docx zip finish: {e}"))?;
     }
     Ok(cursor.into_inner())
 }
@@ -361,13 +364,7 @@ fn font_file_name(pack: &FontPack) -> String {
     let base: String = pack
         .postscript_name
         .chars()
-        .map(|c| {
-            if c.is_ascii_alphanumeric() {
-                c
-            } else {
-                '_'
-            }
-        })
+        .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
         .collect();
     let base = if base.is_empty() {
         "EmbeddedFont".into()
@@ -739,9 +736,7 @@ fn para_xml(style: &str, text: &str, preserve_newlines: bool) -> String {
                 xml_escape(line)
             ));
         }
-        format!(
-            r#"<w:p><w:pPr><w:pStyle w:val="{style}"/></w:pPr><w:r>{parts}</w:r></w:p>"#
-        )
+        format!(r#"<w:p><w:pPr><w:pStyle w:val="{style}"/></w:pPr><w:r>{parts}</w:r></w:p>"#)
     } else {
         format!(
             r#"<w:p><w:pPr><w:pStyle w:val="{style}"/></w:pPr><w:r><w:t xml:space="preserve">{}</w:t></w:r></w:p>"#,
@@ -772,9 +767,7 @@ mod tests {
     use qf_blocks::{
         BlockBody, BlockMetadata, CodeBlock, HeadingBlock, ParagraphBlock, QuoteBlock, Span,
     };
-    use qf_core::{
-        ActorId, BlockId, DocumentId, OpSeq, SectionId, SeqIdGen, Timestamp, Version,
-    };
+    use qf_core::{ActorId, BlockId, DocumentId, OpSeq, SectionId, SeqIdGen, Timestamp, Version};
     use qf_doc::{Block, Document};
     use qf_kernel::{CanonicalState, EntityTables};
     use std::io::Read;
@@ -793,11 +786,7 @@ mod tests {
         }
     }
 
-    fn push(
-        state: &mut CanonicalState,
-        gen: &mut SeqIdGen,
-        body: BlockBody,
-    ) {
+    fn push(state: &mut CanonicalState, gen: &mut SeqIdGen, body: BlockBody) {
         let bid = BlockId::new(gen);
         let actor = state.document.meta.authors[0];
         state.document.blocks.insert(
@@ -813,7 +802,13 @@ mod tests {
             },
         );
         let root = state.document.root_section_id;
-        state.document.sections.get_mut(&root).unwrap().blocks.push(bid);
+        state
+            .document
+            .sections
+            .get_mut(&root)
+            .unwrap()
+            .blocks
+            .push(bid);
     }
 
     fn span(text: &str) -> Span {
@@ -940,8 +935,7 @@ mod tests {
             .blocks
             .push(tid);
         // cell paragraphs also need to be in map only (not section order) — ok
-        let bytes =
-            export_docx(&state, &SourceTable::default(), &ExportConfig::default()).unwrap();
+        let bytes = export_docx(&state, &SourceTable::default(), &ExportConfig::default()).unwrap();
         let mut archive = ZipArchive::new(Cursor::new(bytes)).unwrap();
         let mut doc = archive.by_name("word/document.xml").unwrap();
         let mut xml = String::new();

@@ -295,14 +295,7 @@ impl SearchEngine {
         // AND: intersection of postings
         let mut sets: Vec<HashSet<BlockId>> = terms
             .iter()
-            .map(|t| {
-                self.index
-                    .get(t)
-                    .into_iter()
-                    .flatten()
-                    .copied()
-                    .collect()
-            })
+            .map(|t| self.index.get(t).into_iter().flatten().copied().collect())
             .collect();
         sets.sort_by_key(HashSet::len);
         let mut iter = sets.into_iter();
@@ -383,7 +376,11 @@ impl SearchEngine {
                 hits.push(SearchHit {
                     block_id: doc.block_id,
                     score: sim,
-                    snippet: snippet_around(&doc.text, q_terms.first().map(|s| s.as_str()).unwrap_or(""), 48),
+                    snippet: snippet_around(
+                        &doc.text,
+                        q_terms.first().map(|s| s.as_str()).unwrap_or(""),
+                        48,
+                    ),
                     path: HitPath::Semantic,
                 });
             }
@@ -581,8 +578,8 @@ fn snippet_at(text: &str, byte_pos: usize, match_len: usize, radius: usize) -> S
 mod tests {
     use super::*;
     use qf_core::{
-        ActorId, BlockBodyBytes, DocumentId, Operation, ParentRef, SectionId, SeqIdGen,
-        TextOffset, Timestamp,
+        ActorId, BlockBodyBytes, DocumentId, Operation, ParentRef, SectionId, SeqIdGen, TextOffset,
+        Timestamp,
     };
     use qf_kernel::Kernel;
 

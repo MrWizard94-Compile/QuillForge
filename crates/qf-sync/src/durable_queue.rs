@@ -141,9 +141,7 @@ fn atomic_write_fsync(path: &Path, payload: &[u8]) -> Result<(), SyncError> {
     fs::create_dir_all(parent).map_err(|e| SyncError::Network(e.to_string()))?;
     let staging = parent.join(format!(
         ".{}.tmp-{}",
-        path.file_name()
-            .and_then(|s| s.to_str())
-            .unwrap_or("queue"),
+        path.file_name().and_then(|s| s.to_str()).unwrap_or("queue"),
         std::process::id()
     ));
     {

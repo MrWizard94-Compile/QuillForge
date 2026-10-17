@@ -279,10 +279,10 @@ pub fn dense_cosine(a: &[f32], b: &[f32]) -> f32 {
 /// For `onnx_v1`, `model_path` is required and must point at a readable file.
 /// Model bytes are hashed into `model_sha256` when not already set.
 pub fn load_embedding_pack_file(path: &Path) -> Result<EmbeddingPack, String> {
-    let raw = std::fs::read_to_string(path)
-        .map_err(|e| format!("read pack {}: {e}", path.display()))?;
-    let mut pack: EmbeddingPack = serde_json::from_str(&raw)
-        .map_err(|e| format!("parse pack {}: {e}", path.display()))?;
+    let raw =
+        std::fs::read_to_string(path).map_err(|e| format!("read pack {}: {e}", path.display()))?;
+    let mut pack: EmbeddingPack =
+        serde_json::from_str(&raw).map_err(|e| format!("parse pack {}: {e}", path.display()))?;
     if pack.dim < 8 {
         pack.dim = 8;
     }
@@ -304,9 +304,7 @@ pub fn load_embedding_pack_file(path: &Path) -> Result<EmbeddingPack, String> {
         let hex = hex_encode(&hash.0);
         if let Some(declared) = &pack.model_sha256 {
             if declared != &hex {
-                return Err(format!(
-                    "model_sha256 mismatch: pack={declared} file={hex}"
-                ));
+                return Err(format!("model_sha256 mismatch: pack={declared} file={hex}"));
             }
         } else {
             pack.model_sha256 = Some(hex);
@@ -357,10 +355,7 @@ fn resolve_model_path(pack_path: &Path, model_rel: &str) -> PathBuf {
     if p.is_absolute() {
         return p.to_path_buf();
     }
-    pack_path
-        .parent()
-        .unwrap_or_else(|| Path::new("."))
-        .join(p)
+    pack_path.parent().unwrap_or_else(|| Path::new(".")).join(p)
 }
 
 fn hex_encode(bytes: &[u8]) -> String {

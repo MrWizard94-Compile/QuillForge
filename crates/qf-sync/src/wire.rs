@@ -158,7 +158,7 @@ pub fn serve_one<S: Read + Write>(
 mod cbor_shape_tests {
     use super::*;
     use crate::hub::Hello;
-    use qf_core::{ActorId, DocumentId, SessionId, SeqIdGen};
+    use qf_core::{ActorId, DocumentId, SeqIdGen, SessionId};
 
     #[test]
     fn hello_cbor_is_tagged_map() {

@@ -171,9 +171,7 @@ impl ProductSurface {
 
     /// One-line product positioning (no Microsoft marks).
     pub fn category_line() -> String {
-        format!(
-            "{PRODUCT_NAME} by {STUDIO_SHORT} — Word-class document editor · {STUDIO_TAGLINE}"
-        )
+        format!("{PRODUCT_NAME} by {STUDIO_SHORT} — Word-class document editor · {STUDIO_TAGLINE}")
     }
 
     /// Ensure we never emit forbidden trademark strings in chrome labels.
@@ -187,9 +185,7 @@ impl ProductSurface {
 }
 
 fn contains_word_trademark(lower: &str) -> bool {
-    lower.contains("ms word")
-        || lower.contains("microsoft word")
-        || lower.contains("word®")
+    lower.contains("ms word") || lower.contains("microsoft word") || lower.contains("word®")
 }
 
 fn groups_for_tab(tab: CommandBarTab) -> Vec<CommandGroup> {

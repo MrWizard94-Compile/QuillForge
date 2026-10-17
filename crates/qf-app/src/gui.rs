@@ -6,7 +6,9 @@
 use crate::product_surface::{CommandBarTab, DocumentViewMode};
 use crate::shell_session::ShellSession;
 use crate::ProductSurface;
-use eframe::egui::{self, Color32, ColorImage, FontId, RichText, Sense, TextureHandle, TextureOptions, Vec2};
+use eframe::egui::{
+    self, Color32, ColorImage, FontId, RichText, Sense, TextureHandle, TextureOptions, Vec2,
+};
 use qf_core::AssetId;
 use qf_layout::{fixed_to_pt, PAGE_HEIGHT_PT, PAGE_WIDTH_PT};
 use qf_search::{HitPath, SearchMode};
@@ -42,7 +44,8 @@ pub struct QuillShellApp {
 
 impl QuillShellApp {
     pub fn new(work_dir: PathBuf, doc_name: &str) -> Result<Self, String> {
-        let session = ShellSession::open_or_create(&work_dir, doc_name).map_err(|e| e.to_string())?;
+        let session =
+            ShellSession::open_or_create(&work_dir, doc_name).map_err(|e| e.to_string())?;
         Ok(Self {
             session,
             theme: Theme::document_workspace_light(),
@@ -85,11 +88,7 @@ impl QuillShellApp {
         Some(handle)
     }
 
-    fn texture_for(
-        &mut self,
-        ctx: &egui::Context,
-        asset_id: AssetId,
-    ) -> Option<TextureHandle> {
+    fn texture_for(&mut self, ctx: &egui::Context, asset_id: AssetId) -> Option<TextureHandle> {
         let key = asset_id.as_uuid().to_string();
         if let Some(t) = self.textures.get(&key) {
             return Some(t.clone());
@@ -97,11 +96,7 @@ impl QuillShellApp {
         let (w, h, rgba) = self.session.editor.asset_rgba(asset_id)?;
         let size = [w as usize, h as usize];
         let image = ColorImage::from_rgba_unmultiplied(size, &rgba);
-        let handle = ctx.load_texture(
-            format!("asset-{key}"),
-            image,
-            TextureOptions::LINEAR,
-        );
+        let handle = ctx.load_texture(format!("asset-{key}"), image, TextureOptions::LINEAR);
         self.textures.insert(key, handle.clone());
         Some(handle)
     }
@@ -177,8 +172,7 @@ impl QuillShellApp {
                         ) {
                             Ok(()) => {
                                 self.textures.clear();
-                                self.session.last_error =
-                                    Some(format!("Opened {name}"));
+                                self.session.last_error = Some(format!("Opened {name}"));
                             }
                             Err(e) => self.session.last_error = Some(e.to_string()),
                         }
@@ -200,8 +194,7 @@ impl QuillShellApp {
             }
             "file.save_as" => match self.session.save_as("DocumentCopy") {
                 Ok(path) => {
-                    self.session.last_error =
-                        Some(format!("Saved as {}", path.display()));
+                    self.session.last_error = Some(format!("Saved as {}", path.display()));
                 }
                 Err(e) => self.session.last_error = Some(e.to_string()),
             },
@@ -365,8 +358,7 @@ impl QuillShellApp {
                 };
                 match self.session.add_comment_note(&note) {
                     Ok(_) => {
-                        self.session.last_error =
-                            Some(format!("Comment recorded: {note}"));
+                        self.session.last_error = Some(format!("Comment recorded: {note}"));
                     }
                     Err(e) => self.session.last_error = Some(e.to_string()),
                 }
@@ -439,8 +431,9 @@ impl QuillShellApp {
                 Err(e) => self.session.last_error = Some(e.to_string()),
             },
             other => {
-                self.session.last_error =
-                    Some(format!("Unknown action id (not on product surface): {other}"));
+                self.session.last_error = Some(format!(
+                    "Unknown action id (not on product surface): {other}"
+                ));
             }
         }
     }
@@ -499,7 +492,10 @@ impl QuillShellApp {
                         path,
                         hit.snippet.chars().take(80).collect::<String>()
                     );
-                    if ui.selectable_label(false, RichText::new(label).color(ink)).clicked() {
+                    if ui
+                        .selectable_label(false, RichText::new(label).color(ink))
+                        .clicked()
+                    {
                         if let Err(e) = self.session.open_search_hit(i) {
                             self.session.last_error = Some(e.to_string());
                         }
@@ -522,13 +518,9 @@ impl QuillShellApp {
         );
         ui.separator();
         ui.label(RichText::new("Header").color(ink));
-        ui.add(
-            egui::TextEdit::singleline(&mut self.session.chrome.header).desired_width(240.0),
-        );
+        ui.add(egui::TextEdit::singleline(&mut self.session.chrome.header).desired_width(240.0));
         ui.label(RichText::new("Footer").color(ink));
-        ui.add(
-            egui::TextEdit::singleline(&mut self.session.chrome.footer).desired_width(240.0),
-        );
+        ui.add(egui::TextEdit::singleline(&mut self.session.chrome.footer).desired_width(240.0));
         ui.horizontal(|ui| {
             if ui.button("Apply").clicked() {
                 if let Err(e) = self.session.apply_page_chrome() {
@@ -580,7 +572,10 @@ impl QuillShellApp {
         } {
             let x = rect.left() + inch as f32 * 72.0 * scale;
             ui.painter().line_segment(
-                [egui::pos2(x, rect.top() + 4.0), egui::pos2(x, rect.bottom() - 2.0)],
+                [
+                    egui::pos2(x, rect.top() + 4.0),
+                    egui::pos2(x, rect.bottom() - 2.0),
+                ],
                 egui::Stroke::new(1.0, Color32::from_gray(90)),
             );
             ui.painter().text(
@@ -609,7 +604,10 @@ impl QuillShellApp {
         } {
             let y = rect.top() + inch as f32 * 72.0 * scale;
             painter.line_segment(
-                [egui::pos2(rect.left() + 2.0, y), egui::pos2(rect.right() - 2.0, y)],
+                [
+                    egui::pos2(rect.left() + 2.0, y),
+                    egui::pos2(rect.right() - 2.0, y),
+                ],
                 egui::Stroke::new(1.0, Color32::from_gray(90)),
             );
             inch += 1;
@@ -642,11 +640,12 @@ impl QuillShellApp {
             egui::ScrollArea::vertical().show(ui, |ui| {
                 for row in &rows {
                     let selected = self.session.review.selected == Some(row.id);
-                    let label = format!(
-                        "{} · {} · {} ops",
-                        row.note, row.source_label, row.op_count
-                    );
-                    if ui.selectable_label(selected, RichText::new(label).color(ink)).clicked() {
+                    let label =
+                        format!("{} · {} · {} ops", row.note, row.source_label, row.op_count);
+                    if ui
+                        .selectable_label(selected, RichText::new(label).color(ink))
+                        .clicked()
+                    {
                         self.session.select_suggestion(row.id);
                     }
                 }
@@ -884,8 +883,7 @@ impl QuillShellApp {
             }
 
             if empty_pages {
-                let (rect, _) =
-                    ui.allocate_exact_size(Vec2::new(page_w, page_h), Sense::hover());
+                let (rect, _) = ui.allocate_exact_size(Vec2::new(page_w, page_h), Sense::hover());
                 ui.painter().rect_filled(rect, 2.0, paper);
             }
         });
@@ -916,12 +914,7 @@ impl eframe::App for QuillShellApp {
                                 .sense(Sense::hover()),
                         );
                     }
-                    ui.label(
-                        RichText::new("Quillforge")
-                            .strong()
-                            .color(ember)
-                            .size(16.0),
-                    );
+                    ui.label(RichText::new("Quillforge").strong().color(ember).size(16.0));
                     ui.separator();
                     for tab in CommandBarTab::all() {
                         let selected = self.session.surface.active_tab == *tab;
@@ -973,11 +966,7 @@ impl eframe::App for QuillShellApp {
                         if ui.small_button("◀").clicked() {
                             self.session.prev_page();
                         }
-                        ui.label(
-                            RichText::new(self.session.status_line())
-                                .small()
-                                .color(ink),
-                        );
+                        ui.label(RichText::new(self.session.status_line()).small().color(ink));
                         if ui.small_button("▶").clicked() {
                             self.session.next_page();
                         }
@@ -987,11 +976,8 @@ impl eframe::App for QuillShellApp {
                             self.session.set_zoom_percent(z.saturating_sub(10));
                         }
                         ui.label(
-                            RichText::new(format!(
-                                "{}%",
-                                self.session.surface.status.zoom_percent
-                            ))
-                            .small(),
+                            RichText::new(format!("{}%", self.session.surface.status.zoom_percent))
+                                .small(),
                         );
                         if ui.small_button("+").clicked() {
                             let z = self.session.surface.status.zoom_percent;
@@ -1120,12 +1106,8 @@ pub fn run_gui(work_dir: PathBuf, doc_name: &str) -> Result<(), String> {
             .with_title(title),
         ..Default::default()
     };
-    eframe::run_native(
-        "Quillforge",
-        options,
-        Box::new(|_cc| Box::new(app)),
-    )
-    .map_err(|e| e.to_string())?;
+    eframe::run_native("Quillforge", options, Box::new(|_cc| Box::new(app)))
+        .map_err(|e| e.to_string())?;
     let _ = ProductSurface::category_line();
     Ok(())
 }

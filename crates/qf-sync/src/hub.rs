@@ -4,9 +4,7 @@
 //! infrastructure: Hello / Pull / Push on the content stream, presence on a
 //! separate ephemeral stream. Content never mixes with presence.
 
-use crate::{
-    ContentMessage, PresenceMessage, StreamRouter, SyncError, SyncStream,
-};
+use crate::{ContentMessage, PresenceMessage, StreamRouter, SyncError, SyncStream};
 use qf_collab::{PresenceEvent, TextCrdt};
 use qf_core::{ActorId, DocumentId, Hash256, Operation, SessionId};
 use serde::{Deserialize, Serialize};
@@ -221,9 +219,7 @@ impl SyncHub {
         let recipients: Vec<Uuid> = self
             .sessions
             .iter()
-            .filter(|(id, s)| {
-                s.subscribed && s.document_id == document_id && **id != from_token
-            })
+            .filter(|(id, s)| s.subscribed && s.document_id == document_id && **id != from_token)
             .map(|(id, _)| *id)
             .collect();
         let event = HeadNotify {
@@ -232,7 +228,10 @@ impl SyncHub {
             from_actor,
         };
         for id in recipients {
-            self.notify_mail.entry(id).or_default().push_back(event.clone());
+            self.notify_mail
+                .entry(id)
+                .or_default()
+                .push_back(event.clone());
             // Best-effort live push (drop if channel full/disconnected).
             if let Some(tx) = self.live_notify.get(&id) {
                 let _ = tx.send(event.clone());
@@ -264,7 +263,7 @@ impl SyncHub {
             }
         }
         let _ = covered_hash; // reserved for multi-batch aggregate seals
-        // Prefer tip CRDT if present.
+                              // Prefer tip CRDT if present.
         if doc.crdt_tip.is_some() {
             crdt = doc.crdt_tip.clone();
         }
@@ -396,7 +395,10 @@ impl SyncHub {
     }
 
     /// Ensure content/presence stream routing is enforced at the API boundary.
-    pub fn assert_stream_isolation(stream: SyncStream, is_presence_payload: bool) -> Result<(), SyncError> {
+    pub fn assert_stream_isolation(
+        stream: SyncStream,
+        is_presence_payload: bool,
+    ) -> Result<(), SyncError> {
         match (stream, is_presence_payload) {
             (SyncStream::Content, false) | (SyncStream::Presence, true) => Ok(()),
             (SyncStream::Content, true) => Err(SyncError::StreamMismatch(
@@ -712,9 +714,7 @@ mod tests {
         let ops = vec![Operation::Noop {
             reason: qf_core::NoopReason::Other("x".into()),
         }];
-        let a1 = c
-            .push_ops(&mut hub, 1, 1, ops.clone(), None)
-            .unwrap();
+        let a1 = c.push_ops(&mut hub, 1, 1, ops.clone(), None).unwrap();
         let a2 = c.push_ops(&mut hub, 1, 1, ops, None).unwrap();
         assert_eq!(a1.accepted_head_seq, a2.accepted_head_seq);
         assert_eq!(hub.head_seq(doc), 1);

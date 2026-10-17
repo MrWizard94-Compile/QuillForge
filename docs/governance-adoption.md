@@ -114,3 +114,12 @@ After the lock repair, strict Windows all-target Clippy and the full locked
 workspace suite pass again, with zero failed/ignored tests or diagnostics.
 Linux's resolved 272-package graph declares no Rust requirement above 1.85;
 that metadata check is not a substitute for compiling/testing it in CI.
+
+CI also reported Node 20 deprecation in the old checkout action and an imminent
+Ubuntu label migration. The workflow now pins official checkout v7.0.1 at
+`3d3c42e5aac5ba805825da76410c181273ba90b1`, with credential persistence off,
+and explicitly selects Ubuntu 24.04. The official
+[checkout contract](https://github.com/actions/checkout) and
+[Node 20 deprecation notice](https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/)
+were verified October 17. No compatibility-bypass environment variable or
+unsafe fork-checkout opt-in is used. Other platform labels are unchanged.

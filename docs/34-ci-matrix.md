@@ -10,10 +10,10 @@
 
 | Job | Runner(s) | Steps |
 |-----|-----------|--------|
-| **constitution** | `ubuntu-latest` | Pinned canonical source validation/tests, fail-closed adoption/history audit and its tests |
-| **lint** | `ubuntu-latest` | `cargo fmt --check`, clippy `-D warnings` |
-| **test** | `ubuntu-latest`, `windows-latest`, `macos-latest` | clippy, `cargo test --workspace`, `budget_*`, headless demos |
-| **ci-ok** | `ubuntu-latest` | Aggregates constitution + lint + test (branch protection friendly) |
+| **constitution** | `ubuntu-24.04` | Pinned canonical source validation/tests, fail-closed adoption/history audit and its tests |
+| **lint** | `ubuntu-24.04` | `cargo fmt --check`, clippy `-D warnings` |
+| **test** | `ubuntu-24.04`, `windows-latest`, `macos-latest` | clippy, `cargo test --workspace`, `budget_*`, headless demos |
+| **ci-ok** | `ubuntu-24.04` | Aggregates constitution + lint + test (branch protection friendly) |
 
 Workflow: [`.github/workflows/ci.yml`](../.github/workflows/ci.yml)
 
@@ -28,6 +28,9 @@ Workflow: [`.github/workflows/ci.yml`](../.github/workflows/ci.yml)
   an unrelated product-gate failure cannot hide its result. The exact SHA and
   history classification are documented in `governance-adoption.md`.
 - `fail-fast: false` so one OS failure still reports the others.
+- Checkout uses the verified v7.0.1 commit on Node 24, with credential
+  persistence disabled. Ubuntu 24.04 is explicit to avoid an unreviewed
+  distribution migration; Windows/macOS labels retain their existing policy.
 
 ---
 

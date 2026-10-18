@@ -3,9 +3,7 @@
 //! Stack: TCP → rustls TLS 1.3 → RFC 6455 upgrade → binary frames carrying QFSNC1.
 //! Path remains `/qfsnc1`. Uses the same [`SyncHub`] as plain TCP / TLS / `ws://`.
 
-use crate::hub::{
-    Hello, HelloAck, PullRequest, PullResponse, PushAck, PushRequest, SyncHub,
-};
+use crate::hub::{Hello, HelloAck, PullRequest, PullResponse, PushAck, PushRequest, SyncHub};
 use crate::tls::{ensure_crypto_provider, TlsIdentity};
 use crate::wire::{map_wire_err, WireRequest, WireResponse, PROTOCOL_ID};
 use crate::ws::{
@@ -137,8 +135,8 @@ fn handle_wss_connection(
     stream
         .set_write_timeout(Some(Duration::from_secs(30)))
         .map_err(|e| SyncError::Network(e.to_string()))?;
-    let conn = rustls::ServerConnection::new(cfg.clone())
-        .map_err(|e| SyncError::Auth(e.to_string()))?;
+    let conn =
+        rustls::ServerConnection::new(cfg.clone()).map_err(|e| SyncError::Auth(e.to_string()))?;
     let mut tls = rustls::StreamOwned::new(conn, stream);
     server_handshake(&mut tls)?;
     serve_session_ws(&mut tls, hub, false)
@@ -218,7 +216,9 @@ impl WssSyncSession {
         match self.round_trip(WireRequest::Hello(req))? {
             WireResponse::HelloAck(a) => Ok(a),
             WireResponse::Error { kind, message } => Err(map_wire_err(kind, message)),
-            other => Err(SyncError::Network(format!("unexpected response: {other:?}"))),
+            other => Err(SyncError::Network(format!(
+                "unexpected response: {other:?}"
+            ))),
         }
     }
 
@@ -226,7 +226,9 @@ impl WssSyncSession {
         match self.round_trip(WireRequest::Pull(req))? {
             WireResponse::Pull(p) => Ok(p),
             WireResponse::Error { kind, message } => Err(map_wire_err(kind, message)),
-            other => Err(SyncError::Network(format!("unexpected response: {other:?}"))),
+            other => Err(SyncError::Network(format!(
+                "unexpected response: {other:?}"
+            ))),
         }
     }
 
@@ -234,7 +236,9 @@ impl WssSyncSession {
         match self.round_trip(WireRequest::Push(req))? {
             WireResponse::PushAck(a) => Ok(a),
             WireResponse::Error { kind, message } => Err(map_wire_err(kind, message)),
-            other => Err(SyncError::Network(format!("unexpected response: {other:?}"))),
+            other => Err(SyncError::Network(format!(
+                "unexpected response: {other:?}"
+            ))),
         }
     }
 
@@ -384,8 +388,7 @@ mod tests {
         let server = WssSyncServer::start(SyncHub::new(), identity.clone()).unwrap();
         let addr = server.addr();
         {
-            let mut stream =
-                TcpStream::connect_timeout(&addr, Duration::from_secs(2)).unwrap();
+            let mut stream = TcpStream::connect_timeout(&addr, Duration::from_secs(2)).unwrap();
             let _ = stream.write_all(b"GET / HTTP/1.1\r\n\r\n");
         }
         thread::sleep(Duration::from_millis(40));

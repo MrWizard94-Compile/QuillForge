@@ -14,10 +14,19 @@ const EMU_PER_PX: i64 = 9525;
 /// One imported structural unit ready for Command → Journal → Kernel apply.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum DocxImportBlock {
-    Heading { level: u8, text: String },
-    Paragraph { text: String },
-    Quote { text: String },
-    Code { text: String },
+    Heading {
+        level: u8,
+        text: String,
+    },
+    Paragraph {
+        text: String,
+    },
+    Quote {
+        text: String,
+    },
+    Code {
+        text: String,
+    },
     PageBreak,
     /// DrawingML / package media image (PNG/JPEG bytes).
     Image {
@@ -54,7 +63,9 @@ pub fn import_docx_path(path: &std::path::Path) -> Result<Vec<DocxImportBlock>, 
 }
 
 /// Map relationship Id → raw image bytes (PNG/JPEG only).
-fn load_image_media(archive: &mut ZipArchive<Cursor<&[u8]>>) -> Result<BTreeMap<String, Vec<u8>>, String> {
+fn load_image_media(
+    archive: &mut ZipArchive<Cursor<&[u8]>>,
+) -> Result<BTreeMap<String, Vec<u8>>, String> {
     let mut rels_xml = String::new();
     if let Ok(mut entry) = archive.by_name("word/_rels/document.xml.rels") {
         entry
@@ -69,7 +80,10 @@ fn load_image_media(archive: &mut ZipArchive<Cursor<&[u8]>>) -> Result<BTreeMap<
     let mut rest = rels_xml.as_str();
     while let Some(idx) = rest.find("<Relationship") {
         let slice = &rest[idx..];
-        let end = slice.find("/>").or_else(|| slice.find('>')).unwrap_or(slice.len());
+        let end = slice
+            .find("/>")
+            .or_else(|| slice.find('>'))
+            .unwrap_or(slice.len());
         let tag = &slice[..end];
         rest = &slice[end..];
 
@@ -180,30 +194,14 @@ fn parse_paragraph(para_xml: &str, media: &BTreeMap<String, Vec<u8>>) -> Option<
     let style = paragraph_style(para_xml);
     let text = collect_text(para_xml);
     match style.as_deref() {
-        Some("Heading1") | Some("heading 1") | Some("Title") => Some(DocxImportBlock::Heading {
-            level: 1,
-            text,
-        }),
-        Some("Heading2") | Some("heading 2") => Some(DocxImportBlock::Heading {
-            level: 2,
-            text,
-        }),
-        Some("Heading3") | Some("heading 3") => Some(DocxImportBlock::Heading {
-            level: 3,
-            text,
-        }),
-        Some("Heading4") | Some("heading 4") => Some(DocxImportBlock::Heading {
-            level: 4,
-            text,
-        }),
-        Some("Heading5") | Some("heading 5") => Some(DocxImportBlock::Heading {
-            level: 5,
-            text,
-        }),
-        Some("Heading6") | Some("heading 6") => Some(DocxImportBlock::Heading {
-            level: 6,
-            text,
-        }),
+        Some("Heading1") | Some("heading 1") | Some("Title") => {
+            Some(DocxImportBlock::Heading { level: 1, text })
+        }
+        Some("Heading2") | Some("heading 2") => Some(DocxImportBlock::Heading { level: 2, text }),
+        Some("Heading3") | Some("heading 3") => Some(DocxImportBlock::Heading { level: 3, text }),
+        Some("Heading4") | Some("heading 4") => Some(DocxImportBlock::Heading { level: 4, text }),
+        Some("Heading5") | Some("heading 5") => Some(DocxImportBlock::Heading { level: 5, text }),
+        Some("Heading6") | Some("heading 6") => Some(DocxImportBlock::Heading { level: 6, text }),
         Some("Quote") | Some("IntenseQuote") | Some("BlockText") => {
             Some(DocxImportBlock::Quote { text })
         }
@@ -228,8 +226,7 @@ fn parse_drawing(para_xml: &str, media: &BTreeMap<String, Vec<u8>>) -> Option<Do
         return None;
     }
     // r:embed="rId2" or r:embed='rId2'
-    let rel_id = attr_val(para_xml, "r:embed")
-        .or_else(|| attr_val(para_xml, "embed"))?;
+    let rel_id = attr_val(para_xml, "r:embed").or_else(|| attr_val(para_xml, "embed"))?;
     let bytes = media.get(&rel_id)?.clone();
     let alt = attr_val(para_xml, "descr").unwrap_or_default();
     let (width_px, height_px) = extent_px(para_xml);
@@ -297,10 +294,7 @@ fn attr_val(slice: &str, name: &str) -> Option<String> {
 fn collect_text(para_xml: &str) -> String {
     let mut out = String::new();
     let mut rest = para_xml;
-    loop {
-        let Some(t_start) = rest.find("<w:t") else {
-            break;
-        };
+    while let Some(t_start) = rest.find("<w:t") {
         let after_tag = &rest[t_start + 4..];
         let Some(gt) = after_tag.find('>') else {
             break;
@@ -345,9 +339,7 @@ mod tests {
         Span,
     };
     use qf_citation::SourceTable;
-    use qf_core::{
-        ActorId, BlockId, DocumentId, OpSeq, SectionId, SeqIdGen, Timestamp, Version,
-    };
+    use qf_core::{ActorId, BlockId, DocumentId, OpSeq, SectionId, SeqIdGen, Timestamp, Version};
     use qf_doc::{Block, Document};
     use qf_kernel::{CanonicalState, EntityTables};
 

@@ -187,7 +187,9 @@ impl WsSyncSession {
         match self.round_trip(WireRequest::Hello(req))? {
             WireResponse::HelloAck(a) => Ok(a),
             WireResponse::Error { kind, message } => Err(map_wire_err(kind, message)),
-            other => Err(SyncError::Network(format!("unexpected response: {other:?}"))),
+            other => Err(SyncError::Network(format!(
+                "unexpected response: {other:?}"
+            ))),
         }
     }
 
@@ -195,7 +197,9 @@ impl WsSyncSession {
         match self.round_trip(WireRequest::Pull(req))? {
             WireResponse::Pull(p) => Ok(p),
             WireResponse::Error { kind, message } => Err(map_wire_err(kind, message)),
-            other => Err(SyncError::Network(format!("unexpected response: {other:?}"))),
+            other => Err(SyncError::Network(format!(
+                "unexpected response: {other:?}"
+            ))),
         }
     }
 
@@ -203,7 +207,9 @@ impl WsSyncSession {
         match self.round_trip(WireRequest::Push(req))? {
             WireResponse::PushAck(a) => Ok(a),
             WireResponse::Error { kind, message } => Err(map_wire_err(kind, message)),
-            other => Err(SyncError::Network(format!("unexpected response: {other:?}"))),
+            other => Err(SyncError::Network(format!(
+                "unexpected response: {other:?}"
+            ))),
         }
     }
 
@@ -211,7 +217,9 @@ impl WsSyncSession {
         match self.round_trip(WireRequest::Subscribe(req))? {
             WireResponse::Subscribed(s) => Ok(s),
             WireResponse::Error { kind, message } => Err(map_wire_err(kind, message)),
-            other => Err(SyncError::Network(format!("unexpected response: {other:?}"))),
+            other => Err(SyncError::Network(format!(
+                "unexpected response: {other:?}"
+            ))),
         }
     }
 
@@ -219,7 +227,9 @@ impl WsSyncSession {
         match self.round_trip(WireRequest::DrainNotify(req))? {
             WireResponse::Notify(n) => Ok(n),
             WireResponse::Error { kind, message } => Err(map_wire_err(kind, message)),
-            other => Err(SyncError::Network(format!("unexpected response: {other:?}"))),
+            other => Err(SyncError::Network(format!(
+                "unexpected response: {other:?}"
+            ))),
         }
     }
 
@@ -517,11 +527,7 @@ fn ws_accept_key(client_key: &str) -> String {
 
 // --- WebSocket binary frames ---
 
-fn write_ws_binary<W: Write>(
-    stream: &mut W,
-    payload: &[u8],
-    mask: bool,
-) -> Result<(), SyncError> {
+fn write_ws_binary<W: Write>(stream: &mut W, payload: &[u8], mask: bool) -> Result<(), SyncError> {
     let mut header = Vec::with_capacity(14);
     // FIN + binary opcode 0x2
     header.push(0x82);
@@ -639,7 +645,7 @@ fn read_ws_binary<R: Read>(stream: &mut R) -> Result<Vec<u8>, SyncError> {
 /// Minimal Base64 encode (RFC 4648) — enough for WS key material.
 fn b64_encode(data: &[u8]) -> String {
     const T: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    let mut out = String::with_capacity((data.len() + 2) / 3 * 4);
+    let mut out = String::with_capacity(data.len().div_ceil(3) * 4);
     let mut i = 0;
     while i + 3 <= data.len() {
         let n = ((data[i] as u32) << 16) | ((data[i + 1] as u32) << 8) | (data[i + 2] as u32);
@@ -909,8 +915,7 @@ mod tests {
     fn ws_rejects_wrong_path() {
         let server = WsSyncServer::start(SyncHub::new()).unwrap();
         let addr = server.addr();
-        let mut stream =
-            TcpStream::connect_timeout(&addr, Duration::from_secs(2)).unwrap();
+        let mut stream = TcpStream::connect_timeout(&addr, Duration::from_secs(2)).unwrap();
         let bad = format!(
             "GET /wrong HTTP/1.1\r\nHost: {addr}\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\nSec-WebSocket-Version: 13\r\n\r\n"
         );

@@ -9,16 +9,16 @@ mod fonts;
 mod pdf;
 mod text_import;
 
+/// DOCX with optional DrawingML images and optional TrueType font embed.
+pub use docx::{export_docx_with_assets, export_docx_with_assets_and_font};
+/// DOCX import intermediate blocks (apply via journal in app/storage).
+pub use docx_import::{import_docx_blocks, import_docx_path, DocxImportBlock};
 /// Local-first font packs (TrueType embed for PDF).
 pub use fonts::{
     build_mono_ttf, quill_mono_v1, FontPack, FONT_ALGO_QUILL_MONO_V1, FONT_ALGO_TRUETYPE_V1,
 };
 /// Layout-aligned PDF helpers (print fidelity with `qf_layout`).
 pub use pdf::{export_pdf_with_assets, export_pdf_with_assets_and_font, pdf_layout_page_count};
-/// DOCX with optional DrawingML images and optional TrueType font embed.
-pub use docx::{export_docx_with_assets, export_docx_with_assets_and_font};
-/// DOCX import intermediate blocks (apply via journal in app/storage).
-pub use docx_import::{import_docx_blocks, import_docx_path, DocxImportBlock};
 /// Markdown / HTML / plain-text import → same intermediate blocks as DOCX.
 pub use text_import::{import_html, import_markdown, import_plain, import_text_path};
 
@@ -123,9 +123,7 @@ impl Exporter for CoreExporter {
     fn export(&self, state: &CanonicalState, req: &ExportRequest) -> Result<ExportOutput, String> {
         let sources = sources_from_state(state);
         let bytes = match req.format {
-            ExportFormat::Markdown => {
-                export_markdown(state, &sources, &req.config).into_bytes()
-            }
+            ExportFormat::Markdown => export_markdown(state, &sources, &req.config).into_bytes(),
             ExportFormat::PlainText => export_plain(state, &sources, &req.config).into_bytes(),
             ExportFormat::Html => export_html(state, &sources, &req.config).into_bytes(),
             ExportFormat::Pdf => pdf::export_pdf(state, &sources, &req.config)?,

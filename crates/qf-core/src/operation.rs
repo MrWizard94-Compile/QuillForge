@@ -86,6 +86,14 @@ pub enum Operation {
         suggestion_id: SuggestionId,
         payload: Vec<u8>,
     },
+    /// Remove a suggestion entity (invert of first upsert; explicit delete).
+    DeleteSuggestion {
+        suggestion_id: SuggestionId,
+    },
+    /// Apply the stored operations of an already accepted suggestion.
+    ///
+    /// The kernel resolves the recorded payload deterministically during replay
+    /// and rejects pending, malformed, or recursively nested suggestions.
     ApplySuggestionOps {
         suggestion_id: SuggestionId,
     },

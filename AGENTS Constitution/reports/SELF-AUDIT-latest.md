@@ -1,13 +1,13 @@
 # Pack Self-Audit
 
-**Pack root:** `C:\Users\Bulkl\OneDrive\Desktop\AGENTS Constitution Human workspace`
-**Date (UTC):** 2026-07-28 00:43:48Z
+**Pack root:** `C:\WPAI\Software\QuillForge\AGENTS Constitution`
+**Date (UTC):** 2026-07-28 03:33:03Z
 **Rules:** CONST-GATE-001, CONST-DONE-001, GOV-INT-001, GOV-SYNC-001
 
 ## 1. GOV-INT-001 verify-pack
 ```
 AGENTS Constitution integrity check
-Pack root: C:\Users\Bulkl\OneDrive\Desktop\AGENTS Constitution Human workspace
+Pack root: C:\WPAI\Software\QuillForge\AGENTS Constitution
 
 Pack VERSION:                5.0.1
 Active Rule IDs in registry: 136

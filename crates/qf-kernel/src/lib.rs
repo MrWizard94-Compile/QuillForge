@@ -182,13 +182,59 @@ pub fn invert_ops(
     let mut working = state_before.clone();
     let mut inverses_rev = Vec::with_capacity(ops.len());
     for op in ops {
-        let inv = invert_one(&working, op)?;
+        let inverses = inverse_for_op(&working, op)?;
         apply_to(&mut working, op)?;
         working.op_seq = next_op_seq(working.op_seq);
-        inverses_rev.push(inv);
+        // Each operation's inverse sequence is already in apply order. Store it
+        // reversed so the final vector reverses operation groups, not their
+        // internal restoration order.
+        inverses_rev.extend(inverses.into_iter().rev());
     }
     inverses_rev.reverse();
     Ok(inverses_rev)
+}
+
+fn inverse_for_op(state: &CanonicalState, op: &Operation) -> Result<Vec<Operation>, ApplyError> {
+    match op {
+        Operation::RemoveBlock { block_id } => restore_removed_block_ops(state, *block_id),
+        Operation::ApplySuggestionOps { suggestion_id } => {
+            let payload = state
+                .entities
+                .suggestions
+                .get(suggestion_id)
+                .ok_or(ApplyError::MissingEntity)?;
+            let proposed = proposed_ops_from_suggestion_payload(payload)?;
+            invert_ops(state, &proposed)
+        }
+        _ => Ok(vec![invert_one(state, op)?]),
+    }
+}
+
+fn restore_removed_block_ops(
+    state: &CanonicalState,
+    block_id: BlockId,
+) -> Result<Vec<Operation>, ApplyError> {
+    let block = state
+        .document
+        .blocks
+        .get(&block_id)
+        .ok_or(ApplyError::MissingEntity)?;
+    let (parent, index) = find_block_location(state, block_id)?;
+    let mut meta_payload = Vec::new();
+    ciborium::into_writer(&block.meta, &mut meta_payload)
+        .map_err(|e| ApplyError::Schema(format!("RemoveBlock invert encode: {e}")))?;
+    Ok(vec![
+        Operation::InsertBlock {
+            block_id,
+            parent,
+            index: index as u32,
+            body: encode_body(&block.body)?,
+        },
+        Operation::UpdateBlockMeta {
+            block_id,
+            meta_payload,
+        },
+    ])
 }
 
 fn invert_one(state: &CanonicalState, op: &Operation) -> Result<Operation, ApplyError> {
@@ -211,20 +257,9 @@ fn invert_one(state: &CanonicalState, op: &Operation) -> Result<Operation, Apply
         Operation::InsertBlock { block_id, .. } => Ok(Operation::RemoveBlock {
             block_id: *block_id,
         }),
-        Operation::RemoveBlock { block_id } => {
-            let block = state
-                .document
-                .blocks
-                .get(block_id)
-                .ok_or(ApplyError::MissingEntity)?;
-            let (parent, index) = find_block_location(state, *block_id)?;
-            Ok(Operation::InsertBlock {
-                block_id: *block_id,
-                parent,
-                index: index as u32,
-                body: encode_body(&block.body)?,
-            })
-        }
+        Operation::RemoveBlock { .. } => Err(ApplyError::Invariant(
+            "RemoveBlock inversion requires block restoration operations".into(),
+        )),
         Operation::MoveBlock {
             block_id,
             new_parent: _,
@@ -298,13 +333,22 @@ fn invert_one(state: &CanonicalState, op: &Operation) -> Result<Operation, Apply
                     payload: payload.clone(),
                 })
             } else {
-                // No delete-suggestion op; restore empty by re-upsert is fine for undo of first insert:
-                // invert of first upsert is delete of suggestion — use empty payload delete via Upsert of empty then...
-                // Spec has no DeleteSuggestion; store Noop for missing prior.
-                Ok(Operation::Noop {
-                    reason: qf_core::NoopReason::Other("undo first suggestion upsert".into()),
+                Ok(Operation::DeleteSuggestion {
+                    suggestion_id: *suggestion_id,
                 })
             }
+        }
+        Operation::DeleteSuggestion { suggestion_id } => {
+            let payload = state
+                .entities
+                .suggestions
+                .get(suggestion_id)
+                .cloned()
+                .ok_or(ApplyError::MissingEntity)?;
+            Ok(Operation::UpsertSuggestion {
+                suggestion_id: *suggestion_id,
+                payload,
+            })
         }
         Operation::Noop { .. } => Ok(Operation::Noop {
             reason: qf_core::NoopReason::Other("undo noop".into()),
@@ -333,9 +377,9 @@ fn invert_one(state: &CanonicalState, op: &Operation) -> Result<Operation, Apply
                 meta_payload: buf,
             })
         }
-        Operation::ApplySuggestionOps { .. } => Ok(Operation::Noop {
-            reason: qf_core::NoopReason::Other("inverse not modeled; use snapshot revision".into()),
-        }),
+        Operation::ApplySuggestionOps { .. } => Err(ApplyError::Invariant(
+            "ApplySuggestionOps inversion requires recorded proposal operations".into(),
+        )),
     }
 }
 
@@ -531,9 +575,30 @@ fn apply_to(state: &mut CanonicalState, op: &Operation) -> Result<Vec<KernelEven
                 .insert(*suggestion_id, payload.clone());
             Ok(vec![KernelEvent::Noop])
         }
-        Operation::ApplySuggestionOps { .. } => Err(ApplyError::Schema(
-            "ApplySuggestionOps must be expanded before apply".into(),
-        )),
+        Operation::DeleteSuggestion { suggestion_id } => {
+            state
+                .entities
+                .suggestions
+                .remove(suggestion_id)
+                .ok_or(ApplyError::MissingEntity)?;
+            Ok(vec![KernelEvent::Noop])
+        }
+        Operation::ApplySuggestionOps { suggestion_id } => {
+            // Expand proposed_ops from stored suggestion JSON and apply as one
+            // atomic batch step (single op_seq advance happens at Kernel::apply).
+            let payload = state
+                .entities
+                .suggestions
+                .get(suggestion_id)
+                .cloned()
+                .ok_or(ApplyError::MissingEntity)?;
+            let proposed = proposed_ops_from_suggestion_payload(&payload)?;
+            let mut events = Vec::new();
+            for sub in &proposed {
+                events.extend(apply_to(state, sub)?);
+            }
+            Ok(events)
+        }
         Operation::SetMarks {
             span_id,
             marks_payload,
@@ -617,32 +682,99 @@ fn set_marks_on_block(
     true
 }
 
+/// Legacy prefix used only by the uncommitted span-only representation.
+const RICH_SPANS_MAGIC: &[u8] = b"QFBB1\0";
+/// Versioned prefix for complete typed paragraph/heading/quote bodies.
+const RICH_BODY_MAGIC: &[u8] = b"QFBB2\0";
+
+fn encode_rich_body(body: &BlockBody) -> Result<Vec<u8>, ApplyError> {
+    let mut buf = RICH_BODY_MAGIC.to_vec();
+    ciborium::into_writer(body, &mut buf).map_err(|e| ApplyError::Schema(e.to_string()))?;
+    Ok(buf)
+}
+
+fn decode_rich_body(payload: &[u8], expected_type: &str) -> Result<Option<BlockBody>, ApplyError> {
+    if !payload.starts_with(RICH_BODY_MAGIC) {
+        return Ok(None);
+    }
+    let body: BlockBody = ciborium::from_reader(&payload[RICH_BODY_MAGIC.len()..])
+        .map_err(|e| ApplyError::Schema(format!("rich body decode: {e}")))?;
+    let actual_type = match &body {
+        BlockBody::Paragraph(_) => "paragraph",
+        BlockBody::Heading(_) => "heading",
+        BlockBody::Quote(_) => "quote",
+        _ => "other",
+    };
+    if actual_type != expected_type {
+        return Err(ApplyError::Schema(format!(
+            "rich body type mismatch: expected {expected_type}, found {actual_type}"
+        )));
+    }
+    Ok(Some(body))
+}
+
+fn try_decode_legacy_rich_spans(payload: &[u8]) -> Option<Vec<Span>> {
+    if payload.starts_with(RICH_SPANS_MAGIC) {
+        ciborium::from_reader(&payload[RICH_SPANS_MAGIC.len()..]).ok()
+    } else {
+        None
+    }
+}
+
+fn proposed_ops_from_suggestion_payload(payload: &[u8]) -> Result<Vec<Operation>, ApplyError> {
+    // Suggestions are JSON-encoded by qf-ai (`serde_json` of collab::Suggestion).
+    // A marker may only apply an already accepted suggestion; executing a pending
+    // proposal would bypass the explicit human acceptance boundary.
+    let v: serde_json::Value = serde_json::from_slice(payload)
+        .map_err(|e| ApplyError::Schema(format!("suggestion payload: {e}")))?;
+    let status = v
+        .get("status")
+        .and_then(serde_json::Value::as_str)
+        .ok_or_else(|| ApplyError::Schema("suggestion missing status".into()))?;
+    if status != "Accepted" {
+        return Err(ApplyError::Schema(
+            "only accepted suggestions may apply proposed operations".into(),
+        ));
+    }
+    let ops_val = v
+        .get("proposed_ops")
+        .cloned()
+        .ok_or_else(|| ApplyError::Schema("suggestion missing proposed_ops".into()))?;
+    let ops: Vec<Operation> = serde_json::from_value(ops_val)
+        .map_err(|e| ApplyError::Schema(format!("proposed_ops decode: {e}")))?;
+    if ops
+        .iter()
+        .any(|op| matches!(op, Operation::ApplySuggestionOps { .. }))
+    {
+        return Err(ApplyError::Schema(
+            "suggestion proposed operations may not nest ApplySuggestionOps".into(),
+        ));
+    }
+    Ok(ops)
+}
+
 /// Encode a typed block body into transport bytes for ops.
+///
+/// Paragraph/heading/quote use complete typed encoding so `RemoveBlock` inverse
+/// operations preserve formatting, quote citations, and span identity.
 pub fn encode_body(body: &BlockBody) -> Result<BlockBodyBytes, ApplyError> {
     match body {
-        BlockBody::Paragraph(p) => {
-            let text: String = p.spans.iter().map(|s| s.text.as_str()).collect();
-            Ok(BlockBodyBytes {
-                type_name: "paragraph".into(),
-                payload: text.into_bytes(),
-            })
-        }
+        BlockBody::Paragraph(_) => Ok(BlockBodyBytes {
+            type_name: "paragraph".into(),
+            payload: encode_rich_body(body)?,
+        }),
         BlockBody::Heading(h) => {
-            let text: String = h.spans.iter().map(|s| s.text.as_str()).collect();
             let mut payload = vec![h.level];
-            payload.extend_from_slice(text.as_bytes());
+            payload.extend(encode_rich_body(body)?);
             Ok(BlockBodyBytes {
                 type_name: "heading".into(),
                 payload,
             })
         }
-        BlockBody::Quote(q) => {
-            let text: String = q.spans.iter().map(|s| s.text.as_str()).collect();
-            Ok(BlockBodyBytes {
-                type_name: "quote".into(),
-                payload: text.into_bytes(),
-            })
-        }
+        BlockBody::Quote(_) => Ok(BlockBodyBytes {
+            type_name: "quote".into(),
+            payload: encode_rich_body(body)?,
+        }),
         BlockBody::Unknown(u) => Ok(BlockBodyBytes {
             type_name: u.original_type.clone(),
             payload: u.original_payload.clone(),
@@ -671,43 +803,70 @@ pub fn encode_body(body: &BlockBody) -> Result<BlockBodyBytes, ApplyError> {
 pub fn decode_body(body: &BlockBodyBytes) -> Result<BlockBody, ApplyError> {
     match body.type_name.as_str() {
         "paragraph" => {
-            let text = String::from_utf8(body.payload.clone())
-                .map_err(|e| ApplyError::Schema(e.to_string()))?;
-            Ok(BlockBody::Paragraph(ParagraphBlock {
-                spans: vec![Span {
+            if let Some(rich) = decode_rich_body(&body.payload, "paragraph")? {
+                return Ok(rich);
+            }
+            let spans = if let Some(s) = try_decode_legacy_rich_spans(&body.payload) {
+                s
+            } else {
+                let text = String::from_utf8(body.payload.clone())
+                    .map_err(|e| ApplyError::Schema(e.to_string()))?;
+                vec![Span {
                     id: qf_core::SpanId(uuid::Uuid::nil()),
                     text,
                     marks: vec![],
-                }],
-            }))
+                }]
+            };
+            Ok(BlockBody::Paragraph(ParagraphBlock { spans }))
         }
         "heading" => {
             if body.payload.is_empty() {
                 return Err(ApplyError::Schema("heading payload empty".into()));
             }
             let level = body.payload[0];
-            let text = String::from_utf8(body.payload[1..].to_vec())
-                .map_err(|e| ApplyError::Schema(e.to_string()))?;
-            Ok(BlockBody::Heading(HeadingBlock {
-                level,
-                spans: vec![Span {
+            let rest = &body.payload[1..];
+            if let Some(rich) = decode_rich_body(rest, "heading")? {
+                let BlockBody::Heading(heading) = rich else {
+                    return Err(ApplyError::Schema(
+                        "rich heading decode type mismatch".into(),
+                    ));
+                };
+                if heading.level != level {
+                    return Err(ApplyError::Schema(
+                        "rich heading level does not match heading payload".into(),
+                    ));
+                }
+                return Ok(BlockBody::Heading(heading));
+            }
+            let spans = if let Some(s) = try_decode_legacy_rich_spans(rest) {
+                s
+            } else {
+                let text = String::from_utf8(rest.to_vec())
+                    .map_err(|e| ApplyError::Schema(e.to_string()))?;
+                vec![Span {
                     id: qf_core::SpanId(uuid::Uuid::nil()),
                     text,
                     marks: vec![],
-                }],
-            }))
+                }]
+            };
+            Ok(BlockBody::Heading(HeadingBlock { level, spans }))
         }
         "quote" => {
-            let text = String::from_utf8(body.payload.clone())
-                .map_err(|e| ApplyError::Schema(e.to_string()))?;
-            Ok(BlockBody::Quote(QuoteBlock {
-                spans: vec![Span {
+            if let Some(rich) = decode_rich_body(&body.payload, "quote")? {
+                return Ok(rich);
+            }
+            let spans = if let Some(s) = try_decode_legacy_rich_spans(&body.payload) {
+                s
+            } else {
+                let text = String::from_utf8(body.payload.clone())
+                    .map_err(|e| ApplyError::Schema(e.to_string()))?;
+                vec![Span {
                     id: qf_core::SpanId(uuid::Uuid::nil()),
                     text,
                     marks: vec![],
-                }],
-                cite: None,
-            }))
+                }]
+            };
+            Ok(BlockBody::Quote(QuoteBlock { spans, cite: None }))
         }
         "page_break" => Ok(BlockBody::PageBreak),
         "section_break" => Ok(BlockBody::SectionBreak),
@@ -938,6 +1097,165 @@ mod tests {
             before.document.blocks.len(),
             k.state().document.blocks.len()
         );
+    }
+
+    #[test]
+    fn rich_bodies_round_trip_with_spans_and_quote_citation() {
+        let mut gen = SeqIdGen::default();
+        let span = Span {
+            id: qf_core::SpanId::new(&mut gen),
+            text: "styled".into(),
+            marks: vec![qf_blocks::Mark::Bold],
+        };
+        let source = qf_core::SourceId::new(&mut gen);
+        let bodies = vec![
+            BlockBody::Paragraph(ParagraphBlock {
+                spans: vec![span.clone()],
+            }),
+            BlockBody::Heading(HeadingBlock {
+                level: 2,
+                spans: vec![span.clone()],
+            }),
+            BlockBody::Quote(QuoteBlock {
+                spans: vec![span],
+                cite: Some(source),
+            }),
+        ];
+
+        for body in bodies {
+            let encoded = encode_body(&body).unwrap();
+            assert_eq!(decode_body(&encoded).unwrap(), body);
+        }
+    }
+
+    #[test]
+    fn undo_remove_block_restores_full_body_and_metadata() {
+        let (mut k, mut gen) = fresh();
+        let block_id = BlockId::new(&mut gen);
+        let quote = BlockBody::Quote(QuoteBlock {
+            spans: vec![Span {
+                id: qf_core::SpanId::new(&mut gen),
+                text: "quoted".into(),
+                marks: vec![qf_blocks::Mark::Italic],
+            }],
+            cite: Some(qf_core::SourceId::new(&mut gen)),
+        });
+        k.apply(&Operation::InsertBlock {
+            block_id,
+            parent: ParentRef::DocumentRoot,
+            index: 0,
+            body: encode_body(&quote).unwrap(),
+        })
+        .unwrap();
+
+        let metadata = BlockMetadata {
+            created_by: ActorId::new(&mut gen),
+            created_at_seq: OpSeq(73),
+            attrs: PreservedMap::new(),
+        };
+        let mut meta_payload = Vec::new();
+        ciborium::into_writer(&metadata, &mut meta_payload).unwrap();
+        k.apply(&Operation::UpdateBlockMeta {
+            block_id,
+            meta_payload,
+        })
+        .unwrap();
+
+        let before_remove = k.state().clone();
+        let remove = vec![Operation::RemoveBlock { block_id }];
+        k.apply_batch(&remove).unwrap();
+        let inverse = invert_ops(&before_remove, &remove).unwrap();
+        assert!(matches!(
+            inverse.as_slice(),
+            [
+                Operation::InsertBlock { .. },
+                Operation::UpdateBlockMeta { .. }
+            ]
+        ));
+        k.apply_batch(&inverse).unwrap();
+
+        assert_eq!(k.state().document, before_remove.document);
+    }
+
+    #[test]
+    fn suggestion_upsert_undo_removes_previously_absent_entity() {
+        let (mut k, mut gen) = fresh();
+        let suggestion_id = qf_core::SuggestionId::new(&mut gen);
+        let before = k.state().clone();
+        let ops = vec![Operation::UpsertSuggestion {
+            suggestion_id,
+            payload: b"suggestion".to_vec(),
+        }];
+        k.apply_batch(&ops).unwrap();
+        let inverse = invert_ops(&before, &ops).unwrap();
+        assert!(matches!(
+            inverse.as_slice(),
+            [Operation::DeleteSuggestion { .. }]
+        ));
+        k.apply_batch(&inverse).unwrap();
+
+        assert_eq!(k.state().entities.suggestions, before.entities.suggestions);
+    }
+
+    #[test]
+    fn accepted_suggestion_marker_is_reversible_and_rejects_pending_payloads() {
+        let (mut k, mut gen) = fresh();
+        let block_id = BlockId::new(&mut gen);
+        k.apply(&Operation::InsertBlock {
+            block_id,
+            parent: ParentRef::DocumentRoot,
+            index: 0,
+            body: BlockBodyBytes {
+                type_name: "paragraph".into(),
+                payload: b"base".to_vec(),
+            },
+        })
+        .unwrap();
+        let suggestion_id = qf_core::SuggestionId::new(&mut gen);
+        let proposed_ops = vec![Operation::InsertText {
+            block_id,
+            at: TextOffset(4),
+            text: " accepted".into(),
+        }];
+        let accepted_payload = serde_json::to_vec(&serde_json::json!({
+            "status": "Accepted",
+            "proposed_ops": proposed_ops,
+        }))
+        .unwrap();
+        k.apply(&Operation::UpsertSuggestion {
+            suggestion_id,
+            payload: accepted_payload,
+        })
+        .unwrap();
+
+        let before_apply = k.state().clone();
+        let marker = vec![Operation::ApplySuggestionOps { suggestion_id }];
+        k.apply_batch(&marker).unwrap();
+        assert_eq!(
+            k.state().document.project_text(block_id),
+            Some("base accepted".into())
+        );
+        let inverse = invert_ops(&before_apply, &marker).unwrap();
+        k.apply_batch(&inverse).unwrap();
+        assert_eq!(k.state().document, before_apply.document);
+
+        let pending_payload = serde_json::to_vec(&serde_json::json!({
+            "status": "Pending",
+            "proposed_ops": [Operation::Noop {
+                reason: qf_core::NoopReason::Other("must not run".into()),
+            }],
+        }))
+        .unwrap();
+        k.apply(&Operation::UpsertSuggestion {
+            suggestion_id,
+            payload: pending_payload,
+        })
+        .unwrap();
+        let before_rejected_apply = k.state().clone();
+        assert!(k
+            .apply(&Operation::ApplySuggestionOps { suggestion_id })
+            .is_err());
+        assert_eq!(k.state(), &before_rejected_apply);
     }
 
     #[test]

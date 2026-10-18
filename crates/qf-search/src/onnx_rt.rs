@@ -64,10 +64,7 @@ impl OnnxGraphRuntime {
             if dim as u32 != pack.dim && pack.dim >= 8 {
                 // Prefer pack dim when table dim differs slightly — require exact.
                 if dim != pack.dim() {
-                    return Err(format!(
-                        "QFEMB1 dim {dim} != pack dim {}",
-                        pack.dim()
-                    ));
+                    return Err(format!("QFEMB1 dim {dim} != pack dim {}", pack.dim()));
                 }
             }
             let mut pack = pack;
@@ -170,12 +167,7 @@ fn parse_qfemb1(bytes: &[u8]) -> Result<(usize, u32, Vec<f32>), String> {
     let mut weights = Vec::with_capacity(dim * buckets as usize);
     let mut off = 16;
     while off + 4 <= need {
-        let w = f32::from_le_bytes([
-            bytes[off],
-            bytes[off + 1],
-            bytes[off + 2],
-            bytes[off + 3],
-        ]);
+        let w = f32::from_le_bytes([bytes[off], bytes[off + 1], bytes[off + 2], bytes[off + 3]]);
         weights.push(w);
         off += 4;
     }

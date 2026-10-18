@@ -40,6 +40,8 @@ perf.data*
 # Docs tooling
 /book/book/
 node_modules/
+__pycache__/
+*.pyc
 
 # Generated
 **/generated/

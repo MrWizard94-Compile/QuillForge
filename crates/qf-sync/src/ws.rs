@@ -9,12 +9,11 @@ use crate::hub::{
     DrainNotifyRequest, HeadNotify, Hello, HelloAck, NotifyBatch, PullRequest, PullResponse,
     PushAck, PushRequest, SessionToken, SubscribeRequest, Subscribed, SyncHub,
 };
-use crate::wire::{
-    dispatch, err_resp, map_wire_err, read_frame, write_frame, WireRequest, WireResponse,
-};
+use crate::wire::{dispatch, err_resp, map_wire_err, write_frame, WireRequest, WireResponse};
+use crate::ws_receive::WsReader;
 use crate::SyncError;
 use ring::digest::{digest, SHA1_FOR_LEGACY_USE_ONLY};
-use std::io::{Cursor, Read, Write};
+use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Receiver, Sender};
@@ -23,7 +22,8 @@ use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
 /// How often a long-lived server session wakes to flush live notifies.
-const LIVE_POLL: Duration = Duration::from_millis(50);
+pub(crate) const LIVE_POLL: Duration = Duration::from_millis(50);
+pub(crate) const SESSION_TIMEOUT: Duration = Duration::from_secs(30);
 
 const WS_GUID: &str = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 const WS_PATH: &str = "/qfsnc1";
@@ -119,14 +119,17 @@ fn handle_connection(mut stream: TcpStream, hub: &Arc<Mutex<SyncHub>>) -> Result
     stream
         .set_nonblocking(false)
         .map_err(|e| SyncError::Network(e.to_string()))?;
-    // Short read timeout so the serve loop can flush live notifies between requests.
+    // Complete HTTP upgrade before enabling the short session polling timeout.
     stream
-        .set_read_timeout(Some(LIVE_POLL))
+        .set_read_timeout(Some(SESSION_TIMEOUT))
         .map_err(|e| SyncError::Network(e.to_string()))?;
     stream
         .set_write_timeout(Some(Duration::from_secs(30)))
         .map_err(|e| SyncError::Network(e.to_string()))?;
     server_handshake(&mut stream)?;
+    stream
+        .set_read_timeout(Some(LIVE_POLL))
+        .map_err(|e| SyncError::Network(e.to_string()))?;
     // Long-lived session: many QFSNC1 request/response pairs on one WS connection.
     serve_session_ws(&mut stream, hub, false)
 }
@@ -166,6 +169,7 @@ impl WsSyncClient {
 /// Persistent WebSocket connection carrying multiple QFSNC1 messages.
 pub struct WsSyncSession {
     stream: TcpStream,
+    reader: WsReader,
 }
 
 impl WsSyncSession {
@@ -180,7 +184,10 @@ impl WsSyncSession {
             .map_err(|e| SyncError::Network(e.to_string()))?;
         let host = format!("{addr}");
         client_handshake(&mut stream, &host)?;
-        Ok(Self { stream })
+        Ok(Self {
+            stream,
+            reader: WsReader::default(),
+        })
     }
 
     pub fn hello(&mut self, req: Hello) -> Result<HelloAck, SyncError> {
@@ -234,26 +241,39 @@ impl WsSyncSession {
     }
 
     /// Wait for an unsolicited server `Notify` (no client request). Empty batch on timeout.
+    /// Partial frame bytes survive the timeout; the previous socket timeout is restored.
     pub fn wait_notify(&mut self, timeout: Duration) -> Result<NotifyBatch, SyncError> {
+        let previous = self
+            .stream
+            .read_timeout()
+            .map_err(|e| SyncError::Network(e.to_string()))?;
         self.stream
             .set_read_timeout(Some(timeout))
             .map_err(|e| SyncError::Network(e.to_string()))?;
-        match read_qfsnc1_ws::<_, WireResponse>(&mut self.stream) {
+        let result = match self.reader.read::<_, WireResponse>(&mut self.stream) {
             Ok(WireResponse::Notify(n)) => Ok(n),
             Ok(WireResponse::Error { kind, message }) => Err(map_wire_err(kind, message)),
             Ok(other) => Err(SyncError::Network(format!(
                 "expected unsolicited Notify, got {other:?}"
             ))),
-            Err(e) if is_timeout(&e) => Ok(NotifyBatch { events: vec![] }),
-            Err(e) => Err(e),
-        }
+            Err(e) if e.is_idle() => Ok(NotifyBatch { events: vec![] }),
+            Err(e) => Err(e.into()),
+        };
+        self.stream
+            .set_read_timeout(previous)
+            .map_err(|e| SyncError::Network(e.to_string()))?;
+        result
     }
 
     fn round_trip(&mut self, req: WireRequest) -> Result<WireResponse, SyncError> {
         // Round-trips may see unsolicited Notify frames first; skip/collect them.
         write_qfsnc1_ws(&mut self.stream, &req, true)?;
         loop {
-            match read_qfsnc1_ws::<_, WireResponse>(&mut self.stream)? {
+            match self
+                .reader
+                .read::<_, WireResponse>(&mut self.stream)
+                .map_err(SyncError::from)?
+            {
                 WireResponse::Notify(_) => {
                     // Stale notify interleaved — ignore and keep waiting for the response.
                     continue;
@@ -275,6 +295,7 @@ pub(crate) fn serve_session_ws<S: Read + Write>(
 ) -> Result<(), SyncError> {
     let (tx, rx): (Sender<HeadNotify>, Receiver<HeadNotify>) = mpsc::channel();
     let mut live_token: Option<SessionToken> = None;
+    let mut reader = WsReader::default();
 
     loop {
         // 1) Flush any live head notifies as unsolicited frames.
@@ -284,7 +305,7 @@ pub(crate) fn serve_session_ws<S: Read + Write>(
         }
 
         // 2) Wait for next client request (timeout → loop & flush again).
-        match read_qfsnc1_ws::<_, WireRequest>(stream) {
+        match reader.read::<_, WireRequest>(stream) {
             Ok(req) => {
                 // Track token for live registration after Subscribe.
                 let subscribe_token = match &req {
@@ -295,7 +316,7 @@ pub(crate) fn serve_session_ws<S: Read + Write>(
                 let resp = dispatch(hub, req);
                 if let Err(e) = write_qfsnc1_ws(stream, &resp, client_masking) {
                     unregister_live(hub, &live_token);
-                    return if is_peer_gone(&e) { Ok(()) } else { Err(e) };
+                    return Err(e);
                 }
                 // After successful Subscribe, bind this socket's live channel.
                 if matches!(resp, WireResponse::Subscribed(_)) {
@@ -317,16 +338,16 @@ pub(crate) fn serve_session_ws<S: Read + Write>(
                     }
                 }
             }
-            Err(e) if is_timeout(&e) => {
+            Err(e) if e.is_idle() => {
                 // Idle tick — keep flushing live notifies.
                 continue;
             }
-            Err(e) if is_peer_gone(&e) => {
+            Err(e) if e.is_peer_gone() => {
                 unregister_live(hub, &live_token);
                 return Ok(());
             }
             Err(e) => {
-                let _ = write_qfsnc1_ws(stream, &err_resp(e), client_masking);
+                let _ = write_qfsnc1_ws(stream, &err_resp(e.into()), client_masking);
                 unregister_live(hub, &live_token);
                 return Ok(());
             }
@@ -361,28 +382,6 @@ fn unregister_live(hub: &Arc<Mutex<SyncHub>>, token: &Option<SessionToken>) {
     }
 }
 
-fn is_timeout(e: &SyncError) -> bool {
-    let msg = e.to_string().to_ascii_lowercase();
-    msg.contains("timed out")
-        || msg.contains("timeout")
-        || msg.contains("10060") // WSAETIMEDOUT
-        || msg.contains("os error 10060")
-        || msg.contains("would block")
-}
-
-fn is_peer_gone(e: &SyncError) -> bool {
-    let msg = e.to_string().to_ascii_lowercase();
-    msg.contains("eof")
-        || msg.contains("failed to fill whole buffer")
-        || msg.contains("connection reset")
-        || msg.contains("forcibly closed")
-        || msg.contains("broken pipe")
-        || msg.contains("websocket closed")
-        || msg.contains("ws closed")
-        || msg.contains("10054")
-        || msg.contains("os error 104")
-}
-
 pub(crate) fn write_qfsnc1_ws<W: Write, T: serde::Serialize>(
     stream: &mut W,
     value: &T,
@@ -391,14 +390,6 @@ pub(crate) fn write_qfsnc1_ws<W: Write, T: serde::Serialize>(
     let mut buf = Vec::new();
     write_frame(&mut buf, value)?;
     write_ws_binary(stream, &buf, mask)
-}
-
-pub(crate) fn read_qfsnc1_ws<R: Read, T: serde::de::DeserializeOwned>(
-    stream: &mut R,
-) -> Result<T, SyncError> {
-    let payload = read_ws_binary(stream)?;
-    let mut cur = Cursor::new(payload);
-    read_frame(&mut cur)
 }
 
 // --- HTTP upgrade (generic Read+Write for TCP and TLS streams) ---
@@ -571,77 +562,6 @@ fn write_ws_binary<W: Write>(stream: &mut W, payload: &[u8], mask: bool) -> Resu
     Ok(())
 }
 
-fn read_ws_binary<R: Read>(stream: &mut R) -> Result<Vec<u8>, SyncError> {
-    loop {
-        let mut b0 = [0u8; 1];
-        stream
-            .read_exact(&mut b0)
-            .map_err(|e| SyncError::Network(e.to_string()))?;
-        let opcode = b0[0] & 0x0f;
-        let mut b1 = [0u8; 1];
-        stream
-            .read_exact(&mut b1)
-            .map_err(|e| SyncError::Network(e.to_string()))?;
-        let masked = (b1[0] & 0x80) != 0;
-        let mut len = (b1[0] & 0x7f) as u64;
-        if len == 126 {
-            let mut ext = [0u8; 2];
-            stream
-                .read_exact(&mut ext)
-                .map_err(|e| SyncError::Network(e.to_string()))?;
-            len = u16::from_be_bytes(ext) as u64;
-        } else if len == 127 {
-            let mut ext = [0u8; 8];
-            stream
-                .read_exact(&mut ext)
-                .map_err(|e| SyncError::Network(e.to_string()))?;
-            len = u64::from_be_bytes(ext);
-        }
-        if len > 16 * 1024 * 1024 {
-            return Err(SyncError::Rejected("websocket frame too large".into()));
-        }
-        let mask_key = if masked {
-            let mut k = [0u8; 4];
-            stream
-                .read_exact(&mut k)
-                .map_err(|e| SyncError::Network(e.to_string()))?;
-            Some(k)
-        } else {
-            None
-        };
-        let mut payload = vec![0u8; len as usize];
-        if len > 0 {
-            stream
-                .read_exact(&mut payload)
-                .map_err(|e| SyncError::Network(e.to_string()))?;
-        }
-        if let Some(k) = mask_key {
-            for (i, b) in payload.iter_mut().enumerate() {
-                *b ^= k[i % 4];
-            }
-        }
-        match opcode {
-            0x2 => return Ok(payload), // binary
-            0x8 => return Err(SyncError::Network("websocket closed".into())),
-            0x9 => {
-                // ping → ignore for foundation (or could pong)
-                continue;
-            }
-            0xA => continue, // pong
-            0x1 => {
-                return Err(SyncError::Rejected(
-                    "text frames not used; send QFSNC1 as binary".into(),
-                ));
-            }
-            _ => {
-                return Err(SyncError::Rejected(format!(
-                    "unsupported websocket opcode {opcode}"
-                )));
-            }
-        }
-    }
-}
-
 /// Minimal Base64 encode (RFC 4648) — enough for WS key material.
 fn b64_encode(data: &[u8]) -> String {
     const T: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -671,6 +591,10 @@ fn b64_encode(data: &[u8]) -> String {
     }
     out
 }
+
+#[cfg(test)]
+#[path = "ws_read_tests.rs"]
+mod read_tests;
 
 #[cfg(test)]
 mod tests {

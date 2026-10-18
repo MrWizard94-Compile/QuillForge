@@ -10,9 +10,10 @@
 
 | Job | Runner(s) | Steps |
 |-----|-----------|--------|
-| **lint** | `ubuntu-latest` | `cargo fmt --check`, clippy `-D warnings`, constitution `verify-pack.ps1` |
-| **test** | `ubuntu-latest`, `windows-latest`, `macos-latest` | clippy, `cargo test --workspace`, `budget_*`, headless demos |
-| **ci-ok** | `ubuntu-latest` | Aggregates lint + test (branch protection friendly) |
+| **constitution** | `ubuntu-24.04` | Pinned canonical source validation/tests, fail-closed adoption/history audit and its tests |
+| **lint** | `ubuntu-24.04` | `cargo fmt --check`, clippy `-D warnings` |
+| **test** | `ubuntu-24.04`, `windows-latest`, `macos-latest` | clippy, `cargo test --workspace`, `budget_*`, headless demos |
+| **ci-ok** | `ubuntu-24.04` | Aggregates constitution + lint + test (branch protection friendly) |
 
 Workflow: [`.github/workflows/ci.yml`](../.github/workflows/ci.yml)
 
@@ -23,8 +24,13 @@ Workflow: [`.github/workflows/ci.yml`](../.github/workflows/ci.yml)
 - Same MSRV pin on every OS (`dtolnay/rust-toolchain@1.85.0`).
 - Zero-warning law (`RUSTFLAGS=-D warnings`, clippy `-D warnings`) on all matrix legs.
 - Performance budgets (`docs/26-performance-budgets.md`) on all matrix legs.
-- Constitution pack integrity (GOV-INT-001) on Linux lint job.
+- Canonical source integrity and project adoption on a separate Linux job;
+  an unrelated product-gate failure cannot hide its result. The exact SHA and
+  history classification are documented in `governance-adoption.md`.
 - `fail-fast: false` so one OS failure still reports the others.
+- Checkout uses the verified v7.0.1 commit on Node 24, with credential
+  persistence disabled. Ubuntu 24.04 is explicit to avoid an unreviewed
+  distribution migration; Windows/macOS labels retain their existing policy.
 
 ---
 
@@ -35,7 +41,8 @@ cargo fmt --all -- --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 cargo test --workspace budget_ -- --nocapture
-pwsh -File "AGENTS Constitution/tools/verify-pack.ps1"
+python tools/check-constitution-adoption.py --source <verified-canonical-check-adoption.py>
+python -m unittest discover -s tools -p 'test_*.py' -v
 cargo run -p qf-app -- search-demo
 cargo run -p qf-app -- polish-demo
 ```

@@ -416,7 +416,7 @@ fn print_help() {
     println!("  quillforge version             Print version and WPAI identity");
     println!("  quillforge help                Show this help");
     println!();
-    println!("Law: AGENTS Constitution/AGENTS.md + SOP.md");
+    println!("Law: WPAI Constitution — https://github.com/MrWizard94-Compile/Agents-Constitution");
     println!("Architecture: Input → Command → Journal → Kernel → Layout");
     println!("Product surface: Word-class editor UX (no Microsoft branding)");
     println!("Brand: brand/ (WPAI forge visual + voice)");

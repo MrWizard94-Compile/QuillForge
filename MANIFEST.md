@@ -2,7 +2,11 @@
 
 **Title:** Preserve complete block state and secure suggestion markers during undo/replay
 **Date:** 2026-07-28  
-**Law:** AGENTS Constitution v5.0.1 · `CONST-GATE-001` · `TEST-BEHAVIOR-001` · `SEC-INPUT-001`
+**Current law:** [WPAI Constitution](https://github.com/MrWizard94-Compile/Agents-Constitution), via [AGENTS.md](AGENTS.md) · `CONST-GATE-001` · `TEST-BEHAVIOR-001` · `SEC-INPUT-001`
+
+**Historical scope:** This manifest records the July 28 inverse-operation delivery,
+not current build/runtime acceptance. The current governance migration and its
+verification limits are recorded in [governance-adoption.md](docs/governance-adoption.md).
 
 ## Changed files
 

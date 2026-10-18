@@ -18,6 +18,7 @@ mod tcp;
 mod tls;
 mod wire;
 mod ws;
+mod ws_receive;
 mod wss;
 
 pub use durable_queue::{make_sync_item, DurableSyncQueue};

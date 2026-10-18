@@ -6,6 +6,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- **WPAI Constitution adoption:** project guidance, CLI help, and CI now use
+  the accepted canonical GitHub source instead of a vendored law tree.
+  Project-specific product/architecture law is retained. Earlier governance
+  entries below are history, not instructions to load the retired copies.
+- **Declared formatting gate:** apply Rust 1.85.0 rustfmt to the published
+  baseline in a separate mechanical commit; no unrelated local product edits
+  or unpublished commits are included.
+- **Cross-platform MSRV:** constrain the home/Wayland lock cohort to compatible
+  patches after Linux CI exposed dependencies requiring newer Rust. Retain
+  Rust 1.85.0 and all OS/test gates; repeat Windows checks for the changed cohort.
+
+### Fixed
+
+- **WS/WSS idle sessions:** classify socket timeouts by I/O kind, retain
+  partial headers/masks/payloads across polls, and restore the prior timeout
+  after notification waits. Finish TLS/HTTP upgrade before 50 ms polling.
+  Public messages/APIs and existing product assertions are unchanged.
+
 ### Added
 
 - **Lossless inverse operations:** undoing a removed block restores its complete typed body (including span marks and quote citations), placement, and metadata; first suggestion upserts now undo with explicit deletion. `ApplySuggestionOps` only resolves stored accepted proposals and rejects recursive markers. The migration registry now models its actual empty v1 path instead of carrying dead same-version scaffolding.

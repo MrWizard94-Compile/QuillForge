@@ -7,8 +7,10 @@ use crate::hub::{Hello, HelloAck, PullRequest, PullResponse, PushAck, PushReques
 use crate::tls::{ensure_crypto_provider, TlsIdentity};
 use crate::wire::{map_wire_err, WireRequest, WireResponse, PROTOCOL_ID};
 use crate::ws::{
-    client_handshake, read_qfsnc1_ws, serve_session_ws, server_handshake, write_qfsnc1_ws,
+    client_handshake, serve_session_ws, server_handshake, write_qfsnc1_ws, LIVE_POLL,
+    SESSION_TIMEOUT,
 };
+use crate::ws_receive::WsReader;
 use crate::SyncError;
 use rustls::pki_types::ServerName;
 use rustls::{ClientConfig, ServerConfig};
@@ -128,9 +130,9 @@ fn handle_wss_connection(
     stream
         .set_nonblocking(false)
         .map_err(|e| SyncError::Network(e.to_string()))?;
-    // Short read timeout so live notify flush works between requests (same as plain WS).
+    // TLS + HTTP upgrade must finish before the short live-notify polling timeout.
     stream
-        .set_read_timeout(Some(Duration::from_millis(50)))
+        .set_read_timeout(Some(SESSION_TIMEOUT))
         .map_err(|e| SyncError::Network(e.to_string()))?;
     stream
         .set_write_timeout(Some(Duration::from_secs(30)))
@@ -139,6 +141,9 @@ fn handle_wss_connection(
         rustls::ServerConnection::new(cfg.clone()).map_err(|e| SyncError::Auth(e.to_string()))?;
     let mut tls = rustls::StreamOwned::new(conn, stream);
     server_handshake(&mut tls)?;
+    tls.sock
+        .set_read_timeout(Some(LIVE_POLL))
+        .map_err(|e| SyncError::Network(e.to_string()))?;
     serve_session_ws(&mut tls, hub, false)
 }
 
@@ -188,6 +193,7 @@ impl WssSyncClient {
 /// Persistent `wss://` connection for multiple QFSNC1 messages.
 pub struct WssSyncSession {
     tls: rustls::StreamOwned<rustls::ClientConnection, TcpStream>,
+    reader: WsReader,
 }
 
 impl WssSyncSession {
@@ -209,7 +215,10 @@ impl WssSyncSession {
         let mut tls = rustls::StreamOwned::new(conn, stream);
         let host = format!("{addr}");
         client_handshake(&mut tls, &host)?;
-        Ok(Self { tls })
+        Ok(Self {
+            tls,
+            reader: WsReader::default(),
+        })
     }
 
     pub fn hello(&mut self, req: Hello) -> Result<HelloAck, SyncError> {
@@ -244,7 +253,7 @@ impl WssSyncSession {
 
     fn round_trip(&mut self, req: WireRequest) -> Result<WireResponse, SyncError> {
         write_qfsnc1_ws(&mut self.tls, &req, true)?;
-        read_qfsnc1_ws(&mut self.tls)
+        self.reader.read(&mut self.tls).map_err(SyncError::from)
     }
 }
 
@@ -263,6 +272,46 @@ mod tests {
             buf.extend_from_slice(s.as_bytes());
         }
         Hash256::sha256(&buf)
+    }
+
+    #[test]
+    fn wss_idle_and_partial_frames_survive_live_polling() {
+        let identity = TlsIdentity::generate_dev().unwrap();
+        let server = WssSyncServer::start(SyncHub::new(), identity.clone()).unwrap();
+        let client = WssSyncClient::connect(server.addr(), &identity).unwrap();
+        let mut session = client.open_session().unwrap();
+        let mut ids = SeqIdGen::default();
+        let request = WireRequest::Hello(Hello {
+            client_id: ActorId::new(&mut ids),
+            session_id: SessionId::new(&mut ids),
+            document_id: DocumentId::new(&mut ids),
+            have_seq: 0,
+        });
+        // Idle after TLS/HTTP upgrade, then pause inside header, mask and payload.
+        // These pauses create the condition being tested, not success retries.
+        thread::sleep(LIVE_POLL * 3);
+        let mut frame = Vec::new();
+        write_qfsnc1_ws(&mut frame, &request, true).unwrap();
+        let mut start = 0;
+        for end in [1, 5, frame.len() - 2, frame.len()] {
+            session.tls.write_all(&frame[start..end]).unwrap();
+            session.tls.flush().unwrap();
+            start = end;
+            if end != frame.len() {
+                thread::sleep(LIVE_POLL * 3);
+            }
+        }
+        let response: WireResponse = session.reader.read(&mut session.tls).unwrap();
+        assert!(
+            matches!(response, WireResponse::HelloAck(_)),
+            "{response:?}"
+        );
+        assert!(matches!(
+            session.round_trip(request).unwrap(),
+            WireResponse::HelloAck(_)
+        ));
+        drop(session);
+        server.stop();
     }
 
     #[test]

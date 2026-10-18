@@ -19,6 +19,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   patches after Linux CI exposed dependencies requiring newer Rust. Retain
   Rust 1.85.0 and all OS/test gates; repeat Windows checks for the changed cohort.
 
+### Fixed
+
+- **WS/WSS idle sessions:** classify socket timeouts by I/O kind, retain
+  partial headers/masks/payloads across polls, and restore the prior timeout
+  after notification waits. Finish TLS/HTTP upgrade before 50 ms polling.
+  Public messages/APIs and existing product assertions are unchanged.
+
 ### Added
 
 - **Full open/export matrix:** open `qfdoc|docx|md|html|txt`; export `pdf|docx|md|html|txt` (+ save qfdoc); CLI `open` / `export-all`; GUI Export tab wired (`docs/41-open-export-matrix.md`). PDF remains export-only.

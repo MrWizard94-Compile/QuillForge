@@ -66,8 +66,8 @@ can be reconciled. Do not reset it to synchronize this migration.
 ## Local evidence — October 17, 2026
 
 - Rust 1.85.0 full workspace tests passed after baseline formatting; zero
-  failed/ignored tests or compiler warnings. The only later product-code edit
-  is the CLI law string. Its new integration test first failed against the
+  failed/ignored tests or compiler warnings. The initial product-code edit
+  was the CLI law string. Its new integration test first failed against the
   retired route, then passed against the fixed packaged executable.
 - Final `cargo fmt --all -- --check` and strict workspace/all-target Clippy
   pass. All seven explicit performance-budget tests pass. Packaged `help`,
@@ -123,3 +123,36 @@ and explicitly selects Ubuntu 24.04. The official
 [Node 20 deprecation notice](https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/)
 were verified October 17. No compatibility-bypass environment variable or
 unsafe fork-checkout opt-in is used. Other platform labels are unchanged.
+
+## Approved transport repair — October 18, 2026
+
+Run `39077973186` passed Constitution, Ubuntu lint, and Windows tests; Linux
+and macOS failed the existing unsolicited-notify test. OS read timeouts were
+identified from English error messages, missing Unix `WouldBlock` wording.
+Inspection also found lost frame progress when `read_exact` timed out after
+consuming part of a header, mask, or payload. The director explicitly approved
+a focused transport repair in this adoption PR, with all existing assertions
+and three-OS gates retained.
+
+Two new deterministic server regressions failed before repair: unrecognized
+idle status produced a wire error, and a recognized mid-frame timeout led to
+an unsupported opcode on the remaining bytes. The shared incremental WS/WSS
+reader now retains exact offsets and classifies I/O kinds before converting
+to the unchanged public error type. Server upgrade and live polling timeouts
+are separated, and client notification waits restore the previous timeout.
+
+Nine new tests cover both idle kinds, every byte split in a real request,
+short/16-bit/64-bit lengths, masks, back-to-back frames, interrupted reads,
+EOF/fatal errors, oversized/malformed frames, existing control handling,
+partial client notifications, slow HTTP upgrade, and actual TLS-backed idle
+and partial-frame delivery. The 39 sync tests pass locally, including every
+original test, without retries added to existing assertions. Final local
+formatting, strict all-target workspace Clippy, and all 206 workspace tests
+pass, with zero failed/ignored tests or diagnostics. All seven explicit budget
+tests and eight packaged commands (`help`, `version`, `surface`, `search-demo`,
+`polish-demo`, `review-demo`, `ws-sync-demo`, `wss-sync-demo`) pass. Six
+fail-closed governance tests and the pinned adoption audit pass; only the same
+two historical changelog references remain classified non-active. The primary
+44-file hash baseline and unpublished HEAD remain unchanged. Fresh
+Linux/Windows/macOS CI, merge, and post-merge checks are still separate gates.
+See the transport document for precise timeout and foundation-scope limits.

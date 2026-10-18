@@ -92,6 +92,8 @@ egui = "0.27"
 image = { version = "0.24", default-features = false, features = ["png"] }
 # webbrowser (via egui-winit) pulls url; url ≥2.5.3 → idna 1.1 → icu 2.2 needs rustc 1.86.
 # Keep lock at url 2.5.2 / idna 0.5 (cargo update -p url --precise 2.5.2).
+# Linux MSRV: retain locked home 0.5.11 and wayland-protocols 0.32.12.
+# Newer patches require Rust 1.88/1.86; verify all CI targets before lock updates.
 
 [profile.release]
 lto = "thin"

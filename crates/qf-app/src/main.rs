@@ -118,7 +118,7 @@ fn main() -> ExitCode {
                     ExitCode::FAILURE
                 }
             }
-        },
+        }
         "export-all" => {
             let name = args.next().unwrap_or_else(|| "ExportAll".into());
             match run_export_all(name) {
@@ -128,7 +128,7 @@ fn main() -> ExitCode {
                     ExitCode::FAILURE
                 }
             }
-        },
+        }
         "polish-demo" => match run_polish_demo() {
             Ok(()) => ExitCode::SUCCESS,
             Err(e) => {
@@ -259,7 +259,9 @@ fn run_polish_demo() -> Result<(), String> {
     session.chrome.header = "Quillforge · WPAI".into();
     session.chrome.footer = "Confidential · local-first".into();
     session.apply_page_chrome().map_err(|e| e.to_string())?;
-    session.insert_image_placeholder().map_err(|e| e.to_string())?;
+    session
+        .insert_image_placeholder()
+        .map_err(|e| e.to_string())?;
     assert_eq!(session.editor.image_block_count(), 1);
     // Decoded pixels available for GUI paint.
     let aid = session
@@ -302,17 +304,14 @@ fn run_polish_demo() -> Result<(), String> {
 
 fn run_open(path: Option<String>, name: String) -> Result<(), String> {
     let Some(path) = path else {
-        return Err(
-            "usage: quillforge open <file.(qfdoc|docx|md|html|txt)> [name]".into(),
-        );
+        return Err("usage: quillforge open <file.(qfdoc|docx|md|html|txt)> [name]".into());
     };
     let path = PathBuf::from(path);
     if !path.exists() {
         return Err(format!("file not found: {}", path.display()));
     }
     let work = PathBuf::from("target/quill-import");
-    let session =
-        ShellSession::open_from_path(&work, &name, &path).map_err(|e| e.to_string())?;
+    let session = ShellSession::open_from_path(&work, &name, &path).map_err(|e| e.to_string())?;
     println!("opened:   {}", path.display());
     println!("package:  {}", session.package_path.display());
     println!("pages:    {}", session.editor.page_count());
@@ -337,7 +336,8 @@ fn run_export_all(name: String) -> Result<(), String> {
 
 fn run_review_demo() -> Result<(), String> {
     let work = PathBuf::from("target/quill-review-demo");
-    let mut session = ShellSession::open_or_create(&work, "ReviewDemo").map_err(|e| e.to_string())?;
+    let mut session =
+        ShellSession::open_or_create(&work, "ReviewDemo").map_err(|e| e.to_string())?;
     session.draft = "Word-class review loop starts here.".into();
     session.apply_draft().map_err(|e| e.to_string())?;
     let before = session.draft.clone();
@@ -368,7 +368,10 @@ fn print_product_surface() {
     println!("{}", ProductSurface::category_line());
     let surface = ProductSurface::word_class_default("Untitled");
     println!("Window: {}", surface.window_title);
-    println!("View:   {:?} (default page/print layout)", surface.view_mode);
+    println!(
+        "View:   {:?} (default page/print layout)",
+        surface.view_mode
+    );
     println!("Tab:    {}", surface.active_tab.label());
     println!("Status: {}", surface.status.summary_line());
     println!();
@@ -413,7 +416,7 @@ fn print_help() {
     println!("  quillforge version             Print version and WPAI identity");
     println!("  quillforge help                Show this help");
     println!();
-    println!("Law: AGENTS Constitution/AGENTS.md + SOP.md");
+    println!("Law: WPAI Constitution — https://github.com/MrWizard94-Compile/Agents-Constitution");
     println!("Architecture: Input → Command → Journal → Kernel → Layout");
     println!("Product surface: Word-class editor UX (no Microsoft branding)");
     println!("Brand: brand/ (WPAI forge visual + voice)");

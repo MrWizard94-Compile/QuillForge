@@ -59,8 +59,7 @@ pub fn run_browser_wss_demo() -> Result<(), String> {
     let pem = identity.certificate_pem().map_err(|e| e.to_string())?;
     let pem_path = write_dev_cert_pem(&pem)?;
 
-    let wss =
-        WssSyncServer::start(SyncHub::new(), identity.clone()).map_err(|e| e.to_string())?;
+    let wss = WssSyncServer::start(SyncHub::new(), identity.clone()).map_err(|e| e.to_string())?;
     let wss_url = wss.url();
 
     let cfg = identity.server_config().map_err(|e| e.to_string())?;
@@ -245,8 +244,12 @@ mod tests {
         // Client with rustls trusting the same identity.
         let client_cfg = identity.client_config().unwrap();
         let stream = TcpStream::connect_timeout(&addr, Duration::from_secs(2)).unwrap();
-        stream.set_read_timeout(Some(Duration::from_secs(3))).unwrap();
-        stream.set_write_timeout(Some(Duration::from_secs(3))).unwrap();
+        stream
+            .set_read_timeout(Some(Duration::from_secs(3)))
+            .unwrap();
+        stream
+            .set_write_timeout(Some(Duration::from_secs(3)))
+            .unwrap();
         let name = ServerName::try_from("localhost").unwrap().to_owned();
         let conn = rustls::ClientConnection::new(client_cfg, name).unwrap();
         let mut tls = rustls::StreamOwned::new(conn, stream);
@@ -269,12 +272,19 @@ mod tests {
         }
         let text = String::from_utf8_lossy(&resp);
         assert!(text.contains("200 OK"), "got {text}");
-        assert!(text.contains("QFSNC1") || text.contains("Quillforge"), "got {text}");
+        assert!(
+            text.contains("QFSNC1") || text.contains("Quillforge"),
+            "got {text}"
+        );
 
         // Second request for JS asset.
         let stream2 = TcpStream::connect_timeout(&addr, Duration::from_secs(2)).unwrap();
-        stream2.set_read_timeout(Some(Duration::from_secs(3))).unwrap();
-        stream2.set_write_timeout(Some(Duration::from_secs(3))).unwrap();
+        stream2
+            .set_read_timeout(Some(Duration::from_secs(3)))
+            .unwrap();
+        stream2
+            .set_write_timeout(Some(Duration::from_secs(3)))
+            .unwrap();
         let name2 = ServerName::try_from("localhost").unwrap().to_owned();
         let conn2 =
             rustls::ClientConnection::new(identity.client_config().unwrap(), name2).unwrap();

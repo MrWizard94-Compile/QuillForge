@@ -3,13 +3,18 @@
 **Document ID:** QF-STATUS-001  
 **Date:** 2026-07-28  
 **Studio:** WPAI Software · Wizard Productions AI Studio  
-**Law:** AGENTS Constitution pack v5.0.1  
+**Current law:** [WPAI Constitution](https://github.com/MrWizard94-Compile/Agents-Constitution), via the project `AGENTS.md`
 **Git tag:** `v0.1.0-foundation`  
 **Package format:** `1.0.0`
 
 ---
 
 ## Completion percentage (honest layers)
+
+The percentages and product claims below are historical July 28 estimates,
+not current acceptance evidence. Published `main` failed its format gate
+before this governance migration; see `governance-adoption.md` for current
+verification. No product-completion percentage is advanced by changing law.
 
 | Layer | Scope | Completion | Notes |
 |-------|--------|------------|--------|
@@ -35,7 +40,7 @@
 ## How to re-verify
 
 ```bash
-pwsh -File "AGENTS Constitution/tools/verify-pack.ps1"
+python tools/check-constitution-adoption.py --source <verified-canonical-check-adoption.py>
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 cargo run -p qf-app -- search-demo

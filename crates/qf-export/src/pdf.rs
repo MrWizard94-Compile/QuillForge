@@ -278,7 +278,10 @@ fn build_pdf_pages(
         let mut xobjects = String::new();
         for img in imgs {
             // Resolve object number by name.
-            if let Some((idx, _)) = all_images.iter().enumerate().find(|(_, im)| im.name == img.name)
+            if let Some((idx, _)) = all_images
+                .iter()
+                .enumerate()
+                .find(|(_, im)| im.name == img.name)
             {
                 let obj = first_img_obj + idx;
                 xobjects.push_str(&format!("/{} {} 0 R ", img.name, obj));
@@ -301,8 +304,11 @@ fn build_pdf_pages(
         let chunk = pages.get(i).map(|c| c.as_slice()).unwrap_or(&[]);
         let line_refs: Vec<&str> = chunk.iter().map(|s| s.as_str()).collect();
         let stream = page_content_stream(&line_refs, imgs);
-        let mut content_obj_bytes =
-            format!("{content_obj} 0 obj\n<< /Length {} >>\nstream\n", stream.len()).into_bytes();
+        let mut content_obj_bytes = format!(
+            "{content_obj} 0 obj\n<< /Length {} >>\nstream\n",
+            stream.len()
+        )
+        .into_bytes();
         content_obj_bytes.extend_from_slice(&stream);
         content_obj_bytes.extend_from_slice(b"\nendstream\nendobj\n");
         numbered.push((content_obj, content_obj_bytes));
@@ -434,9 +440,7 @@ fn escape_pdf_string(s: &str) -> String {
 mod tests {
     use super::*;
     use qf_blocks::{BlockBody, BlockMetadata, ImageBlock, ParagraphBlock, Span};
-    use qf_core::{
-        ActorId, BlockId, DocumentId, OpSeq, SectionId, SeqIdGen, Timestamp, Version,
-    };
+    use qf_core::{ActorId, BlockId, DocumentId, OpSeq, SectionId, SeqIdGen, Timestamp, Version};
     use qf_doc::{Block, Document};
     use qf_kernel::{CanonicalState, EntityTables};
     use qf_layout::{LayoutConfig, LayoutEngine};
@@ -607,9 +611,15 @@ mod tests {
         .unwrap();
         assert_eq!(a, b, "embedded font PDF must be deterministic");
         let s = String::from_utf8_lossy(&a);
-        assert!(s.contains("/Subtype /TrueType"), "missing TrueType font: {s}");
+        assert!(
+            s.contains("/Subtype /TrueType"),
+            "missing TrueType font: {s}"
+        );
         assert!(s.contains("/FontFile2"), "missing FontFile2: {s}");
-        assert!(s.contains("QuillForgeMono") || s.contains("QuillForge"), "{s}");
+        assert!(
+            s.contains("QuillForgeMono") || s.contains("QuillForge"),
+            "{s}"
+        );
         // TTF magic inside stream
         assert!(a.windows(4).any(|w| w == b"\x00\x01\x00\x00"));
     }

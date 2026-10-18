@@ -1,87 +1,37 @@
-# AGENTS — Project Entry Point (QuillForge)
+# AGENTS — QuillForge project entry
 
-This file is **Level 4 project law entry only**. It points at the universal AGENTS Constitution pack. It does not duplicate the constitution.
+**Status:** Level 4 project law and canonical-source pointer
+**Canonical Constitution:** https://github.com/MrWizard94-Compile/Agents-Constitution
+**Skill:** `wpai-constitution`
 
-**Pack path (relative):** [`AGENTS Constitution/`](AGENTS%20Constitution/)  
-**Pack version:** **5.0.1** — see [`AGENTS Constitution/VERSION`](AGENTS%20Constitution/VERSION)
+Accepted GitHub `main` is the sole editable source of WPAI quality/process law.
+Local packs, generated mirrors, caches, and history are not independent law.
+Freeze one accepted commit for each top-level invocation, load its `SKILL.md`,
+`references/always-load.md`, and the named applicable law from that same commit,
+and verify source identity/integrity. Do not silently substitute another source
+when the canonical revision is unavailable. Each invocation owes one meaningful
+Constitution improvement through the canonical review/evolution process, not a
+local rule fork or cosmetic change. A continuation is not a new invocation.
 
----
+## QuillForge project law
 
-## Binding pack
-
-| Role | Path |
-|------|------|
-| **Constitution (SOUL)** | [AGENTS Constitution/AGENTS.md](AGENTS%20Constitution/AGENTS.md) |
-| **Process (SOP)** | [AGENTS Constitution/SOP.md](AGENTS%20Constitution/SOP.md) |
-| **Pack identity / portability** | [AGENTS Constitution/PACK.md](AGENTS%20Constitution/PACK.md) |
-| **Lock** | [AGENTS Constitution/LOCK.md](AGENTS%20Constitution/LOCK.md) |
-| **Adopt / move** | [AGENTS Constitution/ADOPT.md](AGENTS%20Constitution/ADOPT.md) |
-| **Rule registry** | [AGENTS Constitution/RULE-REGISTRY.md](AGENTS%20Constitution/RULE-REGISTRY.md) |
-| **Module index** | [AGENTS Constitution/MODULE-INDEX.md](AGENTS%20Constitution/MODULE-INDEX.md) |
-| **Integrity** | [AGENTS Constitution/INTEGRITY.md](AGENTS%20Constitution/INTEGRITY.md) |
-
----
-
-## Always load (via pack)
-
-* Pack `AGENTS.md`  
-* Pack `SOP.md`  
-* Pack `constitution/03-DEFINITION-OF-DONE.md`  
-* Pack `standards/ENGINEERING.md`  
-* Pack `standards/TESTING.md`  
-* Pack `standards/DOCUMENTATION.md`  
-
-Then load pack modules per the applicability matrix in pack `AGENTS.md`.
-
----
-
-## Layout (pack)
-
-```
-AGENTS Constitution/
-├── VERSION · PACK.md · ADOPT.md · README.md · LOCK.md
-├── AGENTS.md · SOP.md
-├── RULE-REGISTRY.md · MODULE-INDEX.md · INTEGRITY.md
-├── constitution/ · standards/ · operations/
-├── collaboration/ · specialist/ · templates/
-├── tools/ · docs/ · reports/
-```
-
----
-
-## Verify pack
-
-```powershell
-pwsh -File "AGENTS Constitution/tools/verify-pack.ps1"
-pwsh -File "AGENTS Constitution/tools/self-audit.ps1"
-```
-
-Must exit `0` after pack install, move, or update (`GOV-INT-001`).
-
----
-
-## Level 4 — QuillForge project law
-
-* Product specs / research: `docs/` (and related project docs)  
-* Architecture / ADRs: project-local as maintained  
-* Product surface priority: `docs/28-product-surface.md` (Word-class editor, WPAI brand only)  
-* Overrides: pack `templates/PROJECT-OVERRIDE.template.md` (store under this project if used)  
-* **New Python projects:** bootstrap with sibling [RepoForge](../RepoForge/) using  
-  `--constitution "AGENTS Constitution"` (or absolute pack path) so Level-4 `AGENTS.md` is attached  
-
-**QuillForge note:** Honor canonical path `Command → Operations → Journal → Kernel → Derived` where applicable.
-
-Project law may **tighten** standards. It may not weaken `CONST-*`, `ENG-WARN-001`, `TEST-BEHAVIOR-001`, or `SEC-INPUT-001` without a documented override.
-
----
-
-## Evolution
-
-| Artifact | Method |
-|----------|--------|
-| SOUL | Complete replace `AGENTS Constitution/AGENTS.md` |
-| Process | Complete replace `AGENTS Constitution/SOP.md` |
-| Modules | Complete replace the affected module file |
-| Rule IDs | Update `RULE-REGISTRY.md` in the same delivery |
-| Pack structure | Update `MODULE-INDEX.md` + `INTEGRITY.md` + `VERSION` / `PACK.md`; run verify-pack |
-| This pointer | Update if the relative pack path changes |
+- Product requirements and research live in `docs/`; architectural decisions
+  live in `DECISIONS.md`. Preserve this project-specific law during adoption.
+- `docs/28-product-surface.md` sets the Word-class editor priority, with WPAI
+  branding and no Microsoft marks in product chrome.
+- Preserve `Command → Operations → Journal → Kernel → Derived`: only the
+  command/journal/kernel path mutates canonical document state. Layout, render,
+  search, sync views, and UI caches remain derived.
+- Follow `rust-toolchain.toml` (Rust 1.85.0) and the committed Cargo lockfile.
+  Build and test with locked dependencies; no warning suppression or weakened
+  behavior assertions to get a green gate.
+- Product verification: `cargo fmt --all -- --check`,
+  `cargo clippy --locked --workspace --all-targets -- -D warnings`,
+  `cargo test --locked --workspace`, and the documented budget/headless demos.
+- Governance verification: see `docs/governance-adoption.md` for the accepted,
+  pinned checker and exact-history classification. A static audit is not
+  runtime/product acceptance and does not authorize publication or note edits.
+- Do not bootstrap another editable governance pack. RepoForge's adopted
+  canonical-source workflow replaces its former local-pack bootstrap route.
+- Amend cross-project law only in the canonical repository; retain legitimate
+  project constraints here without weakening that law or overriding safety.

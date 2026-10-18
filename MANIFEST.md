@@ -2,7 +2,11 @@
 
 **Title:** Prioritize Word-class editor UX without Microsoft branding  
 **Date:** 2026-07-28  
-**Law:** AGENTS Constitution v5.0.0 · ADR-026 · PRD 1.1.0
+**Current law:** [WPAI Constitution](https://github.com/MrWizard94-Compile/Agents-Constitution), via [AGENTS.md](AGENTS.md). ADR-026 and PRD 1.1.0 remain project law.
+
+**Historical scope:** This manifest records the July 28 product-surface delivery,
+not current build/runtime acceptance. The current governance migration and its
+verification limits are recorded in [governance-adoption.md](docs/governance-adoption.md).
 
 ## Summary
 

@@ -18,13 +18,14 @@ mod tcp;
 mod tls;
 mod wire;
 mod ws;
+mod ws_receive;
 mod wss;
 
 pub use durable_queue::{make_sync_item, DurableSyncQueue};
 pub use hub::{
-    flush_queue_to_hub, DrainNotifyRequest, HeadNotify, Hello, HelloAck, NotifyBatch,
-    PullRequest, PullResponse, PushAck, PushRequest, SessionToken, SubscribeRequest, Subscribed,
-    SyncClient, SyncHub,
+    flush_queue_to_hub, DrainNotifyRequest, HeadNotify, Hello, HelloAck, NotifyBatch, PullRequest,
+    PullResponse, PushAck, PushRequest, SessionToken, SubscribeRequest, Subscribed, SyncClient,
+    SyncHub,
 };
 pub use tcp::{TcpSyncClient, TcpSyncServer};
 pub use tls::{TlsIdentity, TlsSyncClient, TlsSyncServer};

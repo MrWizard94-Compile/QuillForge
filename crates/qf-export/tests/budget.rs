@@ -1,9 +1,7 @@
 //! PB-EXPORT-001 — Markdown + PDF + DOCX export budget.
 
 use qf_blocks::{BlockBody, BlockMetadata, ParagraphBlock, Span};
-use qf_core::{
-    ActorId, BlockId, DocumentId, OpSeq, SectionId, SeqIdGen, Timestamp, Version,
-};
+use qf_core::{ActorId, BlockId, DocumentId, OpSeq, SectionId, SeqIdGen, Timestamp, Version};
 use qf_doc::{Block, Document};
 use qf_export::{CoreExporter, ExportFormat, ExportRequest, Exporter};
 use qf_kernel::{CanonicalState, EntityTables};

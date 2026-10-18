@@ -48,9 +48,7 @@ pub const STUDIO_EMAIL: &str = "rob@wpaistudio.net";
 
 /// Application identity string written into package metadata.
 pub fn app_identity() -> String {
-    format!(
-        "{PRODUCT_NAME}/{APP_SEMVER} ({STUDIO_SHORT} {PRODUCT_DIVISION})"
-    )
+    format!("{PRODUCT_NAME}/{APP_SEMVER} ({STUDIO_SHORT} {PRODUCT_DIVISION})")
 }
 
 /// Semantic product version string (workspace crate version).

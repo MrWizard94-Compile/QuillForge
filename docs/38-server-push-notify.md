@@ -50,6 +50,12 @@ Notify is a **signal**, not content. After notify, call `Pull` and merge via the
 4. The idle serve loop (short read timeout) flushes pending events as `WireResponse::Notify` without a client request.  
 5. Connection close unregisters the live channel.
 
+The polling reader retains partial frame progress and recognizes both Unix
+`WouldBlock` and Windows `TimedOut` by typed I/O kind. An idle tick must not
+close a healthy connection or interpret the rest of a frame as a new header.
+The same reader runs over TCP and rustls. See the receive lifecycle contract
+in [`30-websocket-sync.md`](30-websocket-sync.md).
+
 ---
 
 ## Verify

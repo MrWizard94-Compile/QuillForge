@@ -127,11 +127,9 @@ crates/qf-example/
 
 | Command | Purpose |
 |---------|---------|
-| `cargo xtask check` | fmt + clippy + build + test |
-| `cargo xtask gen` | codegen if any |
-| `cargo xtask fixtures` | pack golden fixtures |
-| `cargo xtask fuzz` | run fuzz smoke |
-| `cargo xtask release-dry` | version hygiene |
+| `cargo xtask check` | fmt + clippy + build + test + performance budgets |
+| `cargo xtask perf` | performance budget tests only |
+| `cargo xtask help` | show the supported workspace automation commands |
 
 ---
 

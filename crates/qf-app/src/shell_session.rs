@@ -71,9 +71,7 @@ impl ShellSession {
             self.search_panel.hits.clear();
             return;
         }
-        self.search_panel.hits = self
-            .editor
-            .search_with_mode(&q, self.search_panel.mode);
+        self.search_panel.hits = self.editor.search_with_mode(&q, self.search_panel.mode);
         self.search_panel.visible = true;
     }
 
@@ -89,21 +87,16 @@ impl ShellSession {
 
     pub fn refresh_surface(&mut self) {
         self.surface.status.page_total = self.editor.page_count();
-        self.surface.status.page_current = self.surface.status.page_current.clamp(
-            1,
-            self.surface.status.page_total,
-        );
+        self.surface.status.page_current = self
+            .surface
+            .status
+            .page_current
+            .clamp(1, self.surface.status.page_total);
         self.surface.status.word_count = self.editor.word_count();
-        self.surface.status.pending_suggestions =
-            self.editor.pending_suggestions().len() as u32;
+        self.surface.status.pending_suggestions = self.editor.pending_suggestions().len() as u32;
         // Drop selection if suggestion is no longer pending.
         if let Some(id) = self.review.selected {
-            if !self
-                .editor
-                .pending_suggestions()
-                .iter()
-                .any(|s| s.id == id)
-            {
+            if !self.editor.pending_suggestions().iter().any(|s| s.id == id) {
                 self.review.selected = None;
             }
         }
@@ -114,7 +107,11 @@ impl ShellSession {
         }
         if self.dirty {
             // keep name; mark title with *
-            let base = self.surface.document_display_name.trim_end_matches('*').to_string();
+            let base = self
+                .surface
+                .document_display_name
+                .trim_end_matches('*')
+                .to_string();
             if !self.surface.document_display_name.ends_with('*') {
                 self.surface.set_document_name(&format!("{base}*"));
             }
@@ -142,9 +139,7 @@ impl ShellSession {
                 .editor
                 .insert_image_bytes("Quillforge", &png, None, None)?,
             Err(_) => match crate::demo_png_bytes(96, 64) {
-                Ok(png) => self
-                    .editor
-                    .insert_image_bytes("Image", &png, None, None)?,
+                Ok(png) => self.editor.insert_image_bytes("Image", &png, None, None)?,
                 Err(_) => self.editor.insert_image("Image", 96, 64)?,
             },
         };
@@ -165,10 +160,7 @@ impl ShellSession {
     }
 
     pub fn insert_image_file(&mut self, path: &Path) -> Result<AssetId, EditorError> {
-        let alt = path
-            .file_name()
-            .and_then(|s| s.to_str())
-            .unwrap_or("Image");
+        let alt = path.file_name().and_then(|s| s.to_str()).unwrap_or("Image");
         let id = self.editor.insert_image_path(path, alt)?;
         self.dirty = true;
         self.refresh_surface();
@@ -345,9 +337,7 @@ impl ShellSession {
 
     pub fn add_comment_note(&mut self, body: &str) -> Result<SuggestionId, EditorError> {
         self.apply_draft()?;
-        let id = self
-            .editor
-            .propose_human_suggestion(body, "")?;
+        let id = self.editor.propose_human_suggestion(body, "")?;
         self.review.visible = true;
         self.review.selected = Some(id);
         self.surface.activate_tab(CommandBarTab::Review);
@@ -540,7 +530,9 @@ impl ShellSession {
                 let _ = std::fs::remove_file(&journal_path);
             }
             let editor = EditorController::open_package(&package_path, &journal_path)?;
-            let draft = editor.focused_text().unwrap_or_else(|| editor.document_plain());
+            let draft = editor
+                .focused_text()
+                .unwrap_or_else(|| editor.document_plain());
             let surface = ProductSurface::word_class_default(name);
             let chrome = PageChrome::from_meta(&editor.session.state().document.meta.custom);
             let mut session = Self {
@@ -722,10 +714,12 @@ mod tests {
         seed.draft = "From Word-class DOCX".into();
         seed.apply_draft().unwrap();
         let docx = seed.export_docx().unwrap();
-        let opened =
-            ShellSession::open_from_docx(dir.path(), "opened", &docx).unwrap();
+        let opened = ShellSession::open_from_docx(dir.path(), "opened", &docx).unwrap();
         assert!(opened.package_path.exists());
-        assert!(opened.editor.document_plain().contains("From Word-class DOCX"));
+        assert!(opened
+            .editor
+            .document_plain()
+            .contains("From Word-class DOCX"));
     }
 
     #[test]
@@ -836,7 +830,9 @@ mod tests {
         assert!(paths.len() >= 6);
         for ext in ["pdf", "docx", "md", "html", "txt", "qfdoc"] {
             assert!(
-                paths.iter().any(|p| p.extension().and_then(|e| e.to_str()) == Some(ext)),
+                paths
+                    .iter()
+                    .any(|p| p.extension().and_then(|e| e.to_str()) == Some(ext)),
                 "missing .{ext} in {paths:?}"
             );
             let p = paths
@@ -880,7 +876,10 @@ mod tests {
         let qfdoc = s.package_path.clone();
         let reopened = ShellSession::open_from_path(dir.path(), "pkg2", &qfdoc).unwrap();
         assert!(
-            reopened.editor.document_plain().contains("Package open body"),
+            reopened
+                .editor
+                .document_plain()
+                .contains("Package open body"),
             "{}",
             reopened.editor.document_plain()
         );

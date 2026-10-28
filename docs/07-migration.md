@@ -151,11 +151,7 @@ migrate_open(path, target_version):
 
 At first release, format version is `1.0.0` with empty migration path to itself.
 
-Registry includes:
-
-| ID | From | To | Purpose |
-|----|------|----|---------|
-| `noop_identity` | 1.0.0 | 1.0.0 | Test harness only |
+The v1 registry has no identity edge: `plan(1.0.0, 1.0.0)` returns an empty path. A same-version migration is redundant and must not be registered merely for test scaffolding.
 
 Future example (documented now for process):
 

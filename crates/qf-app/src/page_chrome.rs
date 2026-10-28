@@ -4,9 +4,7 @@
 //! `SetDocumentMeta`). Images are `Image` blocks + package assets.
 
 use qf_blocks::{BlockBody, ImageBlock};
-use qf_core::{
-    AssetId, Command, MetaPatch, ParentRef, PreservedMap, PreservedValue, TextOffset,
-};
+use qf_core::{AssetId, Command, MetaPatch, ParentRef, PreservedMap, PreservedValue, TextOffset};
 use qf_kernel::encode_body;
 
 use crate::{EditorController, EditorError};
@@ -66,8 +64,7 @@ pub fn decode_image_rgba(bytes: &[u8]) -> Option<(u32, u32, Vec<u8>)> {
 /// Official Quillforge product mark (PNG), shipped under `brand/assets/`.
 ///
 /// Embedded at compile time so the app never depends on a relative path at runtime.
-pub const PRODUCT_MARK_PNG: &[u8] =
-    include_bytes!("../../../brand/assets/quillforge-product.png");
+pub const PRODUCT_MARK_PNG: &[u8] = include_bytes!("../../../brand/assets/quillforge-product.png");
 
 /// Product mark bytes (same as [`PRODUCT_MARK_PNG`]).
 pub fn product_mark_png() -> &'static [u8] {
@@ -167,14 +164,8 @@ impl EditorController {
         height_hint: Option<u32>,
     ) -> Result<AssetId, EditorError> {
         let (decoded_w, decoded_h) = decode_image_size(bytes).unwrap_or((0, 0));
-        let width_px = width_hint
-            .or(Some(decoded_w))
-            .unwrap_or(64)
-            .max(1);
-        let height_px = height_hint
-            .or(Some(decoded_h))
-            .unwrap_or(48)
-            .max(1);
+        let width_px = width_hint.or(Some(decoded_w)).unwrap_or(64).max(1);
+        let height_px = height_hint.or(Some(decoded_h)).unwrap_or(48).max(1);
 
         let asset_id = AssetId::new(self.session.ids.as_mut());
         let asset_key = asset_id.as_uuid().to_string();
@@ -222,7 +213,11 @@ impl EditorController {
     }
 
     /// Load image path into the package asset map and document.
-    pub fn insert_image_path(&mut self, path: &std::path::Path, alt: &str) -> Result<AssetId, EditorError> {
+    pub fn insert_image_path(
+        &mut self,
+        path: &std::path::Path,
+        alt: &str,
+    ) -> Result<AssetId, EditorError> {
         let bytes = std::fs::read(path).map_err(|e| EditorError::Other(e.to_string()))?;
         self.insert_image_bytes(alt, &bytes, None, None)
     }
@@ -282,10 +277,7 @@ mod tests {
         ed.ensure_editable_paragraph().unwrap();
         let id = ed.insert_image("Diagram", 320, 180).unwrap();
         assert_eq!(ed.image_block_count(), 1);
-        assert!(ed
-            .session
-            .assets
-            .contains_key(&id.as_uuid().to_string()));
+        assert!(ed.session.assets.contains_key(&id.as_uuid().to_string()));
         assert!(ed
             .layout_tree
             .pages
@@ -313,7 +305,8 @@ mod tests {
         let lines = ed.layout_tree.page_plain_lines(ed.session.state());
         let flat: Vec<_> = lines.into_iter().flatten().collect();
         assert!(
-            flat.iter().any(|l| l.contains("[image:") && l.contains("32")),
+            flat.iter()
+                .any(|l| l.contains("[image:") && l.contains("32")),
             "expected image line in {flat:?}"
         );
     }

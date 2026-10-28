@@ -408,11 +408,7 @@ impl DocumentSession {
     }
 
     /// Atomic encrypted save (`QFENC1` wrapper over ZIP package).
-    pub fn save_encrypted(
-        &mut self,
-        path: &Path,
-        passphrase: &str,
-    ) -> Result<(), CommandError> {
+    pub fn save_encrypted(&mut self, path: &Path, passphrase: &str) -> Result<(), CommandError> {
         let package = self.build_package()?;
         self.store
             .save_package_encrypted(path, &package, passphrase)

@@ -330,16 +330,15 @@ mod tests {
 
     #[test]
     fn html_basic_structure() {
-        let blocks = import_html(
-            "<html><body><h1>Hi</h1><p>Para &amp; co</p><pre>code</pre></body></html>",
-        );
+        let blocks =
+            import_html("<html><body><h1>Hi</h1><p>Para &amp; co</p><pre>code</pre></body></html>");
         assert!(matches!(
             &blocks[0],
             DocxImportBlock::Heading { level: 1, text } if text == "Hi"
         ));
-        assert!(blocks
-            .iter()
-            .any(|b| matches!(b, DocxImportBlock::Paragraph { text } if text.contains("Para & co"))));
+        assert!(blocks.iter().any(
+            |b| matches!(b, DocxImportBlock::Paragraph { text } if text.contains("Para & co"))
+        ));
         assert!(blocks
             .iter()
             .any(|b| matches!(b, DocxImportBlock::Code { text } if text.contains("code"))));

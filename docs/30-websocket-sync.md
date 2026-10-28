@@ -64,6 +64,33 @@ session.pull(pull_req)?;
 
 Same pattern for `WssSyncClient::open_session`. One-shot `hello`/`push`/`pull` on the client types still open a short session per call.
 
+### Receive lifecycle and timeout contract
+
+Each connection owns one incremental reader, shared by the WS and WSS paths.
+It retains header, extended-length, mask, and payload offsets across idle
+reads. `WouldBlock` and `TimedOut` are classified by `std::io::ErrorKind`, not
+localized OS error text; `Interrupted` retries the same read. EOF, close frames,
+fatal I/O, malformed QFSNC1, and oversized frames are not idle retries.
+The existing 16 MiB WebSocket payload cap is checked before allocation.
+
+Server TLS/HTTP upgrade uses a 30-second socket read timeout. Only after the
+upgrade does the server use the 50 ms live-notify poll. These are per-read
+socket timeouts, not whole-handshake or whole-message deadlines.
+`wait_notify(timeout)` returns an empty batch on an idle read, retains any
+partial notification for the next call, and restores the previous socket read
+timeout on success or failure. A timed-out request/response call is still an
+error; callers must not assume a timed-out mutation was uncommitted or retry it
+blindly. Public `SyncError` variants, message shapes, and method signatures
+remain unchanged.
+
+Research checked October 18, 2026 against the pinned Rust 1.85.0 source:
+[`TcpStream` timeout kinds](https://github.com/rust-lang/rust/blob/1.85.0/library/std/src/net/tcp.rs)
+and [`Read::read_exact` partial-progress contract](https://github.com/rust-lang/rust/blob/1.85.0/library/std/src/io/mod.rs).
+Frame layout follows the existing
+[RFC 6455 section 5.2](https://www.rfc-editor.org/rfc/rfc6455.html#section-5.2)
+foundation framing. This focused repair does not add fragmented-message
+assembly, full control-frame handling, or a broader RFC-compliance claim.
+
 ## Live head notify
 
 Subscribed sessions receive unsolicited `Notify` frames when a peer Push advances the hub head (concurrent WS workers + live channels). See `docs/38-server-push-notify.md`.

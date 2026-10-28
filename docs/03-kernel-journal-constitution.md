@@ -195,7 +195,7 @@ pub trait Kernel {
 | KI-06 | Comment anchors resolve to existing or intentionally orphaned with flag |
 | KI-07 | Asset references either resolve or are marked missing (not deleted silently) |
 | KI-08 | `UnknownBlock.original_type` and `original_payload` unchanged unless explicit replace op |
-| KI-09 | Suggestion application only via dedicated accept ops |
+| KI-09 | Suggestion application only via dedicated accept ops; `ApplySuggestionOps` resolves only a stored **Accepted** proposal and rejects nested proposal markers |
 | KI-10 | No mark refers to missing comment/citation without orphan policy |
 
 ### 4.7 Validation rules at apply time
@@ -230,7 +230,7 @@ pub trait Kernel {
 
 **C2:** Dry-run is required for v1 to prevent journal poison. Dry-run uses the same pure apply function.
 
-**C3:** Undo emits **inverse operations** (or explicit undo ops that are themselves journaled). Undo does not truncate the journal.
+**C3:** Undo emits **inverse operations** (or explicit undo ops that are themselves journaled). Undo does not truncate the journal. Inverse restoration of a removed block preserves its complete typed body, spans/marks/citation, placement, and block metadata.
 
 ```rust
 // Undo is a new commit of inverse ops — journal grows, history preserved

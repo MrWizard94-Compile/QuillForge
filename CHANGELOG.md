@@ -6,8 +6,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- **WPAI Constitution adoption:** project guidance, CLI help, and CI now use
+  the accepted canonical GitHub source instead of a vendored law tree.
+  Project-specific product/architecture law is retained. Earlier governance
+  entries below are history, not instructions to load the retired copies.
+- **Declared formatting gate:** apply Rust 1.85.0 rustfmt to the published
+  baseline in a separate mechanical commit; no unrelated local product edits
+  or unpublished commits are included.
+- **Cross-platform MSRV:** constrain the home/Wayland lock cohort to compatible
+  patches after Linux CI exposed dependencies requiring newer Rust. Retain
+  Rust 1.85.0 and all OS/test gates; repeat Windows checks for the changed cohort.
+
+### Fixed
+
+- **WS/WSS idle sessions:** classify socket timeouts by I/O kind, retain
+  partial headers/masks/payloads across polls, and restore the prior timeout
+  after notification waits. Finish TLS/HTTP upgrade before 50 ms polling.
+  Public messages/APIs and existing product assertions are unchanged.
+
 ### Added
 
+- **Lossless inverse operations:** undoing a removed block restores its complete typed body (including span marks and quote citations), placement, and metadata; first suggestion upserts now undo with explicit deletion. `ApplySuggestionOps` only resolves stored accepted proposals and rejects recursive markers. The migration registry now models its actual empty v1 path instead of carrying dead same-version scaffolding.
+- **Reliable automation:** project-local Cargo configuration now provides the documented `cargo xtask` alias; the workspace-layout guide lists only supported xtask commands.
 - **Full open/export matrix:** open `qfdoc|docx|md|html|txt`; export `pdf|docx|md|html|txt` (+ save qfdoc); CLI `open` / `export-all`; GUI Export tab wired (`docs/41-open-export-matrix.md`). PDF remains export-only.
 - **Optional ONNX graph runtime:** Cargo feature `qf-search/onnx` adds pure-Rust `OnnxGraphRuntime` (QFEMB1 weight-table matmul + hash-bound fallback); default CI stays ORT-free (`docs/39-neural-onnx-pack.md`).
 - **DOCX TrueType font embed:** `export_docx_with_assets_and_font` writes `word/fonts/*.ttf` + `fontTable.xml`; editor DOCX uses pin font (`docs/40-font-packs.md`).

@@ -14,10 +14,7 @@ use std::path::{Path, PathBuf};
 pub const MIME_TYPE: &str = "application/vnd.quillforge.document";
 pub const FORMAT_VERSION: Version = Version::V1_0_0;
 /// Written into package metadata — WPAI Software product identity.
-pub const APP_VERSION: &str = concat!(
-    env!("CARGO_PKG_VERSION"),
-    " (WPAI Software)"
-);
+pub const APP_VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), " (WPAI Software)");
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Package {

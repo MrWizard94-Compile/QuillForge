@@ -4,9 +4,7 @@
 //! Development material uses self-signed certificates ([`TlsIdentity::generate_dev`]).
 //! Production deployments should supply CA-signed DER via [`TlsIdentity::from_der`].
 
-use crate::hub::{
-    Hello, HelloAck, PullRequest, PullResponse, PushAck, PushRequest, SyncHub,
-};
+use crate::hub::{Hello, HelloAck, PullRequest, PullResponse, PushAck, PushRequest, SyncHub};
 use crate::wire::{
     map_wire_err, read_frame, serve_one, write_frame, WireRequest, WireResponse, PROTOCOL_ID,
 };
@@ -61,13 +59,9 @@ impl TlsIdentity {
     /// Self-signed identity for localhost demos and tests (SAN: localhost, 127.0.0.1).
     pub fn generate_dev() -> Result<Self, SyncError> {
         ensure_crypto_provider();
-        let params = rcgen::CertificateParams::new(vec![
-            "localhost".into(),
-            "127.0.0.1".into(),
-        ])
-        .map_err(|e| SyncError::Network(e.to_string()))?;
-        let key_pair =
-            rcgen::KeyPair::generate().map_err(|e| SyncError::Network(e.to_string()))?;
+        let params = rcgen::CertificateParams::new(vec!["localhost".into(), "127.0.0.1".into()])
+            .map_err(|e| SyncError::Network(e.to_string()))?;
+        let key_pair = rcgen::KeyPair::generate().map_err(|e| SyncError::Network(e.to_string()))?;
         let cert = params
             .self_signed(&key_pair)
             .map_err(|e| SyncError::Network(e.to_string()))?;
@@ -176,10 +170,7 @@ fn b64_decode(s: &str) -> Result<Vec<u8>, SyncError> {
             .map(|i| i as u8)
             .ok_or_else(|| SyncError::Auth("invalid base64".into()))
     }
-    let clean: Vec<u8> = s
-        .bytes()
-        .filter(|b| !b.is_ascii_whitespace())
-        .collect();
+    let clean: Vec<u8> = s.bytes().filter(|b| !b.is_ascii_whitespace()).collect();
     if clean.is_empty() {
         return Ok(Vec::new());
     }
@@ -266,8 +257,8 @@ pub struct TlsSyncServer {
 impl TlsSyncServer {
     pub fn start(hub: SyncHub, identity: TlsIdentity) -> Result<Self, SyncError> {
         ensure_crypto_provider();
-        let listener = TcpListener::bind("127.0.0.1:0")
-            .map_err(|e| SyncError::Network(e.to_string()))?;
+        let listener =
+            TcpListener::bind("127.0.0.1:0").map_err(|e| SyncError::Network(e.to_string()))?;
         let addr = listener
             .local_addr()
             .map_err(|e| SyncError::Network(e.to_string()))?;
@@ -362,8 +353,8 @@ fn handle_tls_connection(
     stream
         .set_write_timeout(Some(Duration::from_secs(5)))
         .map_err(|e| SyncError::Network(e.to_string()))?;
-    let conn = rustls::ServerConnection::new(cfg.clone())
-        .map_err(|e| SyncError::Auth(e.to_string()))?;
+    let conn =
+        rustls::ServerConnection::new(cfg.clone()).map_err(|e| SyncError::Auth(e.to_string()))?;
     let mut tls = rustls::StreamOwned::new(conn, stream);
     serve_one(&mut tls, hub)
 }
@@ -394,7 +385,9 @@ impl TlsSyncClient {
         match self.round_trip(WireRequest::Hello(req))? {
             WireResponse::HelloAck(a) => Ok(a),
             WireResponse::Error { kind, message } => Err(map_wire_err(kind, message)),
-            other => Err(SyncError::Network(format!("unexpected response: {other:?}"))),
+            other => Err(SyncError::Network(format!(
+                "unexpected response: {other:?}"
+            ))),
         }
     }
 
@@ -402,7 +395,9 @@ impl TlsSyncClient {
         match self.round_trip(WireRequest::Pull(req))? {
             WireResponse::Pull(p) => Ok(p),
             WireResponse::Error { kind, message } => Err(map_wire_err(kind, message)),
-            other => Err(SyncError::Network(format!("unexpected response: {other:?}"))),
+            other => Err(SyncError::Network(format!(
+                "unexpected response: {other:?}"
+            ))),
         }
     }
 
@@ -410,7 +405,9 @@ impl TlsSyncClient {
         match self.round_trip(WireRequest::Push(req))? {
             WireResponse::PushAck(a) => Ok(a),
             WireResponse::Error { kind, message } => Err(map_wire_err(kind, message)),
-            other => Err(SyncError::Network(format!("unexpected response: {other:?}"))),
+            other => Err(SyncError::Network(format!(
+                "unexpected response: {other:?}"
+            ))),
         }
     }
 
@@ -534,8 +531,7 @@ mod tests {
         let server = TlsSyncServer::start(SyncHub::new(), identity.clone()).unwrap();
         let addr = server.addr();
         {
-            let mut stream =
-                TcpStream::connect_timeout(&addr, Duration::from_secs(2)).unwrap();
+            let mut stream = TcpStream::connect_timeout(&addr, Duration::from_secs(2)).unwrap();
             let _ = stream.write_all(crate::wire::MAGIC);
             let _ = stream.write_all(&4u32.to_le_bytes());
             let _ = stream.write_all(b"xxxx");

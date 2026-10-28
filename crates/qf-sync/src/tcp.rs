@@ -6,9 +6,7 @@ use crate::hub::{
     DrainNotifyRequest, Hello, HelloAck, NotifyBatch, PullRequest, PullResponse, PushAck,
     PushRequest, SubscribeRequest, Subscribed, SyncHub,
 };
-use crate::wire::{
-    map_wire_err, serve_one, write_frame, read_frame, WireRequest, WireResponse,
-};
+use crate::wire::{map_wire_err, read_frame, serve_one, write_frame, WireRequest, WireResponse};
 use crate::SyncError;
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -27,8 +25,8 @@ pub struct TcpSyncServer {
 impl TcpSyncServer {
     /// Bind `127.0.0.1:0` (ephemeral port) and spawn accept loop.
     pub fn start(hub: SyncHub) -> Result<Self, SyncError> {
-        let listener = TcpListener::bind("127.0.0.1:0")
-            .map_err(|e| SyncError::Network(e.to_string()))?;
+        let listener =
+            TcpListener::bind("127.0.0.1:0").map_err(|e| SyncError::Network(e.to_string()))?;
         let addr = listener
             .local_addr()
             .map_err(|e| SyncError::Network(e.to_string()))?;
@@ -120,7 +118,9 @@ impl TcpSyncClient {
         match self.round_trip(WireRequest::Hello(req))? {
             WireResponse::HelloAck(a) => Ok(a),
             WireResponse::Error { kind, message } => Err(map_wire_err(kind, message)),
-            other => Err(SyncError::Network(format!("unexpected response: {other:?}"))),
+            other => Err(SyncError::Network(format!(
+                "unexpected response: {other:?}"
+            ))),
         }
     }
 
@@ -128,7 +128,9 @@ impl TcpSyncClient {
         match self.round_trip(WireRequest::Pull(req))? {
             WireResponse::Pull(p) => Ok(p),
             WireResponse::Error { kind, message } => Err(map_wire_err(kind, message)),
-            other => Err(SyncError::Network(format!("unexpected response: {other:?}"))),
+            other => Err(SyncError::Network(format!(
+                "unexpected response: {other:?}"
+            ))),
         }
     }
 
@@ -136,7 +138,9 @@ impl TcpSyncClient {
         match self.round_trip(WireRequest::Push(req))? {
             WireResponse::PushAck(a) => Ok(a),
             WireResponse::Error { kind, message } => Err(map_wire_err(kind, message)),
-            other => Err(SyncError::Network(format!("unexpected response: {other:?}"))),
+            other => Err(SyncError::Network(format!(
+                "unexpected response: {other:?}"
+            ))),
         }
     }
 
@@ -144,7 +148,9 @@ impl TcpSyncClient {
         match self.round_trip(WireRequest::Subscribe(req))? {
             WireResponse::Subscribed(s) => Ok(s),
             WireResponse::Error { kind, message } => Err(map_wire_err(kind, message)),
-            other => Err(SyncError::Network(format!("unexpected response: {other:?}"))),
+            other => Err(SyncError::Network(format!(
+                "unexpected response: {other:?}"
+            ))),
         }
     }
 
@@ -152,7 +158,9 @@ impl TcpSyncClient {
         match self.round_trip(WireRequest::DrainNotify(req))? {
             WireResponse::Notify(n) => Ok(n),
             WireResponse::Error { kind, message } => Err(map_wire_err(kind, message)),
-            other => Err(SyncError::Network(format!("unexpected response: {other:?}"))),
+            other => Err(SyncError::Network(format!(
+                "unexpected response: {other:?}"
+            ))),
         }
     }
 
@@ -290,9 +298,7 @@ mod tests {
         .unwrap();
 
         let batch = b
-            .drain_notify(DrainNotifyRequest {
-                token: ack_b.token,
-            })
+            .drain_notify(DrainNotifyRequest { token: ack_b.token })
             .unwrap();
         assert_eq!(batch.events.len(), 1);
         assert_eq!(batch.events[0].server_head_seq, 1);
@@ -406,8 +412,7 @@ mod tests {
         let server = TcpSyncServer::start(SyncHub::new()).unwrap();
         let addr = server.addr();
         {
-            let mut stream =
-                TcpStream::connect_timeout(&addr, Duration::from_secs(2)).unwrap();
+            let mut stream = TcpStream::connect_timeout(&addr, Duration::from_secs(2)).unwrap();
             let _ = stream.write_all(b"BADMAGIC");
             let _ = stream.write_all(&4u32.to_le_bytes());
             let _ = stream.write_all(b"xxxx");

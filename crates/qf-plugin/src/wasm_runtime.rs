@@ -3,8 +3,8 @@
 //! Guests never see journal, filesystem, or network handles. All mutation
 //! proposals flow through [`PluginHost`] which still requires the command path.
 
-use crate::host::{PluginError, PluginHost, ProposedOp};
 use crate::caps::{CAP_BLOCK_CUSTOM_REGISTER, CAP_DOCUMENT_PROPOSE_OPS};
+use crate::host::{PluginError, PluginHost, ProposedOp};
 use qf_core::PluginId;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -118,7 +118,8 @@ impl WasmEngine {
                     if n == 0 {
                         return 0;
                     }
-                    let Some(mem) = caller.get_export("memory").and_then(|e| e.into_memory()) else {
+                    let Some(mem) = caller.get_export("memory").and_then(|e| e.into_memory())
+                    else {
                         return -1;
                     };
                     if mem.write(&mut caller, dst as usize, &data[..n]).is_err() {
@@ -129,9 +130,7 @@ impl WasmEngine {
             )
             .map_err(|e| PluginError::Trap(e.to_string()))?;
 
-        let instance = linker
-            .instantiate(&mut store, &module)
-            .map_err(map_trap)?;
+        let instance = linker.instantiate(&mut store, &module).map_err(map_trap)?;
 
         let activate = instance
             .get_typed_func::<(), i32>(&mut store, "activate")
@@ -365,7 +364,10 @@ mod tests {
         .unwrap();
         assert_eq!(result.status, 42);
         assert!(result.logs.iter().any(|l| l.contains("hello-from-wasm")));
-        assert!(host.borrow().type_registry().is_registered("com.example.wasm/note"));
+        assert!(host
+            .borrow()
+            .type_registry()
+            .is_registered("com.example.wasm/note"));
         let v = host.borrow_mut().kv_get(&id, b"k").unwrap();
         assert_eq!(v.as_deref(), Some(b"v".as_ref()));
     }

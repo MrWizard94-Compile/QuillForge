@@ -40,7 +40,7 @@
 - Operation apply matrix per block type  
 - Mark split/merge  
 - Offset projection  
-- Inverse op generation  
+- Inverse op generation, including full block-body/metadata restoration and accepted-suggestion marker reversal
 - PreservedMap round-trip  
 - Capability checks  
 

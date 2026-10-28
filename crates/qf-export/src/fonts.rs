@@ -227,7 +227,7 @@ pub fn build_mono_ttf(name: &str, upem: u16, advance: u16) -> Vec<u8> {
         (*b"name", name_tbl),
         (*b"post", post),
     ];
-    tables.sort_by(|a, b| a.0.cmp(&b.0));
+    tables.sort_by_key(|table| table.0);
 
     let num_tables = tables.len() as u16;
     let entry_selector = (15u16 - num_tables.leading_zeros() as u16).saturating_sub(1);
@@ -325,7 +325,7 @@ fn box_glyph(advance: u16, upem: u16) -> Vec<u8> {
     // endPtsOfContours
     g.extend_from_slice(&3u16.to_be_bytes());
     g.extend_from_slice(&0u16.to_be_bytes()); // instruction length
-    // flags: on-curve for 4 points
+                                              // flags: on-curve for 4 points
     g.extend_from_slice(&[0x01; 4]);
     // x deltas: x0, x1-x0, x1-x1=0? points: (x0,y0),(x1,y0),(x1,y1),(x0,y1)
     // Use short vectors with sign
@@ -406,7 +406,7 @@ fn build_cmap(first: u16, last: u16) -> Vec<u8> {
 
     let mut body = Vec::new();
     body.extend_from_slice(&4u16.to_be_bytes()); // format
-    // length filled later
+                                                 // length filled later
     body.extend_from_slice(&0u16.to_be_bytes()); // length placeholder
     body.extend_from_slice(&0u16.to_be_bytes()); // language
     body.extend_from_slice(&seg_count_x2.to_be_bytes());
@@ -417,14 +417,14 @@ fn build_cmap(first: u16, last: u16) -> Vec<u8> {
     body.extend_from_slice(&last.to_be_bytes());
     body.extend_from_slice(&0xFFFFu16.to_be_bytes());
     body.extend_from_slice(&0u16.to_be_bytes()); // reservedPad
-    // startCode
+                                                 // startCode
     body.extend_from_slice(&first.to_be_bytes());
     body.extend_from_slice(&0xFFFFu16.to_be_bytes());
     // idDelta: glyph id for char c = c - first + 1 (.notdef is 0)
     let id_delta = (1i16).wrapping_sub(first as i16);
     body.extend_from_slice(&id_delta.to_be_bytes());
     body.extend_from_slice(&1i16.to_be_bytes()); // for 0xFFFF → glyph 0
-    // idRangeOffset
+                                                 // idRangeOffset
     body.extend_from_slice(&0u16.to_be_bytes());
     body.extend_from_slice(&0u16.to_be_bytes());
 
@@ -452,7 +452,7 @@ fn build_name(family: &str) -> Vec<u8> {
     t.extend_from_slice(&0u16.to_be_bytes()); // format
     t.extend_from_slice(&1u16.to_be_bytes()); // count
     t.extend_from_slice(&18u16.to_be_bytes()); // stringOffset
-    // record
+                                               // record
     t.extend_from_slice(&3u16.to_be_bytes()); // platform
     t.extend_from_slice(&1u16.to_be_bytes()); // encoding
     t.extend_from_slice(&0x0409u16.to_be_bytes()); // language en-US
@@ -489,7 +489,10 @@ mod tests {
         assert!(pack.ttf_bytes.len() > 100);
         assert_eq!(pack.units_per_em(), 1000);
         let a = quill_mono_v1();
-        assert_eq!(a.ttf_bytes, pack.ttf_bytes, "pin font must be deterministic");
+        assert_eq!(
+            a.ttf_bytes, pack.ttf_bytes,
+            "pin font must be deterministic"
+        );
     }
 
     #[test]

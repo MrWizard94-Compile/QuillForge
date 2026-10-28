@@ -121,21 +121,16 @@ fn count_unknown_payloads(pkg: &Package) -> usize {
     n
 }
 
-/// Identity migration for harnesses (same version).
-pub struct IdentityMigration {
-    pub version: Version,
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-impl Migration for IdentityMigration {
-    fn from_version(&self) -> Version {
-        self.version
-    }
-
-    fn to_version(&self) -> Version {
-        self.version
-    }
-
-    fn migrate(&self, input: Package) -> Result<Package, MigrationError> {
-        Ok(input)
+    #[test]
+    fn target_version_requires_no_identity_edge() {
+        let registry = MigrationRegistry::new();
+        assert!(registry
+            .plan(Version::V1_0_0, Version::V1_0_0)
+            .unwrap()
+            .is_empty());
     }
 }

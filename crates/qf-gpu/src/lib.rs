@@ -89,6 +89,14 @@ pub struct GpuImageDraw {
     pub h: f32,
 }
 
+#[derive(Clone, Copy, Debug)]
+struct PixelRect {
+    x: i32,
+    y: i32,
+    width: i32,
+    height: i32,
+}
+
 #[derive(Clone, Debug)]
 pub struct GpuPath {
     pub points: Vec<(f32, f32)>,
@@ -278,7 +286,13 @@ impl FrameEncoder<'_> {
     pub fn draw_rects(&mut self, rects: &[GpuRect]) {
         for r in rects {
             let c = r.color.to_rgba8();
-            self.fill_rect_px(r.x as i32, r.y as i32, r.w.ceil() as i32, r.h.ceil() as i32, c);
+            self.fill_rect_px(
+                r.x as i32,
+                r.y as i32,
+                r.w.ceil() as i32,
+                r.h.ceil() as i32,
+                c,
+            );
             self.draws += 1;
         }
     }
@@ -288,12 +302,13 @@ impl FrameEncoder<'_> {
             if let Some((tw, th, src)) = self.image_atlas.get(img.texture_id) {
                 self.blit_scaled(
                     src,
-                    tw,
-                    th,
-                    img.x as i32,
-                    img.y as i32,
-                    img.w.ceil() as i32,
-                    img.h.ceil() as i32,
+                    (tw, th),
+                    PixelRect {
+                        x: img.x as i32,
+                        y: img.y as i32,
+                        width: img.w.ceil() as i32,
+                        height: img.h.ceil() as i32,
+                    },
                 );
                 self.draws += 1;
             }
@@ -304,7 +319,13 @@ impl FrameEncoder<'_> {
         for path in paths {
             let c = path.color.to_rgba8();
             for w in path.points.windows(2) {
-                self.draw_line(w[0].0 as i32, w[0].1 as i32, w[1].0 as i32, w[1].1 as i32, c);
+                self.draw_line(
+                    w[0].0 as i32,
+                    w[0].1 as i32,
+                    w[1].0 as i32,
+                    w[1].1 as i32,
+                    c,
+                );
             }
             self.draws += 1;
         }
@@ -344,10 +365,10 @@ impl FrameEncoder<'_> {
             return;
         }
         let inv = 255 - sa;
-        for c in 0..3 {
-            let d = self.framebuffer[i + c] as u32;
-            let s = rgba[c] as u32;
-            self.framebuffer[i + c] = ((s * sa + d * inv) / 255) as u8;
+        for (channel, source) in rgba.iter().copied().take(3).enumerate() {
+            let destination = self.framebuffer[i + channel] as u32;
+            let source = source as u32;
+            self.framebuffer[i + channel] = ((source * sa + destination * inv) / 255) as u8;
         }
         self.framebuffer[i + 3] = 255;
     }
@@ -379,30 +400,26 @@ impl FrameEncoder<'_> {
         }
     }
 
-    fn blit_scaled(
-        &mut self,
-        src: &[u8],
-        sw: u32,
-        sh: u32,
-        dx: i32,
-        dy: i32,
-        dw: i32,
-        dh: i32,
-    ) {
-        if sw == 0 || sh == 0 || dw <= 0 || dh <= 0 {
+    fn blit_scaled(&mut self, src: &[u8], source_size: (u32, u32), destination: PixelRect) {
+        let (source_width, source_height) = source_size;
+        if source_width == 0
+            || source_height == 0
+            || destination.width <= 0
+            || destination.height <= 0
+        {
             return;
         }
-        for row in 0..dh {
-            for col in 0..dw {
-                let sx = ((col as u32) * sw) / (dw as u32);
-                let sy = ((row as u32) * sh) / (dh as u32);
-                let si = ((sy as usize) * (sw as usize) + (sx as usize)) * 4;
+        for row in 0..destination.height {
+            for col in 0..destination.width {
+                let source_x = ((col as u32) * source_width) / (destination.width as u32);
+                let source_y = ((row as u32) * source_height) / (destination.height as u32);
+                let si = ((source_y as usize) * (source_width as usize) + (source_x as usize)) * 4;
                 if si + 3 >= src.len() {
                     continue;
                 }
                 let rgba = [src[si], src[si + 1], src[si + 2], src[si + 3]];
-                let px = dx + col;
-                let py = dy + row;
+                let px = destination.x + col;
+                let py = destination.y + row;
                 if px >= 0 && py >= 0 {
                     self.put_pixel(px as u32, py as u32, rgba);
                 }
@@ -452,7 +469,13 @@ mod tests {
         let mut ctx = GpuContext::headless(16, 16).unwrap();
         let id = ctx
             .image_atlas
-            .upload_rgba(2, 2, vec![255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255])
+            .upload_rgba(
+                2,
+                2,
+                vec![
+                    255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255,
+                ],
+            )
             .unwrap();
         {
             let mut enc = ctx.begin_frame().unwrap();

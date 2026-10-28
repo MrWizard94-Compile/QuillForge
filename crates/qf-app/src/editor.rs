@@ -68,14 +68,9 @@ impl EditorController {
         let mut gen = SeqIdGen::default();
         let actor = ActorId::new(&mut gen);
         let sess = SessionId::new(&mut gen);
-        let (session, _notes) = DocumentSession::open_package(
-            package_path,
-            journal_path,
-            actor,
-            sess,
-            Box::new(gen),
-        )
-        .map_err(|e| EditorError::Other(e.to_string()))?;
+        let (session, _notes) =
+            DocumentSession::open_package(package_path, journal_path, actor, sess, Box::new(gen))
+                .map_err(|e| EditorError::Other(e.to_string()))?;
         let mut ed = Self::new(session);
         // Focus first text-bearing block when present.
         let first = {
@@ -345,7 +340,7 @@ impl EditorController {
     /// Embeds the local-first pin font [`qf_export::FontPack::pin_default`] so
     /// PDF text does not depend on system fonts.
     pub fn export_pdf_bytes(&self) -> Result<Vec<u8>, EditorError> {
-        use qf_export::{export_pdf_with_assets_and_font, FontPack, ExportConfig};
+        use qf_export::{export_pdf_with_assets_and_font, ExportConfig, FontPack};
         export_pdf_with_assets_and_font(
             self.session.state(),
             &qf_export::sources_from_state(self.session.state()),
@@ -416,13 +411,17 @@ impl EditorController {
                 .unwrap_or_default()
         };
         for bid in existing.into_iter().rev() {
-            let _ = self.session.commit_command(Command::DeleteBlock { block_id: bid });
+            let _ = self
+                .session
+                .commit_command(Command::DeleteBlock { block_id: bid });
         }
 
         let mut count = 0u32;
         for block in blocks {
             let (body_type, body_payload) = match block {
-                DocxImportBlock::Paragraph { text } => ("paragraph".into(), text.as_bytes().to_vec()),
+                DocxImportBlock::Paragraph { text } => {
+                    ("paragraph".into(), text.as_bytes().to_vec())
+                }
                 DocxImportBlock::Heading { level, text } => {
                     let mut payload = vec![*level];
                     payload.extend_from_slice(text.as_bytes());
@@ -514,9 +513,7 @@ impl EditorController {
             "html" | "htm" => import_html(text),
             "txt" | "text" | "plain" => import_plain(text),
             other => {
-                return Err(EditorError::Other(format!(
-                    "unknown text format {other}"
-                )));
+                return Err(EditorError::Other(format!("unknown text format {other}")));
             }
         };
         self.apply_import_blocks(&blocks)
@@ -546,7 +543,7 @@ impl EditorController {
 
     /// Export current document as DOCX bytes (DrawingML images + pin TrueType font).
     pub fn export_docx_bytes(&self) -> Result<Vec<u8>, EditorError> {
-        use qf_export::{export_docx_with_assets_and_font, FontPack, ExportConfig};
+        use qf_export::{export_docx_with_assets_and_font, ExportConfig, FontPack};
         export_docx_with_assets_and_font(
             self.session.state(),
             &qf_export::sources_from_state(self.session.state()),
@@ -613,11 +610,7 @@ impl EditorController {
         Ok(())
     }
 
-    pub fn save_encrypted(
-        &mut self,
-        path: &Path,
-        passphrase: &str,
-    ) -> Result<(), EditorError> {
+    pub fn save_encrypted(&mut self, path: &Path, passphrase: &str) -> Result<(), EditorError> {
         self.session.save_encrypted(path, passphrase)?;
         Ok(())
     }

@@ -87,7 +87,10 @@ impl EditorController {
     }
 
     /// Propose a local AI suggestion for the focused block (record only — no content change).
-    pub fn propose_local_suggestion(&mut self, instruction: &str) -> Result<SuggestionId, EditorError> {
+    pub fn propose_local_suggestion(
+        &mut self,
+        instruction: &str,
+    ) -> Result<SuggestionId, EditorError> {
         let block_id = self.input.selection.block_id.ok_or(EditorError::NoFocus)?;
         let selection_text = self
             .session

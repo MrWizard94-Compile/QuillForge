@@ -1,9 +1,7 @@
 //! PB-LAYOUT — CI-gated layout performance budgets (docs/26-performance-budgets.md).
 
 use qf_blocks::{BlockBody, BlockMetadata, HeadingBlock, ParagraphBlock, Span};
-use qf_core::{
-    ActorId, BlockId, DocumentId, OpSeq, SectionId, SeqIdGen, Timestamp, Version,
-};
+use qf_core::{ActorId, BlockId, DocumentId, OpSeq, SectionId, SeqIdGen, Timestamp, Version};
 use qf_doc::{Block, Document};
 use qf_kernel::{CanonicalState, EntityTables};
 use qf_layout::{DirtySet, LayoutConfig, LayoutEngine};
@@ -87,7 +85,11 @@ fn budget_layout_mixed_200_under_limit() {
         .blocks
         .push(hid);
     for i in 0..199 {
-        push_paragraph(&mut state, &mut gen, &format!("Paragraph {i} with some text."));
+        push_paragraph(
+            &mut state,
+            &mut gen,
+            &format!("Paragraph {i} with some text."),
+        );
     }
 
     let engine = LayoutEngine::new();

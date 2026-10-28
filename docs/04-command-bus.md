@@ -160,7 +160,7 @@ pub enum Operation {
     UpsertComment { comment: Comment },
     DeleteComment { comment_id: CommentId },
     UpsertSuggestion { suggestion: Suggestion },
-    ApplySuggestionOps { suggestion_id: SuggestionId }, // expands recorded ops
+    ApplySuggestionOps { suggestion_id: SuggestionId }, // kernel resolves a stored Accepted proposal only
     SetDocumentMeta { patch: MetaPatch },
     // Inverse markers are normal ops; no special non-journaled undo
     Noop { reason: NoopReason },

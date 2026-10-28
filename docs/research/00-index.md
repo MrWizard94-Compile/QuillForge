@@ -2,10 +2,14 @@
 
 **Program:** Quillforge competitive architecture and engineering  
 **Status:** Binding research base for design & implementation  
-**Constitution:** AGENTS.md is law  
+**Constitution:** Project `AGENTS.md` routes to the canonical [WPAI Constitution](https://github.com/MrWizard94-Compile/Agents-Constitution)
 **Date:** 2026-07-27  
 
-## SOP stages (see `AGENTS Constitution/SOP.md`)
+## Historical research/delivery stages
+
+The stage numbers below describe this research program. Current process law
+lives in the canonical Constitution's `SOP.md`, loaded at the invocation's
+frozen accepted revision; this index is not a substitute operating procedure.
 
 | Stage | Document | Status |
 |-------|----------|--------|
